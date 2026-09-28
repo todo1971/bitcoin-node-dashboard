@@ -39,6 +39,28 @@ class VersionTests(unittest.TestCase):
         self.assertEqual(app.version_tuple("unknown"), ())
 
 
+class AlertEvaluationTests(unittest.TestCase):
+    def test_disk_alarm_fires_at_ninety_percent_used(self):
+        data = {
+            "chain": {"blocks": 100, "headers": 100},
+            "network": {"connections_in": 1},
+            "system": {
+                "disk": {"free_percent": 10.0},
+                "memory": {"used_percent": 50.0},
+            },
+            "external_node": {"available": False},
+            "version_check": {"update_available": False},
+        }
+        with patch.object(app, "DISK_MAX_USED_PERCENT", 90.0):
+            with patch.object(app, "set_alert_condition") as setter:
+                app.evaluate_alerts(data)
+        disk_call = next(
+            call for call in setter.call_args_list if call.args[0] == "disk_space"
+        )
+        self.assertTrue(disk_call.args[1])
+        self.assertIn("90.0%", disk_call.args[2])
+
+
 class HistoryDatabaseTests(unittest.TestCase):
     def setUp(self):
         self.temp_directory = tempfile.TemporaryDirectory()

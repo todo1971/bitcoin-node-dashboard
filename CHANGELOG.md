@@ -2,10 +2,16 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.4.2 – 2026-09-28
+
+- Speicherplatzalarm verständlich auf 90 Prozent Belegung umgestellt
+- neue Variable `DISK_MAX_USED_PERCENT` ergänzt
+- alte Variable `DISK_MIN_FREE_PERCENT` bleibt als Fallback kompatibel
+
 ## 1.4.1 – 2026-09-28
 
 - Datenträgerkarte und Verlauf von freiem auf belegten Speicher umgestellt
-- Alarmgrenze weiterhin anhand des freien Speichers berechnet
+- Alarmgrenze entsprach weiterhin weniger als 10 Prozent freiem Speicher
 
 ## 1.4.0 – 2026-09-28
 

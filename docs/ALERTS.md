@@ -13,9 +13,9 @@ Das Dashboard prüft bei jeder Messung:
 - Verfügbarkeit einer neueren stabilen Bitcoin-Core-Version
 
 CPU, RAM, freier Speicher und bitcoind-Laufzeit werden zusätzlich in SQLite
-gespeichert. Das Dashboard zeigt die Datenträgerbelegung als belegten Anteil;
-der Speicherplatzalarm wird weiterhin anhand des verbleibenden freien Anteils
-berechnet.
+gespeichert. Das Dashboard zeigt die Datenträgerbelegung als belegten Anteil.
+Der Speicherplatzalarm wird standardmäßig ab 90 Prozent Belegung ausgelöst.
+Intern gespeicherte freie Werte bleiben für die historische Berechnung erhalten.
 
 ## Alarmverhalten
 

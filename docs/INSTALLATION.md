@@ -45,7 +45,7 @@ Verfügbare Einstellungen:
 | `ALERT_NO_INBOUND_SECONDS` | `900` | Karenzzeit für fehlende Inbound-Peers |
 | `ALERT_COOLDOWN_SECONDS` | `21600` | Abstand wiederholter Benachrichtigungen |
 | `SYNC_LAG_BLOCKS` | `3` | maximal tolerierter Abstand zu den Headern |
-| `DISK_MIN_FREE_PERCENT` | `10` | Alarmgrenze für freien Datenträgerplatz |
+| `DISK_MAX_USED_PERCENT` | `90` | Alarmgrenze für belegten Datenträgerplatz |
 | `MEMORY_MAX_USED_PERCENT` | `90` | Alarmgrenze für RAM-Auslastung |
 
 ## 3. Systemd-Service installieren

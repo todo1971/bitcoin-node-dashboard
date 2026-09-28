@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -61,8 +61,18 @@ ALERT_COOLDOWN_SECONDS = max(
     300, int(os.getenv("ALERT_COOLDOWN_SECONDS", "21600"))
 )
 SYNC_LAG_BLOCKS = max(1, int(os.getenv("SYNC_LAG_BLOCKS", "3")))
-DISK_MIN_FREE_PERCENT = min(
-    50.0, max(1.0, float(os.getenv("DISK_MIN_FREE_PERCENT", "10")))
+_legacy_disk_min_free = float(os.getenv("DISK_MIN_FREE_PERCENT", "10"))
+DISK_MAX_USED_PERCENT = min(
+    99.0,
+    max(
+        50.0,
+        float(
+            os.getenv(
+                "DISK_MAX_USED_PERCENT",
+                str(100.0 - _legacy_disk_min_free),
+            )
+        ),
+    ),
 )
 MEMORY_MAX_USED_PERCENT = min(
     99.0, max(50.0, float(os.getenv("MEMORY_MAX_USED_PERCENT", "90")))
@@ -715,11 +725,12 @@ def evaluate_alerts(data: dict[str, Any]) -> None:
     )
 
     disk_free = _number(disk.get("free_percent"))
+    disk_used = 100.0 - disk_free if disk_free is not None else None
     set_alert_condition(
         "disk_space",
-        disk_free is not None and disk_free < DISK_MIN_FREE_PERCENT,
-        f"Nur noch {disk_free:.1f}% Speicher frei"
-        if disk_free is not None
+        disk_used is not None and disk_used >= DISK_MAX_USED_PERCENT,
+        f"Datenträgerbelegung liegt bei {disk_used:.1f}%"
+        if disk_used is not None
         else "Festplattenstatus unbekannt",
     )
 

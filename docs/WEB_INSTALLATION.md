@@ -16,7 +16,7 @@ Service-Benutzer Zugriff auf dessen RPC-Cookie besitzen.
 Paket unter `/home/todo` entpacken:
 
 ```bash
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.4.1.tar.gz -C /home/todo
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.4.2.tar.gz -C /home/todo
 sudo python3 /home/todo/bitcoin-dashboard/installer/web_installer.py
 ```
 
