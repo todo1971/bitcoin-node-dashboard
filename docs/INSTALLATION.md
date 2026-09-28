@@ -38,6 +38,15 @@ Verfügbare Einstellungen:
 | `DATABASE_PATH` | `/var/lib/bitcoin-dashboard/history.sqlite3` | SQLite-Datei |
 | `SAMPLE_INTERVAL_SECONDS` | `60` | Abstand der Messungen |
 | `HISTORY_RETENTION_DAYS` | `365` | Aufbewahrungsdauer |
+| `VERSION_CHECK_SECONDS` | `21600` | Cache der Versionsprüfung, mindestens eine Stunde |
+| `ALERT_EMAIL` | leer | Empfänger für Versand über lokales `sendmail` |
+| `ALERT_WEBHOOK_URL` | leer | optionaler HTTPS-Webhook für JSON-Alarme |
+| `ALERT_GRACE_SECONDS` | `300` | Karenzzeit für allgemeine Alarme |
+| `ALERT_NO_INBOUND_SECONDS` | `900` | Karenzzeit für fehlende Inbound-Peers |
+| `ALERT_COOLDOWN_SECONDS` | `21600` | Abstand wiederholter Benachrichtigungen |
+| `SYNC_LAG_BLOCKS` | `3` | maximal tolerierter Abstand zu den Headern |
+| `DISK_MIN_FREE_PERCENT` | `10` | Alarmgrenze für freien Datenträgerplatz |
+| `MEMORY_MAX_USED_PERCENT` | `90` | Alarmgrenze für RAM-Auslastung |
 
 ## 3. Systemd-Service installieren
 
@@ -100,6 +109,9 @@ sudo -u btc /home/btc/bin/bitcoin-cli \
 
 Wenn `/healthz` den Status 503 liefert, zuerst Cookie-Pfad, Dateirechte,
 Datadir und den Zustand von `bitcoind` prüfen.
+
+Alarmzustände und Benachrichtigungskanäle sind in [ALERTS.md](ALERTS.md)
+beschrieben.
 
 Die Datenbank kann separat geprüft werden:
 

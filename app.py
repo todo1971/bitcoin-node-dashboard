@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
+import socket
 import sqlite3
 import subprocess
 import threading
@@ -20,7 +23,8 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.3.0"
+__version__ = "1.4.0"
+STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 PORT = int(os.getenv("DASHBOARD_PORT", "8787"))
@@ -44,6 +48,25 @@ SAMPLE_INTERVAL_SECONDS = max(
 HISTORY_RETENTION_DAYS = max(
     1, int(os.getenv("HISTORY_RETENTION_DAYS", "365"))
 )
+VERSION_CHECK_SECONDS = max(
+    3600, int(os.getenv("VERSION_CHECK_SECONDS", "21600"))
+)
+ALERT_EMAIL = os.getenv("ALERT_EMAIL", "").strip()
+ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL", "").strip()
+ALERT_GRACE_SECONDS = max(60, int(os.getenv("ALERT_GRACE_SECONDS", "300")))
+ALERT_NO_INBOUND_SECONDS = max(
+    60, int(os.getenv("ALERT_NO_INBOUND_SECONDS", "900"))
+)
+ALERT_COOLDOWN_SECONDS = max(
+    300, int(os.getenv("ALERT_COOLDOWN_SECONDS", "21600"))
+)
+SYNC_LAG_BLOCKS = max(1, int(os.getenv("SYNC_LAG_BLOCKS", "3")))
+DISK_MIN_FREE_PERCENT = min(
+    50.0, max(1.0, float(os.getenv("DISK_MIN_FREE_PERCENT", "10")))
+)
+MEMORY_MAX_USED_PERCENT = min(
+    99.0, max(50.0, float(os.getenv("MEMORY_MAX_USED_PERCENT", "90")))
+)
 
 HISTORY_RANGES: dict[str, tuple[int, int]] = {
     "1h": (60 * 60, 60),
@@ -59,6 +82,10 @@ _cache_lock = threading.Lock()
 _cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _external_cache_lock = threading.Lock()
 _external_cache: dict[str, Any] = {"expires": 0.0, "data": None}
+_version_cache_lock = threading.Lock()
+_version_cache: dict[str, Any] = {"expires": 0.0, "data": None}
+_cpu_lock = threading.Lock()
+_cpu_previous: tuple[int, int] | None = None
 
 
 class RpcError(RuntimeError):
@@ -166,12 +193,131 @@ def fetch_external_node_status() -> dict[str, Any]:
         return result
 
 
+def version_tuple(value: str) -> tuple[int, ...]:
+    match = re.search(r"(\d+(?:\.\d+)+)", value)
+    if not match:
+        return ()
+    return tuple(int(part) for part in match.group(1).split("."))
+
+
+def fetch_latest_core_version() -> dict[str, Any]:
+    now = time.monotonic()
+    with _version_cache_lock:
+        if _version_cache["data"] is not None and now < _version_cache["expires"]:
+            return _version_cache["data"]
+        result: dict[str, Any] = {
+            "available": False,
+            "latest": None,
+            "release_url": "https://bitcoincore.org/en/releases/",
+        }
+        try:
+            request = urllib.request.Request(
+                "https://bitcoincore.org/en/download/",
+                headers={"User-Agent": "BitcoinDashboard/1.4"},
+            )
+            with urllib.request.urlopen(request, timeout=8) as response:
+                page = response.read(1_000_000).decode("utf-8", "replace")
+            match = re.search(
+                r"Latest version:\s*</?[^>]*>*\s*(\d+\.\d+(?:\.\d+)?)",
+                page,
+                re.IGNORECASE,
+            ) or re.search(
+                r"Latest version:\s*(\d+\.\d+(?:\.\d+)?)",
+                page,
+                re.IGNORECASE,
+            )
+            if match:
+                latest = match.group(1)
+                result.update(
+                    available=True,
+                    latest=latest,
+                    release_url=f"https://bitcoincore.org/en/releases/{latest}/",
+                )
+        except (OSError, ValueError, urllib.error.URLError):
+            pass
+        _version_cache.update(data=result, expires=now + VERSION_CHECK_SECONDS)
+        return result
+
+
+def cpu_percent() -> float | None:
+    global _cpu_previous
+    try:
+        fields = Path("/proc/stat").read_text(encoding="utf-8").splitlines()[0].split()
+        if fields[0] != "cpu":
+            return None
+        counters = [int(value) for value in fields[1:]]
+        idle = counters[3] + (counters[4] if len(counters) > 4 else 0)
+        total = sum(counters)
+    except (OSError, ValueError, IndexError):
+        return None
+    with _cpu_lock:
+        previous = _cpu_previous
+        _cpu_previous = (total, idle)
+    if previous is None:
+        return None
+    total_delta = total - previous[0]
+    idle_delta = idle - previous[1]
+    if total_delta <= 0:
+        return None
+    return round(100.0 * (1.0 - idle_delta / total_delta), 2)
+
+
+def memory_stats() -> dict[str, int | float | None]:
+    values: dict[str, int] = {}
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            key, raw = line.split(":", 1)
+            values[key] = int(raw.strip().split()[0]) * 1024
+    except (OSError, ValueError, IndexError):
+        return {"total": None, "available": None, "used_percent": None}
+    total = values.get("MemTotal")
+    available = values.get("MemAvailable")
+    used_percent = (
+        round(100.0 * (total - available) / total, 2)
+        if total and available is not None
+        else None
+    )
+    return {"total": total, "available": available, "used_percent": used_percent}
+
+
+def system_stats() -> dict[str, Any]:
+    try:
+        disk = shutil.disk_usage(BITCOIN_DATADIR)
+        disk_free_percent = round(100.0 * disk.free / disk.total, 2)
+        disk_values: dict[str, int | float | None] = {
+            "total": disk.total,
+            "used": disk.used,
+            "free": disk.free,
+            "free_percent": disk_free_percent,
+        }
+    except OSError:
+        disk_values = {
+            "total": None,
+            "used": None,
+            "free": None,
+            "free_percent": None,
+        }
+    try:
+        load = [round(value, 2) for value in os.getloadavg()]
+    except (AttributeError, OSError):
+        load = []
+    return {
+        "cpu_percent": cpu_percent(),
+        "memory": memory_stats(),
+        "disk": disk_values,
+        "load_average": load,
+        "dashboard_uptime": max(0, int(time.time()) - STARTED_AT),
+    }
+
+
 def build_snapshot() -> dict[str, Any]:
     chain = bitcoin_cli("getblockchaininfo")
     network = bitcoin_cli("getnetworkinfo")
     mempool = bitcoin_cli("getmempoolinfo")
     net_totals = bitcoin_cli("getnettotals")
     peers = bitcoin_cli("getpeerinfo")
+    bitcoind_uptime = safe_call("uptime")
+    latest_version = dict(fetch_latest_core_version())
 
     height = int(chain.get("blocks", 0))
     block_stats = safe_call("getblockstats", str(height)) if height else None
@@ -185,6 +331,14 @@ def build_snapshot() -> dict[str, Any]:
             inbound += 1
         else:
             outbound += 1
+
+    current_version = str(network.get("subversion") or "")
+    current_tuple = version_tuple(current_version)
+    latest_tuple = version_tuple(str(latest_version.get("latest") or ""))
+    latest_version["current"] = current_version
+    latest_version["update_available"] = bool(
+        current_tuple and latest_tuple and current_tuple < latest_tuple
+    )
 
     return {
         "generated_at": int(time.time()),
@@ -201,6 +355,7 @@ def build_snapshot() -> dict[str, Any]:
         },
         "network": {
             "version": network.get("subversion"),
+            "bitcoind_uptime": bitcoind_uptime,
             "connections": network.get("connections"),
             "connections_in": network.get("connections_in", inbound),
             "connections_out": network.get("connections_out", outbound),
@@ -223,6 +378,8 @@ def build_snapshot() -> dict[str, Any]:
         },
         "latest_block": block_stats,
         "external_node": fetch_external_node_status(),
+        "system": system_stats(),
+        "version_check": latest_version,
     }
 
 
@@ -270,7 +427,41 @@ def init_database() -> None:
                     bytes_received INTEGER,
                     bytes_sent INTEGER,
                     block_transactions INTEGER,
-                    block_total_fee_btc REAL
+                    block_total_fee_btc REAL,
+                    cpu_percent REAL,
+                    memory_used_percent REAL,
+                    disk_free_percent REAL,
+                    disk_free_bytes INTEGER,
+                    bitcoind_uptime INTEGER
+                )
+                """
+            )
+            existing_columns = {
+                row[1]
+                for row in connection.execute(
+                    "PRAGMA table_info(node_samples)"
+                ).fetchall()
+            }
+            migrations = {
+                "cpu_percent": "REAL",
+                "memory_used_percent": "REAL",
+                "disk_free_percent": "REAL",
+                "disk_free_bytes": "INTEGER",
+                "bitcoind_uptime": "INTEGER",
+            }
+            for column, data_type in migrations.items():
+                if column not in existing_columns:
+                    connection.execute(
+                        f"ALTER TABLE node_samples ADD COLUMN {column} {data_type}"
+                    )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS alert_states (
+                    alert_key TEXT PRIMARY KEY,
+                    first_seen INTEGER NOT NULL,
+                    active INTEGER NOT NULL DEFAULT 0,
+                    last_notified INTEGER,
+                    message TEXT NOT NULL
                 )
                 """
             )
@@ -286,6 +477,9 @@ def store_snapshot(data: dict[str, Any]) -> None:
     mempool = data.get("mempool", {})
     fees = data.get("fees_sat_vb", {})
     block = data.get("latest_block") or {}
+    system = data.get("system", {})
+    memory = system.get("memory", {})
+    disk = system.get("disk", {})
     minimum_fee = _number(mempool.get("min_fee_btc_kvb"))
     sampled_at = int(data.get("generated_at") or time.time())
 
@@ -312,6 +506,11 @@ def store_snapshot(data: dict[str, Any]) -> None:
         (float(block["totalfee"]) / 100_000_000)
         if isinstance(block.get("totalfee"), (int, float))
         else None,
+        _number(system.get("cpu_percent")),
+        _number(memory.get("used_percent")),
+        _number(disk.get("free_percent")),
+        _number(disk.get("free")),
+        _number(network.get("bitcoind_uptime")),
     )
 
     cutoff = sampled_at - HISTORY_RETENTION_DAYS * 24 * 60 * 60
@@ -325,8 +524,10 @@ def store_snapshot(data: dict[str, Any]) -> None:
                     mempool_transactions, mempool_bytes, mempool_memory_usage,
                     mempool_min_fee_sat_vb, fee_2_sat_vb, fee_6_sat_vb,
                     fee_12_sat_vb, bytes_received, bytes_sent,
-                    block_transactions, block_total_fee_btc
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    block_transactions, block_total_fee_btc, cpu_percent,
+                    memory_used_percent, disk_free_percent, disk_free_bytes,
+                    bitcoind_uptime
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -357,7 +558,10 @@ def history_data(range_name: str) -> dict[str, Any]:
                 AVG(mempool_min_fee_sat_vb) AS mempool_min_fee_sat_vb,
                 AVG(fee_2_sat_vb) AS fee_2_sat_vb,
                 AVG(fee_6_sat_vb) AS fee_6_sat_vb,
-                AVG(fee_12_sat_vb) AS fee_12_sat_vb
+                AVG(fee_12_sat_vb) AS fee_12_sat_vb,
+                AVG(cpu_percent) AS cpu_percent,
+                AVG(memory_used_percent) AS memory_used_percent,
+                AVG(disk_free_percent) AS disk_free_percent
             FROM node_samples
             WHERE sampled_at >= ?
             GROUP BY timestamp
@@ -374,6 +578,187 @@ def history_data(range_name: str) -> dict[str, Any]:
     }
 
 
+def deliver_notification(subject: str, message: str) -> None:
+    print(f"ALERT: {subject}: {message}", flush=True)
+    if ALERT_EMAIL and "\n" not in ALERT_EMAIL and "\r" not in ALERT_EMAIL:
+        sendmail = shutil.which("sendmail") or "/usr/sbin/sendmail"
+        if Path(sendmail).is_file():
+            payload = (
+                f"To: {ALERT_EMAIL}\n"
+                f"Subject: [Bitcoin Node] {subject}\n"
+                "Content-Type: text/plain; charset=utf-8\n"
+                "Auto-Submitted: auto-generated\n\n"
+                f"Host: {socket.gethostname()}\n{message}\n"
+            )
+            try:
+                subprocess.run(
+                    [sendmail, "-t", "-oi"],
+                    input=payload,
+                    text=True,
+                    timeout=15,
+                    check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                print("Alert email delivery failed", flush=True)
+    if ALERT_WEBHOOK_URL.startswith("https://"):
+        try:
+            body = json.dumps(
+                {
+                    "subject": subject,
+                    "message": message,
+                    "host": socket.gethostname(),
+                    "timestamp": int(time.time()),
+                }
+            ).encode()
+            request = urllib.request.Request(
+                ALERT_WEBHOOK_URL,
+                data=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "BitcoinDashboard/1.4",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=10):
+                pass
+        except (OSError, ValueError, urllib.error.URLError):
+            print("Alert webhook delivery failed", flush=True)
+
+
+def set_alert_condition(
+    alert_key: str,
+    firing: bool,
+    message: str,
+    grace_seconds: int = ALERT_GRACE_SECONDS,
+) -> None:
+    now = int(time.time())
+    notification: tuple[str, str] | None = None
+    with closing(database_connection()) as connection:
+        with connection:
+            row = connection.execute(
+                "SELECT * FROM alert_states WHERE alert_key = ?",
+                (alert_key,),
+            ).fetchone()
+            if firing:
+                if row is None:
+                    connection.execute(
+                        """
+                        INSERT INTO alert_states
+                            (alert_key, first_seen, active, last_notified, message)
+                        VALUES (?, ?, 0, NULL, ?)
+                        """,
+                        (alert_key, now, message),
+                    )
+                elif not row["active"] and now - row["first_seen"] >= grace_seconds:
+                    connection.execute(
+                        """
+                        UPDATE alert_states
+                        SET active = 1, last_notified = ?, message = ?
+                        WHERE alert_key = ?
+                        """,
+                        (now, message, alert_key),
+                    )
+                    notification = (f"Alarm: {alert_key}", message)
+                elif row["active"]:
+                    last_notified = row["last_notified"] or 0
+                    connection.execute(
+                        "UPDATE alert_states SET message = ? WHERE alert_key = ?",
+                        (message, alert_key),
+                    )
+                    if now - last_notified >= ALERT_COOLDOWN_SECONDS:
+                        connection.execute(
+                            "UPDATE alert_states SET last_notified = ? WHERE alert_key = ?",
+                            (now, alert_key),
+                        )
+                        notification = (f"Alarm weiterhin aktiv: {alert_key}", message)
+            elif row is not None:
+                if row["active"]:
+                    notification = (
+                        f"Entwarnung: {alert_key}",
+                        f"Der Zustand ist wieder normal. Zuvor: {row['message']}",
+                    )
+                connection.execute(
+                    "DELETE FROM alert_states WHERE alert_key = ?",
+                    (alert_key,),
+                )
+    if notification:
+        deliver_notification(*notification)
+
+
+def evaluate_alerts(data: dict[str, Any]) -> None:
+    chain = data.get("chain", {})
+    network = data.get("network", {})
+    system = data.get("system", {})
+    disk = system.get("disk", {})
+    memory = system.get("memory", {})
+    external = data.get("external_node", {})
+    version = data.get("version_check", {})
+
+    set_alert_condition("node_rpc", False, "Bitcoin Core RPC ist erreichbar")
+    blocks = int(chain.get("blocks") or 0)
+    headers = int(chain.get("headers") or 0)
+    lag = max(0, headers - blocks)
+    syncing = bool(chain.get("initial_block_download")) or lag > SYNC_LAG_BLOCKS
+    set_alert_condition(
+        "sync_lag",
+        syncing,
+        f"Node liegt {lag} Blöcke zurück (Blocks {blocks}, Headers {headers})",
+    )
+
+    inbound = int(network.get("connections_in") or 0)
+    set_alert_condition(
+        "no_inbound_peers",
+        inbound == 0,
+        "Keine eingehenden Bitcoin-Peers verbunden",
+        ALERT_NO_INBOUND_SECONDS,
+    )
+
+    disk_free = _number(disk.get("free_percent"))
+    set_alert_condition(
+        "disk_space",
+        disk_free is not None and disk_free < DISK_MIN_FREE_PERCENT,
+        f"Nur noch {disk_free:.1f}% Speicher frei"
+        if disk_free is not None
+        else "Festplattenstatus unbekannt",
+    )
+
+    memory_used = _number(memory.get("used_percent"))
+    set_alert_condition(
+        "memory_pressure",
+        memory_used is not None and memory_used > MEMORY_MAX_USED_PERCENT,
+        f"RAM-Auslastung liegt bei {memory_used:.1f}%"
+        if memory_used is not None
+        else "RAM-Status unbekannt",
+    )
+
+    set_alert_condition(
+        "external_unreachable",
+        external.get("available") is True and external.get("reachable") is False,
+        f"Öffentlicher P2P-Port {PUBLIC_NODE_ADDRESS}:{PUBLIC_NODE_PORT} ist extern nicht erreichbar",
+        ALERT_NO_INBOUND_SECONDS,
+    )
+    set_alert_condition(
+        "core_update",
+        version.get("update_available") is True,
+        f"Bitcoin Core {version.get('latest')} ist verfügbar; installiert ist {version.get('current')}",
+        60,
+    )
+
+
+def active_alerts() -> list[dict[str, Any]]:
+    init_database()
+    with closing(database_connection()) as connection:
+        rows = connection.execute(
+            """
+            SELECT alert_key, first_seen, last_notified, message
+            FROM alert_states
+            WHERE active = 1
+            ORDER BY first_seen
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def sampler_loop() -> None:
     initialized = False
     while True:
@@ -382,9 +767,26 @@ def sampler_loop() -> None:
             if not initialized:
                 init_database()
                 initialized = True
-            store_snapshot(snapshot())
         except Exception as exc:
-            print(f"History sample failed: {exc}", flush=True)
+            print(f"Database initialization failed: {exc}", flush=True)
+        try:
+            data = snapshot()
+        except Exception as exc:
+            print(f"Node snapshot failed: {exc}", flush=True)
+            try:
+                set_alert_condition(
+                    "node_rpc",
+                    True,
+                    f"Bitcoin Core RPC ist nicht erreichbar: {str(exc)[:300]}",
+                )
+            except Exception as alert_exc:
+                print(f"Node outage alert failed: {alert_exc}", flush=True)
+        else:
+            try:
+                store_snapshot(data)
+                evaluate_alerts(data)
+            except Exception as exc:
+                print(f"Sample processing failed: {exc}", flush=True)
         elapsed = time.monotonic() - started
         time.sleep(max(1, SAMPLE_INTERVAL_SECONDS - elapsed))
 
@@ -431,6 +833,17 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 print(f"History request failed: {exc}", flush=True)
                 body = b'{"error":"History data unavailable"}'
+                self.send_bytes(body, "application/json; charset=utf-8", 503)
+            return
+        if path == "/api/alerts":
+            try:
+                body = json.dumps(
+                    {"alerts": active_alerts()}, separators=(",", ":")
+                ).encode()
+                self.send_bytes(body, "application/json; charset=utf-8")
+            except Exception as exc:
+                print(f"Alert request failed: {exc}", flush=True)
+                body = b'{"error":"Alert data unavailable"}'
                 self.send_bytes(body, "application/json; charset=utf-8", 503)
             return
         if path == "/healthz":

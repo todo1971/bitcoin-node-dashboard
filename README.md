@@ -2,8 +2,9 @@
 
 Ein leichtgewichtiges, nur lesendes Web-Dashboard für Bitcoin Core. Es zeigt
 Synchronisation, Peers, Mempool, Gebührenschätzungen, Netzwerkverkehr und den
-letzten Block. Zusätzlich prüft es über BTCNodes, ob der öffentliche P2P-Port
-aus Sicht eines unabhängigen Crawlers erreichbar ist.
+letzten Block. Hinzu kommen Host-Metriken, Alarmierung und die Prüfung auf neue
+Bitcoin-Core-Versionen. Über BTCNodes wird außerdem geprüft, ob der öffentliche
+P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab)
 ![Bitcoin Core](https://img.shields.io/badge/Bitcoin%20Core-31.x-f7931a)
@@ -22,6 +23,9 @@ aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
 - lokaler Web-Installer für systemd-basierte Linux-Server
 - getrennte Wartungsoberfläche mit geprüften Update-Helfern und Rollback
+- CPU-, RAM-, Datenträger- und bitcoind-Laufzeitüberwachung mit Historie
+- Alarme mit Karenzzeit, Wiederholsperre, Entwarnung, E-Mail und HTTPS-Webhook
+- Versionsvergleich mit der offiziellen Bitcoin-Core-Downloadseite
 
 ## Voraussetzungen
 
@@ -94,6 +98,7 @@ sudo systemctl restart bitcoin-dashboard
 | `/` | Dashboard |
 | `/api/dashboard` | aggregierte Node-Daten als JSON |
 | `/api/history?range=24h` | verdichtete historische Messwerte |
+| `/api/alerts` | derzeit aktive Alarme |
 | `/healthz` | lokaler Funktions- und RPC-Test |
 
 Es gibt bewusst keinen Endpunkt, über den beliebige RPC-Methoden oder Argumente
@@ -106,6 +111,7 @@ an Bitcoin Core übergeben werden können.
 - [Datenbank und Datenmenge](docs/DATABASE.md)
 - [Web-Installation](docs/WEB_INSTALLATION.md)
 - [Sichere Updates](docs/UPDATES.md)
+- [Alarme und Systemüberwachung](docs/ALERTS.md)
 - [Sicherheitskonzept](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Änderungen](CHANGELOG.md)

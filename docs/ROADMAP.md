@@ -12,11 +12,17 @@
 - Dashboard- und Bitcoin-Core-Updatehelfer
 - Backups, Healthchecks und automatischer Rollback bei Startfehlern
 
-## Nächste Ausbaustufe
+## Umgesetzt in 1.4
 
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers
 - Überwachung von Festplattenspeicher, CPU, RAM und Prozesslaufzeit
 - Versionsprüfung für Bitcoin Core
+
+## Nächste Ausbaustufe
+
+- Prometheus-Endpunkt für externe Langzeitüberwachung
+- optional getrennte Schwellenwerte je Alarm im Wartungspanel bearbeiten
+- zusätzliche Benachrichtigungskanäle wie Telegram oder ntfy
 
 ## Netzwerkdiagnose
 

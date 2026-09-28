@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.4.0 – 2026-09-28
+
+- Alarme für RPC-Ausfall, Sync-Rückstand und fehlende Inbound-Peers ergänzt
+- CPU-, RAM-, Datenträger- und bitcoind-Laufzeitmessung ergänzt
+- Systemmetriken in SQLite-Historie und Diagrammen ergänzt
+- optionale Benachrichtigung per lokalem Sendmail und HTTPS-Webhook ergänzt
+- Versionsprüfung über den offiziellen Bitcoin-Core-Release-Index ergänzt
+- Alarmkarenz, Wiederholsperre und Entwarnungen ergänzt
+
 ## 1.3.0 – 2026-09-28
 
 - lokalen, token-geschützten Web-Installer ergänzt

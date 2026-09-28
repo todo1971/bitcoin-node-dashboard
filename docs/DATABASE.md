@@ -25,6 +25,13 @@ Die Tabelle `node_samples` enthält pro Messzeitpunkt:
 - Gebührenschätzungen für 2, 6 und 12 Blöcke
 - kumulierten Netzwerkverkehr
 - Transaktionen und Gesamtgebühren des neuesten Blocks
+- CPU- und RAM-Auslastung
+- freier Datenträgerplatz im Bitcoin-Datadir
+- Laufzeit des bitcoind-Prozesses
+
+Die Tabelle `alert_states` hält Beginn, Aktivierungszustand und letzte
+Benachrichtigung eines Alarms fest. Dadurch bleiben Karenzzeit und
+Wiederholsperre auch nach einem Dashboard-Neustart wirksam.
 
 Die API liefert keine halbe Million Rohdatensätze an den Browser. Sie verdichtet
 die Daten abhängig vom ausgewählten Zeitraum in feste Zeitfenster:

@@ -31,6 +31,14 @@ class ExternalStatusTests(unittest.TestCase):
         self.assertEqual(result["address"], app.PUBLIC_NODE_ADDRESS)
 
 
+class VersionTests(unittest.TestCase):
+    def test_extracts_numeric_version(self):
+        self.assertEqual(app.version_tuple("/Satoshi:32.0.1/"), (32, 0, 1))
+
+    def test_invalid_version_is_empty(self):
+        self.assertEqual(app.version_tuple("unknown"), ())
+
+
 class HistoryDatabaseTests(unittest.TestCase):
     def setUp(self):
         self.temp_directory = tempfile.TemporaryDirectory()
@@ -57,6 +65,7 @@ class HistoryDatabaseTests(unittest.TestCase):
                 "connections_out": connections - inbound,
                 "bytes_received": 100,
                 "bytes_sent": 200,
+                "bitcoind_uptime": 3_600,
             },
             "mempool": {
                 "transactions": 10,
@@ -66,6 +75,11 @@ class HistoryDatabaseTests(unittest.TestCase):
             },
             "fees_sat_vb": {"2": fee, "6": fee / 2, "12": fee / 4},
             "latest_block": {"txs": 2_000, "totalfee": 123_456},
+            "system": {
+                "cpu_percent": 12.5,
+                "memory": {"used_percent": 42.0},
+                "disk": {"free_percent": 66.0, "free": 99_000},
+            },
         }
 
     def test_stores_and_returns_bucketed_history(self):
@@ -79,6 +93,8 @@ class HistoryDatabaseTests(unittest.TestCase):
         self.assertEqual(len(result["points"]), 2)
         self.assertEqual(result["points"][0]["connections"], 20.0)
         self.assertEqual(result["points"][1]["fee_2_sat_vb"], 10.0)
+        self.assertEqual(result["points"][0]["cpu_percent"], 12.5)
+        self.assertEqual(result["points"][0]["disk_free_percent"], 66.0)
 
     def test_unknown_range_falls_back_to_24_hours(self):
         with patch.object(app.time, "time", return_value=1_500):
@@ -91,6 +107,22 @@ class HistoryDatabaseTests(unittest.TestCase):
             result = app.history_data("1h")
         self.assertEqual(result["range"], "1h")
         self.assertEqual(result["bucket_seconds"], 60)
+
+    def test_alert_activates_after_grace_and_sends_recovery(self):
+        with patch.object(app, "deliver_notification") as notify:
+            with patch.object(app.time, "time", return_value=1_000):
+                app.set_alert_condition("test", True, "Fehler", 300)
+            self.assertEqual(app.active_alerts(), [])
+
+            with patch.object(app.time, "time", return_value=1_301):
+                app.set_alert_condition("test", True, "Fehler", 300)
+            self.assertEqual(len(app.active_alerts()), 1)
+            self.assertEqual(notify.call_count, 1)
+
+            with patch.object(app.time, "time", return_value=1_400):
+                app.set_alert_condition("test", False, "OK", 300)
+            self.assertEqual(app.active_alerts(), [])
+            self.assertEqual(notify.call_count, 2)
 
 
 if __name__ == "__main__":

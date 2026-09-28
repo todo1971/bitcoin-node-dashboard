@@ -149,6 +149,15 @@ EXTERNAL_CACHE_SECONDS=300
 DATABASE_PATH=/var/lib/bitcoin-dashboard/history.sqlite3
 SAMPLE_INTERVAL_SECONDS={sample_interval}
 HISTORY_RETENTION_DAYS={retention_days}
+VERSION_CHECK_SECONDS=21600
+ALERT_EMAIL=
+ALERT_WEBHOOK_URL=
+ALERT_GRACE_SECONDS=300
+ALERT_NO_INBOUND_SECONDS=900
+ALERT_COOLDOWN_SECONDS=21600
+SYNC_LAG_BLOCKS=3
+DISK_MIN_FREE_PERCENT=10
+MEMORY_MAX_USED_PERCENT=90
 """
     env_path = Path("/etc/default/bitcoin-dashboard")
     env_path.write_text(environment, encoding="utf-8")

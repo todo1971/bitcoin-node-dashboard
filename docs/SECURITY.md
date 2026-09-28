@@ -29,6 +29,7 @@ Peer-IP-Adressen werden derzeit nicht an den Browser ausgeliefert.
 - Bitcoin Core und das Betriebssystem regelmäßig aktualisieren.
 - Reverse-Proxy-Rate-Limits ergänzen, falls die Instanz öffentlich stark genutzt wird.
 - Port 8790 und 8791 niemals über Plesk, Firewall oder Reverse Proxy veröffentlichen.
+- Webhook-Ziele ausschließlich per HTTPS konfigurieren und das Ziel als Geheimnis behandeln.
 
 ## Geheimnisse
 
@@ -40,6 +41,7 @@ Folgende Inhalte dürfen nicht in Git eingecheckt werden:
 - TLS-Private-Keys
 - persönliche Zugangstoken
 - produktive SQLite-Datenbanken
+- Webhook-URLs mit eingebetteten Zugangstoken
 
 Die Datei `.env` wird deshalb durch `.gitignore` ausgeschlossen.
 
