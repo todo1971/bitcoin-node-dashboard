@@ -31,7 +31,7 @@ if test "$dashboard_user" = btc && test "$dashboard_target" = /home/btc/bitcoin-
     install -o root -g root -m 0644 "$project_dir/bitcoin-dashboard.service" "$unit_path"
 elif test -f "$unit_path"; then
     unit_tmp=$(mktemp)
-    sed '/^NoNewPrivileges=/d' "$unit_path" >"$unit_tmp"
+    sed '/^\(NoNewPrivileges\|PrivateDevices\|ProtectClock\|ProtectKernelLogs\|ProtectKernelModules\|ProtectKernelTunables\|RestrictNamespaces\|LockPersonality\|SystemCallArchitectures\)=/d' "$unit_path" >"$unit_tmp"
     install -o root -g root -m 0644 "$unit_tmp" "$unit_path"
     rm -f -- "$unit_tmp"
 else

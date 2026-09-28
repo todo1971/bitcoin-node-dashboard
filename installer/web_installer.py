@@ -181,18 +181,10 @@ RestartSec=5
 StateDirectory=bitcoin-dashboard
 StateDirectoryMode=0750
 PrivateTmp=true
-PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadOnlyPaths={target} {bitcoin_datadir} {bitcoin_cookie.parent}
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectKernelLogs=true
 ProtectControlGroups=true
-ProtectClock=true
-RestrictNamespaces=true
-LockPersonality=true
-SystemCallArchitectures=native
 
 [Install]
 WantedBy=multi-user.target

@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.5.2 – 2026-09-28
+
+- systemd-Optionen entfernt, die `NoNewPrivileges` indirekt aktivierten
+- integrierte Update-Aufträge können dadurch die exakt erlaubten sudo-Regeln verwenden
+
 ## 1.5.1 – 2026-09-28
 
 - Linux-Zeilenenden für alle Shell-Skripte im Release-Archiv erzwungen

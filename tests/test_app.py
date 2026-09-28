@@ -1,9 +1,33 @@
 import base64
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import app
+
+
+class ServiceConfigurationTests(unittest.TestCase):
+    def test_dashboard_service_does_not_force_no_new_privileges(self):
+        project = Path(__file__).parent.parent
+        configurations = (
+            (project / "bitcoin-dashboard.service").read_text(),
+            (project / "installer" / "web_installer.py").read_text(),
+        )
+        incompatible = (
+            "NoNewPrivileges=",
+            "PrivateDevices=",
+            "ProtectClock=",
+            "ProtectKernelLogs=",
+            "ProtectKernelModules=",
+            "ProtectKernelTunables=",
+            "RestrictNamespaces=",
+            "LockPersonality=",
+            "SystemCallArchitectures=",
+        )
+        for configuration in configurations:
+            for directive in incompatible:
+                self.assertNotIn(directive, configuration)
 
 
 class FeeRateTests(unittest.TestCase):
