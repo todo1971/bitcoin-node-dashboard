@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Unter `/home/todo` bleibt nur das Archiv:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.0.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -27,7 +27,7 @@ Webprozess oder Port wird nicht mehr verwendet.
 Das gewünschte Release-Paket wird unter dem festen Namen bereitgestellt:
 
 ```bash
-sudo cp /home/todo/bitcoin-node-dashboard-1.5.0.tar.gz \
+sudo cp /home/todo/bitcoin-node-dashboard-1.5.1.tar.gz \
   /home/todo/bitcoin-node-dashboard-update.tar.gz
 ```
 

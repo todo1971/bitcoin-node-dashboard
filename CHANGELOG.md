@@ -2,6 +2,10 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.5.1 – 2026-09-28
+
+- Linux-Zeilenenden für alle Shell-Skripte im Release-Archiv erzwungen
+
 ## 1.5.0 – 2026-09-28
 
 - Administration unter `/admin` in das Dashboard integriert
