@@ -49,6 +49,9 @@ fi
 
 tar -xzf "$ARCHIVE" -C "$tmp_dir"
 source_dir="$tmp_dir/bitcoin-dashboard"
+dashboard_group=$(id -gn "$DASHBOARD_USER")
+chgrp "$dashboard_group" "$tmp_dir" "$source_dir"
+chmod 0750 "$tmp_dir" "$source_dir"
 if find "$source_dir" -type l -print -quit | grep -q .; then
     echo "Symbolic links are not allowed in dashboard packages" >&2
     exit 1
@@ -65,7 +68,6 @@ if test -d "$TARGET"; then
     tar -czf "$backup" -C "$(dirname "$TARGET")" "$(basename "$TARGET")"
 fi
 
-dashboard_group=$(id -gn "$DASHBOARD_USER")
 install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET"
 install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$source_dir/app.py" "$TARGET/app.py"
 for directory in static docs tests; do

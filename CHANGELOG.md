@@ -2,6 +2,12 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.6.2 – 2026-09-28
+
+- temporäres Update-Verzeichnis für die Tests durch den Benutzer `btc` betretbar gemacht
+- Schreibrechte bleiben weiterhin ausschließlich bei Root
+- Regressionstest für die Reihenfolge von Verzeichnisfreigabe und Tests ergänzt
+
 ## 1.6.1 – 2026-09-28
 
 - vollständige Einrichtung eines minimal berechtigten Fine-grained GitHub-Tokens dokumentiert

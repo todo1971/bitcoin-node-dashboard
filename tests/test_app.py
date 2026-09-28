@@ -31,6 +31,13 @@ class ServiceConfigurationTests(unittest.TestCase):
             for directive in incompatible:
                 self.assertNotIn(directive, configuration)
 
+    def test_updater_allows_unprivileged_test_user_to_enter_temp_directory(self):
+        project = Path(__file__).parent.parent
+        updater = (project / "installer" / "update-bitcoin-dashboard").read_text()
+        chmod_position = updater.index('chmod 0750 "$tmp_dir" "$source_dir"')
+        runuser_position = updater.index('runuser -u "$DASHBOARD_USER"')
+        self.assertLess(chmod_position, runuser_position)
+
 
 class FeeRateTests(unittest.TestCase):
     def test_converts_btc_per_kvb_to_sat_per_vb(self):
