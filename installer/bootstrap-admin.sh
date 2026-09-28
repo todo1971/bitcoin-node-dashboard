@@ -25,15 +25,18 @@ fi
 dashboard_user=$(sed -n 's/^DASHBOARD_USER=//p' /etc/bitcoin-dashboard-updater.conf | tail -n 1)
 case "$dashboard_user" in *[!A-Za-z0-9_-]*|'') echo "Invalid dashboard user" >&2; exit 1 ;; esac
 id "$dashboard_user" >/dev/null 2>&1 || { echo "User $dashboard_user does not exist" >&2; exit 1; }
+dashboard_target=$(sed -n 's/^DASHBOARD_TARGET=//p' /etc/bitcoin-dashboard-updater.conf | tail -n 1)
 unit_path=/etc/systemd/system/bitcoin-dashboard.service
-if test -f "$unit_path"; then
+if test "$dashboard_user" = btc && test "$dashboard_target" = /home/btc/bitcoin-dashboard; then
+    install -o root -g root -m 0644 "$project_dir/bitcoin-dashboard.service" "$unit_path"
+elif test -f "$unit_path"; then
     unit_tmp=$(mktemp)
     sed '/^NoNewPrivileges=/d' "$unit_path" >"$unit_tmp"
     install -o root -g root -m 0644 "$unit_tmp" "$unit_path"
     rm -f -- "$unit_tmp"
 else
-    test "$dashboard_user" = btc || { echo "Missing $unit_path" >&2; exit 1; }
-    install -o root -g root -m 0644 "$project_dir/bitcoin-dashboard.service" "$unit_path"
+    echo "Missing $unit_path" >&2
+    exit 1
 fi
 
 env_file=/etc/default/bitcoin-dashboard
