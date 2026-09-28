@@ -3,7 +3,7 @@
 ## Umgesetzt in 1.2
 
 - Messwerte regelmäßig in SQLite speichern
-- Diagramme für 24 Stunden, 7 Tage, 30 Tage und 1 Jahr
+- Diagramme für 1, 6, 12 und 24 Stunden sowie 7 Tage, 30 Tage und 1 Jahr
 
 ## Nächste Ausbaustufe
 

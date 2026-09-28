@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 PORT = int(os.getenv("DASHBOARD_PORT", "8787"))
@@ -46,6 +46,9 @@ HISTORY_RETENTION_DAYS = max(
 )
 
 HISTORY_RANGES: dict[str, tuple[int, int]] = {
+    "1h": (60 * 60, 60),
+    "6h": (6 * 60 * 60, 2 * 60),
+    "12h": (12 * 60 * 60, 5 * 60),
     "24h": (24 * 60 * 60, 5 * 60),
     "7d": (7 * 24 * 60 * 60, 30 * 60),
     "30d": (30 * 24 * 60 * 60, 2 * 60 * 60),

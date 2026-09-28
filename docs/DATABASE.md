@@ -31,6 +31,9 @@ die Daten abhängig vom ausgewählten Zeitraum in feste Zeitfenster:
 
 | Ansicht | Zeitfenster | maximal ungefähr |
 |---|---:|---:|
+| 1 Stunde | 1 Minute | 60 Punkte |
+| 6 Stunden | 2 Minuten | 180 Punkte |
+| 12 Stunden | 5 Minuten | 144 Punkte |
 | 24 Stunden | 5 Minuten | 288 Punkte |
 | 7 Tage | 30 Minuten | 336 Punkte |
 | 30 Tage | 2 Stunden | 360 Punkte |

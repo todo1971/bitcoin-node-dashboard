@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.2.1 – 2026-09-28
+
+- Historienansichten für 1, 6 und 12 Stunden ergänzt
+- Zeitachsen kurzer Ansichten auf Stunden und Minuten umgestellt
+
 ## 1.2.0 – 2026-09-28
 
 - SQLite-Historie im WAL-Modus ergänzt

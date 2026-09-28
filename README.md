@@ -16,7 +16,7 @@ aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - lokaler Listener auf `127.0.0.1:8787`
 - Bitcoin-RPC und Authentifizierungs-Cookie bleiben serverseitig
 - externer Erreichbarkeitsstatus mit fünf Minuten Cache
-- SQLite-Historie mit 24-Stunden-, 7-Tage-, 30-Tage- und Jahresansicht
+- SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
 - automatische Aufbewahrung und Verdichtung der Diagrammdaten
 - responsive Oberfläche für Desktop und Mobilgeräte
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk

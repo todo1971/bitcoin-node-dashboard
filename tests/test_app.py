@@ -86,6 +86,12 @@ class HistoryDatabaseTests(unittest.TestCase):
         self.assertEqual(result["range"], "24h")
         self.assertEqual(result["bucket_seconds"], 300)
 
+    def test_one_hour_range_keeps_minute_buckets(self):
+        with patch.object(app.time, "time", return_value=1_500):
+            result = app.history_data("1h")
+        self.assertEqual(result["range"], "1h")
+        self.assertEqual(result["bucket_seconds"], 60)
+
 
 if __name__ == "__main__":
     unittest.main()
