@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Unter `/home/todo` bleibt nur das Archiv:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.0.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -88,6 +88,26 @@ In `version` steht ausschließlich die Versionsnummer, beispielsweise `32.0`.
 Alle drei Release-Dateien müssen aus demselben offiziellen Release-Verzeichnis
 unter `https://bitcoincore.org/bin/bitcoin-core-VERSION/` stammen.
 
+### Geplanter Upload im Adminbereich
+
+Als nächste Ausbaustufe erhält `/admin` eine Dateiauswahl mit Drag-and-drop
+für das offizielle Archiv
+`bitcoin-VERSION-x86_64-linux-gnu.tar.gz`. Das Archiv wird zunächst ohne
+Root-Rechte in einem isolierten Upload-Verzeichnis gespeichert. Anschließend
+soll der Server `SHA256SUMS` und `SHA256SUMS.asc` selbst aus dem passenden
+Release-Verzeichnis auf `bitcoincore.org` laden.
+
+Vor dem Root-Update werden Dateiname, stabile Versionsnummer, Plattform,
+Dateigröße, SHA-256-Prüfsumme und GPG-Signaturen kontrolliert. Downgrades und
+Archive für eine andere Plattform werden standardmäßig abgelehnt. Erst nach
+einer Bestätigung werden bitcoind gestoppt, die bisherigen Binärdateien
+gesichert und das neue Release installiert. Versions-, RPC- und Startprüfung
+entscheiden anschließend über Erfolg oder automatischen Rollback.
+
+Bis diese Funktion implementiert und getestet ist, gilt weiterhin das oben
+beschriebene manuell vorbereitete Verzeichnis. Ein bloß hochgeladenes,
+ungeprüftes Archiv wird niemals als Root installiert.
+
 ### Vertrauenswürdige Signaturschlüssel
 
 Der Updater benötigt:
@@ -139,3 +159,68 @@ Dashboard-Update kann den aufrufenden Webprozess gefahrlos neu starten.
 Das GitHub-Token darf niemals in Git, Logs oder Release-Paketen gespeichert
 werden. Nach einer unbeabsichtigten Offenlegung muss es bei GitHub sofort
 widerrufen werden.
+
+## Fine-grained GitHub-Token einrichten
+
+Die Token-Verwaltung befindet sich unter
+<https://github.com/settings/personal-access-tokens>. Dort **Generate new
+token** auswählen und diese Werte verwenden:
+
+| Einstellung | Wert |
+|---|---|
+| Token name | `Bitcoin Dashboard Server` |
+| Expiration | beispielsweise 365 Tage |
+| Resource owner | `todo1971` |
+| Repository access | `Only select repositories` |
+| Repository | `bitcoin-node-dashboard` |
+| Repository permission | ausschließlich `Contents: Read-only` |
+
+`Metadata: Read-only` wird von GitHub automatisch ergänzt. Schreibrechte,
+Actions-, Administration- oder Kontoberechtigungen sind nicht erforderlich.
+Das Token wird nach dem Erzeugen nur einmal vollständig angezeigt. Es darf
+nicht in Chat, Shell-History, Git oder Dokumentation kopiert werden.
+
+Auf dem Server wird es mit einem Editor direkt in die Root-Konfiguration
+geschrieben:
+
+```bash
+sudoedit /etc/default/bitcoin-dashboard
+```
+
+```text
+DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard
+DASHBOARD_GITHUB_TOKEN=github_pat_HIER_DAS_ECHTE_TOKEN
+```
+
+Das Beispiel `github_pat_HIER_DAS_ECHTE_TOKEN` muss vollständig durch das von
+GitHub ausgegebene Token ersetzt werden. Anschließend Rechte setzen und Dienst
+neu starten:
+
+```bash
+sudo chown root:root /etc/default/bitcoin-dashboard
+sudo chmod 0640 /etc/default/bitcoin-dashboard
+sudo systemctl restart bitcoin-dashboard
+```
+
+Ob ein Wert vorhanden ist, lässt sich prüfen, ohne das Geheimnis auszugeben:
+
+```bash
+sudo awk -F= '
+  /^DASHBOARD_GITHUB_TOKEN=/ {
+    print length($2) >= 20 ? "GitHub-Token ist gesetzt" : "GitHub-Token fehlt"
+  }
+' /etc/default/bitcoin-dashboard
+```
+
+Danach zeigt `/admin` beispielsweise
+`Installiert: 1.6.1 · GitHub: 1.6.1 · aktuell`. Schlägt die Prüfung fehl,
+helfen die Logs:
+
+```bash
+sudo journalctl -u bitcoin-dashboard -n 50 --no-pager
+```
+
+Vor Ablauf wird ein neues Token mit denselben Minimalrechten erzeugt, der Wert
+in `/etc/default/bitcoin-dashboard` ersetzt und der Dienst neu gestartet. Das
+alte Token danach bei GitHub widerrufen. Bei vermuteter Offenlegung ist es
+sofort zu widerrufen und zu ersetzen.

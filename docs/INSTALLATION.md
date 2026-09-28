@@ -66,7 +66,7 @@ anschließend aus einem temporär entpackten Release eingerichtet. Unter
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.0.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -99,6 +99,9 @@ curl -fsS http://127.0.0.1:8787/api/dashboard | python3 -m json.tool
 
 Port 8787 bleibt ausschließlich an `127.0.0.1` gebunden. Weder Port 8787 noch
 Bitcoin-RPC-Port 8332 dürfen in der Firewall öffentlich freigegeben werden.
+
+Die vollständige Einrichtung des Fine-grained GitHub-Tokens für automatische
+Dashboard-Updates steht in [UPDATES.md](UPDATES.md#fine-grained-github-token-einrichten).
 
 ## 6. Aktualisieren
 

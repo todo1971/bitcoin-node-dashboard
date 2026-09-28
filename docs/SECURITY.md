@@ -52,11 +52,17 @@ Folgende Inhalte dürfen nicht in Git eingecheckt werden:
 - Wallet-Dateien, Seeds oder Private Keys
 - TLS-Private-Keys
 - persönliche Zugangstoken
+- `DASHBOARD_GITHUB_TOKEN` aus `/etc/default/bitcoin-dashboard`
 - `ADMIN_TOKEN` aus `/etc/default/bitcoin-dashboard`
 - produktive SQLite-Datenbanken
 - Webhook-URLs mit eingebetteten Zugangstoken
 
 Die Datei `.env` wird deshalb durch `.gitignore` ausgeschlossen.
+
+Das GitHub-Token erhält ausschließlich `Contents: Read-only` für das einzelne
+Repository `bitcoin-node-dashboard`. Es wird in der root-eigenen Datei
+`/etc/default/bitcoin-dashboard` mit Modus `0640` gespeichert. Bei Ablauf oder
+vermuteter Offenlegung wird es ersetzt und das alte Token bei GitHub widerrufen.
 
 ## Sicherheitsmeldungen
 

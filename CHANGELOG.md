@@ -2,6 +2,12 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.6.1 – 2026-09-28
+
+- vollständige Einrichtung eines minimal berechtigten Fine-grained GitHub-Tokens dokumentiert
+- sichere Speicherung, Funktionsprüfung, Ablauf und Widerruf des Tokens beschrieben
+- geplanten, signaturgeprüften Bitcoin-Core-Upload im Adminbereich dokumentiert
+
 ## 1.6.0 – 2026-09-28
 
 - neuestes Dashboard-Release automatisch über die GitHub Releases API ermitteln
