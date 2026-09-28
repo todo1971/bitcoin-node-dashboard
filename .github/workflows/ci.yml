@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile
-        run: python -m py_compile app.py admin/admin_app.py installer/web_installer.py
+        run: python -m py_compile app.py installer/web_installer.py
       - name: Shell syntax
         run: sh -n installer/bootstrap-admin.sh installer/update-bitcoin-dashboard installer/update-bitcoin-core
       - name: Unit tests

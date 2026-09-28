@@ -10,7 +10,10 @@ Plesk / Apache Reverse Proxy
 Python-Dashboard (Benutzer btc)
    ├── bitcoin-cli ──► lokaler Bitcoin-Core-RPC
    ├── SQLite ────────► /var/lib/bitcoin-dashboard/history.sqlite3
-   └── HTTPS ────────► öffentliche BTCNodes-API
+   ├── HTTPS ────────► öffentliche BTCNodes-API / Bitcoin-Core-Version
+   └── /admin ───────► exakt definierter transienter systemd-Updateauftrag
+                              │
+                              └── root-eigener, parameterloser Update-Helfer
 ```
 
 ## Lokale Daten
@@ -25,10 +28,23 @@ Das Dashboard führt nur eine fest definierte Liste lesender Aufrufe aus:
 - `getblockstats`
 - `estimatesmartfee`
 - `getblockcount` für den Healthcheck
+- `uptime`
 
 Die Browseranwendung kann weder RPC-Methoden noch Argumente vorgeben. Antworten
 werden zehn Sekunden zwischengespeichert, damit parallele Browseraufrufe den
 Node nicht unnötig belasten.
+
+## Administration
+
+Die Administrationsoberfläche läuft im selben HTTP-Prozess, besitzt jedoch eine
+separate starke Anmeldung, CSRF- und Origin-Prüfungen sowie eine Anmeldesperre.
+Der Browser kann nur zwischen den Aktionen `dashboard` und `bitcoin` wählen.
+Diese Auswahl wird intern auf zwei unveränderliche Befehlsfolgen abgebildet.
+
+Die eigentliche privilegierte Arbeit läuft in einem transienten systemd-Dienst.
+Sudoers erlaubt dem Dashboard-Benutzer ausschließlich diese beiden vollständigen
+Aufrufe. Die root-eigenen Helfer akzeptieren keine Argumente und lesen Pakete nur
+aus fest konfigurierten, für `btc` nicht beschreibbaren Verzeichnissen.
 
 ## Externe Daten
 

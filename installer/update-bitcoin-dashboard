@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+test "$#" -eq 0 || { echo "Arguments are not allowed" >&2; exit 1; }
 
 CONFIG=/etc/bitcoin-dashboard-updater.conf
 BACKUP_DIR=/var/backups/bitcoin-dashboard

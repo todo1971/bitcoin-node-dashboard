@@ -2,6 +2,16 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.5.0 – 2026-09-28
+
+- Administration unter `/admin` in das Dashboard integriert
+- separaten dauerhaft laufenden Admin-Webdienst entfernt
+- starke Basic-Authentifizierung, CSRF-Prüfung und Anmeldesperre ergänzt
+- Admin-POST-Anfragen auf Typ und Größe begrenzt und Cross-Origin-Anfragen blockiert
+- nur zwei exakte, parameterlose Update-Aufträge über `sudo` zugelassen
+- Updates in isolierte transiente systemd-Dienste ausgelagert
+- alte Admin-Service-Installation wird beim Bootstrap entfernt
+
 ## 1.4.2 – 2026-09-28
 
 - Speicherplatzalarm verständlich auf 90 Prozent Belegung umgestellt

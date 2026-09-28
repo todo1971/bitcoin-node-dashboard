@@ -1,3 +1,4 @@
+import base64
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -59,6 +60,49 @@ class AlertEvaluationTests(unittest.TestCase):
         )
         self.assertTrue(disk_call.args[1])
         self.assertIn("90.0%", disk_call.args[2])
+
+
+class AdminSecurityTests(unittest.TestCase):
+    def setUp(self):
+        app._admin_failures.clear()
+        app._admin_blocked_until = 0.0
+
+    def test_valid_credentials_require_exact_username_and_token(self):
+        token = "x" * 32
+        encoded = base64.b64encode(f"admin:{token}".encode()).decode()
+        with patch.object(app, "ADMIN_TOKEN", token):
+            self.assertEqual(app.check_admin_auth(f"Basic {encoded}"), "ok")
+
+    def test_five_wrong_passwords_lock_admin(self):
+        token = "x" * 32
+        encoded = base64.b64encode(b"admin:wrong").decode()
+        with patch.object(app, "ADMIN_TOKEN", token):
+            with patch.object(app.time, "monotonic", return_value=100.0):
+                results = [
+                    app.check_admin_auth(f"Basic {encoded}") for _ in range(5)
+                ]
+        self.assertEqual(results[-1], "locked")
+
+    def test_non_ascii_credentials_fail_without_exception(self):
+        token = "x" * 32
+        encoded = base64.b64encode("admin:falschä".encode()).decode()
+        with patch.object(app, "ADMIN_TOKEN", token):
+            self.assertEqual(app.check_admin_auth(f"Basic {encoded}"), "failed")
+
+    def test_cross_origin_post_is_rejected(self):
+        headers = {
+            "Host": "node.example.de",
+            "Origin": "https://evil.example",
+            "Sec-Fetch-Site": "cross-site",
+        }
+        self.assertFalse(app.admin_origin_allowed(headers))
+
+    def test_update_command_has_no_user_controlled_arguments(self):
+        completed = type("Completed", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        with patch.object(app.subprocess, "run", return_value=completed) as run:
+            status, _ = app.start_admin_update("dashboard")
+        self.assertEqual(status, 202)
+        self.assertEqual(run.call_args.args[0], app.ADMIN_DASHBOARD_COMMAND)
 
 
 class HistoryDatabaseTests(unittest.TestCase):

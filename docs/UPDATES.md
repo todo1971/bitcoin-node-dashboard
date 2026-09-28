@@ -1,36 +1,39 @@
 # Sichere Updates
 
-## Trennung vom öffentlichen Dashboard
+## Integrierte Administration
 
-Die Wartungsoberfläche läuft separat auf `127.0.0.1:8790`. Sie wird niemals über
-Plesk oder einen öffentlichen Reverse Proxy veröffentlicht. Zugriff erfolgt nur
-über einen SSH-Tunnel und HTTP-Basic-Authentifizierung mit einem zufälligen
-Passwort.
+Die Wartungsoberfläche ist unter `/admin` in das Dashboard integriert. Sie
+verwendet ein zufälliges Passwort mit mindestens 32 Zeichen, HTTP-Basic-
+Authentifizierung, einen zusätzlichen CSRF-Token, eine globale Sperre nach fünf
+Fehlversuchen sowie Größen-, Methoden- und Origin-Prüfungen.
 
-Installation der Wartungsoberfläche:
-
-```bash
-sudo sh /home/btc/bitcoin-dashboard/installer/bootstrap-admin.sh
-```
-
-Das Script zeigt das Passwort einmal an. Anschließend lokal:
+Die Root-Helfer und das Passwort werden aus dem temporär entpackten, zuvor
+geprüften Release-Paket eingerichtet. Unter `/home/todo` bleibt nur das Archiv:
 
 ```bash
-ssh -L 8790:127.0.0.1:8790 trading-server
+tmpdir=$(mktemp -d)
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.0.tar.gz -C "$tmpdir"
+sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
+sudo rm -rf -- "$tmpdir"
 ```
 
-Dann `http://127.0.0.1:8790` öffnen.
+Das Script zeigt Benutzername und Passwort an. Danach ist die Seite unter der
+HTTPS-Adresse des Dashboards plus `/admin` erreichbar. Alternativ kann sie über
+einen SSH-Tunnel auf den normalen Dashboard-Port geöffnet werden. Ein zweiter
+Webprozess oder Port wird nicht mehr verwendet.
 
 ## Dashboard aktualisieren
 
 Das gewünschte Release-Paket wird unter dem festen Namen bereitgestellt:
 
 ```bash
-sudo cp /home/todo/bitcoin-node-dashboard-1.4.2.tar.gz \
+sudo cp /home/todo/bitcoin-node-dashboard-1.5.0.tar.gz \
   /home/todo/bitcoin-node-dashboard-update.tar.gz
 ```
 
-Danach kann **Dashboard aktualisieren** gewählt werden. Der Helfer:
+Danach kann unter `/admin` **Dashboard aktualisieren** gewählt werden. Die
+Webanwendung übergibt keine Browserparameter an Root. Sie darf nur einen exakt
+festgelegten transienten systemd-Auftrag starten. Der Root-Helfer:
 
 1. sperrt parallele Updates,
 2. verwirft Archive mit unsicheren Pfaden oder Symlinks,
@@ -40,8 +43,8 @@ Danach kann **Dashboard aktualisieren** gewählt werden. Der Helfer:
 6. startet den Dienst neu,
 7. prüft `/healthz` und führt bei einem Fehler einen Rollback aus.
 
-Die Systemd-Unit und Sudoers-Dateien werden durch diesen Updater bewusst nicht
-aus einem Update-Archiv überschrieben.
+Die Systemd-Unit, Root-Helfer und Sudoers-Dateien werden durch diesen Updater
+bewusst nicht aus einem Update-Archiv überschrieben.
 
 ## Bitcoin Core aktualisieren
 
@@ -97,10 +100,17 @@ Pfade und Service-Namen stehen in:
 /etc/bitcoin-dashboard-updater.conf
 ```
 
-Die Datei muss `root:root` gehören und darf nicht durch `deploybot` beschreibbar
-sein. Die Sudoers-Regel erlaubt ausschließlich:
+Die Datei muss `root:root` gehören und darf nicht durch `btc` beziehungsweise
+den gewählten Dashboard-Benutzer beschreibbar sein. Die Sudoers-Regel erlaubt
+ausschließlich zwei vollständig festgelegte `systemd-run`-Aufrufe ohne variable
+Argumente. Dadurch laufen Updates außerhalb der Dashboard-Control-Group und ein
+Dashboard-Update kann den aufrufenden Webprozess gefahrlos neu starten.
 
 ```text
-/usr/local/sbin/update-bitcoin-dashboard
-/usr/local/sbin/update-bitcoin-core
+/usr/bin/systemd-run --unit=bitcoin-dashboard-update --collect --no-block /usr/local/sbin/update-bitcoin-dashboard
+/usr/bin/systemd-run --unit=bitcoin-core-update --collect --no-block /usr/local/sbin/update-bitcoin-core
 ```
+
+Die Pakete unter `/home/todo` dürfen nicht durch den Dashboard-Benutzer
+beschreibbar sein. Andernfalls wäre die Paketprüfung allein keine ausreichende
+Vertrauensgrenze.

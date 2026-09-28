@@ -13,11 +13,12 @@ Service-Benutzer Zugriff auf dessen RPC-Cookie besitzen.
 
 ## Start
 
-Paket unter `/home/todo` entpacken:
+Paket aus `/home/todo` in ein temporäres Verzeichnis entpacken:
 
 ```bash
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.4.2.tar.gz -C /home/todo
-sudo python3 /home/todo/bitcoin-dashboard/installer/web_installer.py
+tmpdir=$(mktemp -d)
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.0.tar.gz -C "$tmpdir"
+sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 
 Der Prozess zeigt Benutzername und ein einmaliges Passwort. In einem zweiten
@@ -35,7 +36,10 @@ http://127.0.0.1:8791
 
 Der Installer prüft Benutzer, Pfade und Zahlenbereiche, installiert den Code in
 das Home-Verzeichnis des Service-Benutzers, schreibt die Environment-Datei und
-eine gehärtete Systemd-Unit und startet das Dashboard.
+eine gehärtete Systemd-Unit, richtet die abgesicherten Update-Helfer ein und
+startet das Dashboard. Das ausgegebene Admin-Passwort gehört zu `/admin`.
+Nach Abschluss und Beenden des Installers kann das temporäre Verzeichnis mit
+`sudo rm -rf -- "$tmpdir"` entfernt werden.
 
 ## Neuer Server mit Bitcoin Core
 

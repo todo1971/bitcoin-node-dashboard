@@ -180,11 +180,19 @@ Restart=on-failure
 RestartSec=5
 StateDirectory=bitcoin-dashboard
 StateDirectoryMode=0750
-NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadOnlyPaths={target} {bitcoin_datadir} {bitcoin_cookie.parent}
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=multi-user.target
@@ -194,9 +202,29 @@ WantedBy=multi-user.target
     os.chown(unit_path, 0, 0)
     os.chmod(unit_path, 0o644)
 
+    updater_config = Path("/etc/bitcoin-dashboard-updater.conf")
+    updater_config.write_text(
+        "\n".join(
+            (
+                "UPDATE_ROOT=/home/todo",
+                f"DASHBOARD_USER={user_name}",
+                f"DASHBOARD_TARGET={target}",
+                "DASHBOARD_SERVICE=bitcoin-dashboard",
+                f"DASHBOARD_HEALTH_URL=http://127.0.0.1:{dashboard_port}/healthz",
+                "BITCOIN_SERVICE=bitcoind",
+                f"BITCOIN_BIN_DIR={home}/bin",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    os.chown(updater_config, 0, 0)
+    os.chmod(updater_config, 0o640)
+
     commands = (
         ("systemctl", "daemon-reload"),
         ("systemctl", "enable", "--now", "bitcoin-dashboard"),
+        ("sh", str(PROJECT_DIR / "installer" / "bootstrap-admin.sh")),
     )
     output: list[str] = []
     for command in commands:
@@ -208,6 +236,7 @@ WantedBy=multi-user.target
         "Installation erfolgreich.\n"
         f"Dashboard: http://127.0.0.1:{dashboard_port}\n"
         f"Installationspfad: {target}\n"
+        f"{output[-1]}\n"
         "Als Nächstes einen HTTPS-Reverse-Proxy auf den lokalen Port einrichten."
     )
 

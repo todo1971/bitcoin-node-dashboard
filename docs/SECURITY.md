@@ -10,9 +10,20 @@
 - Der Systemd-Service läuft ohne Root-Rechte als Benutzer `btc`.
 - Nur `/var/lib/bitcoin-dashboard` ist als persistenter Schreibbereich vorgesehen.
 - Browserantworten enthalten CSP-, Frame-, Referrer- und MIME-Sicherheitsheader.
-- Installer und Wartungspanel binden fest an `127.0.0.1` und benötigen zufällige Zugangstoken.
-- Root-Updates sind auf zwei feste, root-eigene Helfer ohne freie Argumente begrenzt.
-- Das Admin-Service benötigt für diese beiden `sudo`-Helfer bewusst Privilegienwechsel; die Schreibbereiche seiner Systemd-Sandbox bleiben auf Programm-, Backup- und Lock-Verzeichnisse begrenzt.
+- Der einmalige Installer bindet fest an `127.0.0.1` und benötigt ein zufälliges Zugangstoken.
+- `/admin` benötigt ein starkes separates Passwort und schützt Änderungen zusätzlich durch CSRF- und Origin-Prüfungen.
+- Nach fünf falschen Anmeldungen wird die Administration für 15 Minuten gesperrt.
+- Root-Updates sind auf zwei vollständige, feste `systemd-run`-Befehle ohne Browserparameter begrenzt.
+- Die root-eigenen Helfer akzeptieren keine Argumente, validieren Paketpfade und führen Updates außerhalb der Webdienst-Control-Group aus.
+- Das Paketverzeichnis `/home/todo` darf für den Dashboard-Benutzer nicht beschreibbar sein.
+
+Wird der Dashboard-Prozess vollständig kompromittiert, kann ein Angreifer die
+beiden festgelegten Update-Aufträge anstoßen, aber weder Argumente noch Paketpfade
+bestimmen. Dashboard-Pakete werden vor Installation getestet; Bitcoin-Core-
+Pakete benötigen zusätzlich eine passende SHA256-Prüfsumme und eine gültige
+Signatur aus dem root-kontrollierten Schlüsselbund. Diese Grenze hängt zwingend
+davon ab, dass `/home/todo`, Root-Helfer, Sudoers-Regel und Updater-Konfiguration
+nicht durch den Benutzer `btc` beschreibbar sind.
 
 ## Öffentliche Informationen
 
@@ -23,12 +34,13 @@ Peer-IP-Adressen werden derzeit nicht an den Browser ausgeliefert.
 ## Empfohlene Absicherung
 
 - HTTPS über Let's Encrypt erzwingen.
+- `/admin` niemals über unverschlüsseltes öffentliches HTTP verwenden.
 - Optional Plesk-Passwortschutz oder IP-Freigabe aktivieren.
 - Port 8787 und RPC-Port 8332 per Firewall blockiert lassen.
 - `/etc/default/bitcoin-dashboard` nur für Root lesbar halten.
 - Bitcoin Core und das Betriebssystem regelmäßig aktualisieren.
 - Reverse-Proxy-Rate-Limits ergänzen, falls die Instanz öffentlich stark genutzt wird.
-- Port 8790 und 8791 niemals über Plesk, Firewall oder Reverse Proxy veröffentlichen.
+- Port 8791 des einmaligen Installers niemals über Plesk, Firewall oder Reverse Proxy veröffentlichen.
 - Webhook-Ziele ausschließlich per HTTPS konfigurieren und das Ziel als Geheimnis behandeln.
 
 ## Geheimnisse
@@ -40,6 +52,7 @@ Folgende Inhalte dürfen nicht in Git eingecheckt werden:
 - Wallet-Dateien, Seeds oder Private Keys
 - TLS-Private-Keys
 - persönliche Zugangstoken
+- `ADMIN_TOKEN` aus `/etc/default/bitcoin-dashboard`
 - produktive SQLite-Datenbanken
 - Webhook-URLs mit eingebetteten Zugangstoken
 

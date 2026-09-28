@@ -22,7 +22,8 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - responsive Oberfläche für Desktop und Mobilgeräte
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
 - lokaler Web-Installer für systemd-basierte Linux-Server
-- getrennte Wartungsoberfläche mit geprüften Update-Helfern und Rollback
+- integrierte, abgesicherte Administration unter `/admin`
+- Updates als isolierte systemd-Aufträge mit geprüften Helfern und Rollback
 - CPU-, RAM-, Datenträger- und bitcoind-Laufzeitüberwachung mit Historie
 - Alarme mit Karenzzeit, Wiederholsperre, Entwarnung, E-Mail und HTTPS-Webhook
 - Versionsvergleich mit der offiziellen Bitcoin-Core-Downloadseite
@@ -99,6 +100,7 @@ sudo systemctl restart bitcoin-dashboard
 | `/api/dashboard` | aggregierte Node-Daten als JSON |
 | `/api/history?range=24h` | verdichtete historische Messwerte |
 | `/api/alerts` | derzeit aktive Alarme |
+| `/admin` | passwortgeschützte Administration |
 | `/healthz` | lokaler Funktions- und RPC-Test |
 
 Es gibt bewusst keinen Endpunkt, über den beliebige RPC-Methoden oder Argumente

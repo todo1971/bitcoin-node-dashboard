@@ -6,6 +6,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import base64
+import hmac
+import secrets
 import shutil
 import socket
 import sqlite3
@@ -23,7 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.4.2"
+__version__ = "1.5.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -77,6 +80,28 @@ DISK_MAX_USED_PERCENT = min(
 MEMORY_MAX_USED_PERCENT = min(
     99.0, max(50.0, float(os.getenv("MEMORY_MAX_USED_PERCENT", "90")))
 )
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
+ADMIN_CSRF_TOKEN = secrets.token_urlsafe(32)
+ADMIN_MAX_FAILURES = 5
+ADMIN_LOCK_SECONDS = 15 * 60
+ADMIN_DASHBOARD_COMMAND = (
+    "sudo",
+    "-n",
+    "/usr/bin/systemd-run",
+    "--unit=bitcoin-dashboard-update",
+    "--collect",
+    "--no-block",
+    "/usr/local/sbin/update-bitcoin-dashboard",
+)
+ADMIN_BITCOIN_COMMAND = (
+    "sudo",
+    "-n",
+    "/usr/bin/systemd-run",
+    "--unit=bitcoin-core-update",
+    "--collect",
+    "--no-block",
+    "/usr/local/sbin/update-bitcoin-core",
+)
 
 HISTORY_RANGES: dict[str, tuple[int, int]] = {
     "1h": (60 * 60, 60),
@@ -96,6 +121,9 @@ _version_cache_lock = threading.Lock()
 _version_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _cpu_lock = threading.Lock()
 _cpu_previous: tuple[int, int] | None = None
+_admin_auth_lock = threading.Lock()
+_admin_failures: list[float] = []
+_admin_blocked_until = 0.0
 
 
 class RpcError(RuntimeError):
@@ -771,6 +799,111 @@ def active_alerts() -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def decode_admin_credentials(header: str) -> tuple[str, str] | None:
+    if not header.startswith("Basic ") or len(header) > 1024:
+        return None
+    try:
+        decoded = base64.b64decode(header[6:], validate=True).decode("utf-8")
+        username, password = decoded.split(":", 1)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return username, password
+
+
+def constant_time_equal(left: str, right: str) -> bool:
+    return hmac.compare_digest(left.encode("utf-8"), right.encode("utf-8"))
+
+
+def check_admin_auth(header: str) -> str:
+    """Return ok, missing, failed, disabled, or locked."""
+    global _admin_blocked_until
+    if len(ADMIN_TOKEN) < 32:
+        return "disabled"
+    now = time.monotonic()
+    with _admin_auth_lock:
+        if now < _admin_blocked_until:
+            return "locked"
+    credentials = decode_admin_credentials(header)
+    if credentials is None:
+        return "missing" if not header else record_admin_failure(now)
+    username, password = credentials
+    valid = constant_time_equal(username, "admin") and constant_time_equal(
+        password, ADMIN_TOKEN
+    )
+    if valid:
+        with _admin_auth_lock:
+            _admin_failures.clear()
+        return "ok"
+    return record_admin_failure(now)
+
+
+def record_admin_failure(now: float | None = None) -> str:
+    global _admin_blocked_until
+    current = time.monotonic() if now is None else now
+    with _admin_auth_lock:
+        cutoff = current - ADMIN_LOCK_SECONDS
+        _admin_failures[:] = [value for value in _admin_failures if value >= cutoff]
+        _admin_failures.append(current)
+        if len(_admin_failures) >= ADMIN_MAX_FAILURES:
+            _admin_blocked_until = current + ADMIN_LOCK_SECONDS
+            _admin_failures.clear()
+            return "locked"
+    return "failed"
+
+
+def admin_origin_allowed(headers: Any) -> bool:
+    fetch_site = headers.get("Sec-Fetch-Site", "")
+    if fetch_site and fetch_site not in ("same-origin", "none"):
+        return False
+    origin = headers.get("Origin", "")
+    if not origin:
+        return True
+    parsed = urlparse(origin)
+    return parsed.scheme in ("http", "https") and constant_time_equal(
+        parsed.netloc, headers.get("Host", "")
+    )
+
+
+def admin_status_data() -> dict[str, Any]:
+    network = safe_call("getnetworkinfo")
+    bitcoin_version = (
+        network.get("subversion")
+        if isinstance(network, dict)
+        else "Bitcoin Core nicht erreichbar"
+    )
+    return {
+        "dashboard": f"Version {__version__}",
+        "bitcoin": bitcoin_version,
+        "admin_enabled": len(ADMIN_TOKEN) >= 32,
+    }
+
+
+def start_admin_update(kind: str) -> tuple[int, str]:
+    command = {
+        "dashboard": ADMIN_DASHBOARD_COMMAND,
+        "bitcoin": ADMIN_BITCOIN_COMMAND,
+    }.get(kind)
+    if command is None:
+        return 404, "Unbekannte Update-Aktion"
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return 500, str(exc)
+    output = (result.stdout + result.stderr).strip()
+    if result.returncode != 0:
+        return 500, output[-4000:] or "Update-Auftrag konnte nicht gestartet werden"
+    return 202, (
+        "Update-Auftrag wurde isoliert gestartet. Status prüfen mit: "
+        f"journalctl -u {'bitcoin-dashboard-update' if kind == 'dashboard' else 'bitcoin-core-update'} -f"
+    )
+
+
 def sampler_loop() -> None:
     initialized = False
     while True:
@@ -814,6 +947,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; style-src 'self' 'unsafe-inline'; "
@@ -823,9 +958,47 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def require_admin_auth(self) -> bool:
+        result = check_admin_auth(self.headers.get("Authorization", ""))
+        if result == "ok":
+            return True
+        if result == "disabled":
+            self.send_bytes(
+                b'{"error":"Administration is not configured"}',
+                "application/json; charset=utf-8",
+                503,
+            )
+            return False
+        if result == "locked":
+            self.send_bytes(
+                b'{"error":"Too many failed authentication attempts"}',
+                "application/json; charset=utf-8",
+                429,
+            )
+            return False
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header("WWW-Authenticate", 'Basic realm="Bitcoin maintenance"')
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
+        if path in ("/admin", "/admin/"):
+            if not self.require_admin_auth():
+                return
+            page = (STATIC_DIR / "admin.html").read_text(encoding="utf-8")
+            body = page.replace("__CSRF_TOKEN__", ADMIN_CSRF_TOKEN).encode()
+            self.send_bytes(body, "text/html; charset=utf-8")
+            return
+        if path == "/api/admin/status":
+            if not self.require_admin_auth():
+                return
+            body = json.dumps(admin_status_data(), separators=(",", ":")).encode()
+            self.send_bytes(body, "application/json; charset=utf-8")
+            return
         if path == "/api/dashboard":
             try:
                 body = json.dumps(snapshot(), separators=(",", ":")).encode()
@@ -872,6 +1045,65 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         self.send_error(HTTPStatus.NOT_FOUND)
+
+    def do_POST(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path
+        if path not in (
+            "/api/admin/update/dashboard",
+            "/api/admin/update/bitcoin",
+        ):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        if not self.require_admin_auth():
+            return
+        if not admin_origin_allowed(self.headers):
+            self.send_bytes(
+                b'{"error":"Cross-origin request rejected"}',
+                "application/json; charset=utf-8",
+                403,
+            )
+            return
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0]
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            content_length = -1
+        if content_type != "application/x-www-form-urlencoded" or not (
+            1 <= content_length <= 1024
+        ):
+            self.send_bytes(
+                b'{"error":"Invalid request body"}',
+                "application/json; charset=utf-8",
+                400,
+            )
+            return
+        try:
+            values = parse_qs(
+                self.rfile.read(content_length).decode("utf-8", "replace"),
+                keep_blank_values=True,
+                max_num_fields=4,
+            )
+        except ValueError:
+            self.send_bytes(
+                b'{"error":"Invalid form data"}',
+                "application/json; charset=utf-8",
+                400,
+            )
+            return
+        supplied_csrf = values.get("csrf", [""])[0]
+        if not constant_time_equal(supplied_csrf, ADMIN_CSRF_TOKEN):
+            self.send_bytes(
+                b'{"error":"CSRF validation failed"}',
+                "application/json; charset=utf-8",
+                403,
+            )
+            return
+        kind = "dashboard" if path.endswith("/dashboard") else "bitcoin"
+        status, output = start_admin_update(kind)
+        body = json.dumps(
+            {"ok": status == 202, "output": output}, separators=(",", ":")
+        ).encode()
+        self.send_bytes(body, "application/json; charset=utf-8", status)
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"{self.address_string()} - {fmt % args}", flush=True)

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bitcoin Node · Administration</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b0d10;--card:#151a20;--line:#29313a;--text:#eef2f6;--muted:#9ba8b6;--orange:#f7931a;--green:#37d67a;--red:#ff6b6b}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top right,#31210e 0,transparent 30rem),var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{width:min(900px,calc(100% - 32px));margin:0 auto;padding:42px 0}header{display:flex;justify-content:space-between;align-items:center;gap:16px}h1{margin:0;font-size:clamp(28px,5vw,42px)}h1 span{color:var(--orange)}a{color:var(--orange)}.notice{margin:22px 0;padding:14px 16px;border:1px solid #604516;border-radius:12px;background:#241b0c}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--card)}h2{margin-top:0}.status{min-height:48px;color:var(--muted)}button{padding:10px 14px;border:1px solid var(--orange);border-radius:9px;background:#20170c;color:var(--orange);cursor:pointer}button:disabled{opacity:.5;cursor:wait}pre{min-height:130px;overflow:auto;padding:14px;border-radius:10px;background:#07090b;color:#c9d1d9;white-space:pre-wrap}.ok{color:var(--green)}.bad{color:var(--red)}@media(max-width:650px){header{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <header><h1>Bitcoin <span>Administration</span></h1><a href="/">Zum Dashboard</a></header>
+  <div class="notice">Updates verwenden ausschließlich vorbereitete Pakete aus <code>/home/todo</code>. Freie Befehle, Pfade oder Versionsangaben können über diese Seite nicht übergeben werden.</div>
+  <section class="grid">
+    <article class="card"><h2>Dashboard</h2><p class="status" id="dashboardStatus">Status wird geladen …</p><button data-kind="dashboard">Dashboard aktualisieren</button></article>
+    <article class="card"><h2>Bitcoin Core</h2><p class="status" id="bitcoinStatus">Status wird geladen …</p><button data-kind="bitcoin">Bitcoin Core aktualisieren</button></article>
+  </section>
+  <h2>Ausgabe</h2>
+  <pre id="output">Bereit.</pre>
+</main>
+<script>
+const csrf='__CSRF_TOKEN__',output=document.getElementById('output');
+async function status(){try{const r=await fetch('/api/admin/status',{cache:'no-store'}),d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);document.getElementById('dashboardStatus').textContent=d.dashboard;document.getElementById('bitcoinStatus').textContent=d.bitcoin}catch(e){output.textContent='Statusfehler: '+e.message;output.className='bad'}}
+document.querySelectorAll('button').forEach(button=>button.addEventListener('click',async()=>{const kind=button.dataset.kind;if(!confirm(`${kind==='dashboard'?'Dashboard':'Bitcoin Core'} jetzt aus dem vorbereiteten Paket aktualisieren?`))return;button.disabled=true;output.textContent='Update-Auftrag wird gestartet …';output.className='';try{const body=new URLSearchParams({csrf});const r=await fetch(`/api/admin/update/${kind}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),d=await r.json();output.textContent=d.output||d.error||r.statusText;output.className=r.ok?'ok':'bad';await status()}catch(e){output.textContent=e.message;output.className='bad'}finally{button.disabled=false}}));
+status();
+</script>
+</body>
+</html>

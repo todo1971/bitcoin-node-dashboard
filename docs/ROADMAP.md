@@ -12,6 +12,12 @@
 - Dashboard- und Bitcoin-Core-Updatehelfer
 - Backups, Healthchecks und automatischer Rollback bei Startfehlern
 
+## Umgesetzt in 1.5
+
+- Administration in `/admin` integriert
+- separaten Admin-Webdienst entfernt
+- Authentifizierung, CSRF-Schutz, Rate-Limit und feste transiente Update-Aufträge ergänzt
+
 ## Umgesetzt in 1.4
 
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers

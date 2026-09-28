@@ -47,6 +47,7 @@ Verfügbare Einstellungen:
 | `SYNC_LAG_BLOCKS` | `3` | maximal tolerierter Abstand zu den Headern |
 | `DISK_MAX_USED_PERCENT` | `90` | Alarmgrenze für belegten Datenträgerplatz |
 | `MEMORY_MAX_USED_PERCENT` | `90` | Alarmgrenze für RAM-Auslastung |
+| `ADMIN_TOKEN` | leer | mindestens 32 Zeichen; wird durch den Admin-Bootstrap erzeugt |
 
 ## 3. Systemd-Service installieren
 
@@ -55,6 +56,17 @@ sudo cp /home/btc/bitcoin-dashboard/bitcoin-dashboard.service \
   /etc/systemd/system/bitcoin-dashboard.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now bitcoin-dashboard
+```
+
+Die integrierte Administration samt eng begrenzter Update-Berechtigungen wird
+anschließend aus einem temporär entpackten Release eingerichtet. Unter
+`/home/todo` bleibt nur das Archiv liegen:
+
+```bash
+tmpdir=$(mktemp -d)
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.0.tar.gz -C "$tmpdir"
+sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
+sudo rm -rf -- "$tmpdir"
 ```
 
 `StateDirectory=bitcoin-dashboard` erzeugt automatisch das beschreibbare
