@@ -5,20 +5,22 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import subprocess
 import threading
 import time
 import urllib.error
 import urllib.request
+from contextlib import closing
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 PORT = int(os.getenv("DASHBOARD_PORT", "8787"))
@@ -33,6 +35,22 @@ PUBLIC_NODE_PORT = int(os.getenv("PUBLIC_NODE_PORT", "8333"))
 EXTERNAL_CACHE_SECONDS = max(
     60, int(os.getenv("EXTERNAL_CACHE_SECONDS", "300"))
 )
+DATABASE_PATH = os.getenv(
+    "DATABASE_PATH", "/var/lib/bitcoin-dashboard/history.sqlite3"
+)
+SAMPLE_INTERVAL_SECONDS = max(
+    30, int(os.getenv("SAMPLE_INTERVAL_SECONDS", "60"))
+)
+HISTORY_RETENTION_DAYS = max(
+    1, int(os.getenv("HISTORY_RETENTION_DAYS", "365"))
+)
+
+HISTORY_RANGES: dict[str, tuple[int, int]] = {
+    "24h": (24 * 60 * 60, 5 * 60),
+    "7d": (7 * 24 * 60 * 60, 30 * 60),
+    "30d": (30 * 24 * 60 * 60, 2 * 60 * 60),
+    "1y": (365 * 24 * 60 * 60, 24 * 60 * 60),
+}
 
 _cache_lock = threading.Lock()
 _cache: dict[str, Any] = {"expires": 0.0, "data": None}
@@ -215,6 +233,159 @@ def snapshot() -> dict[str, Any]:
         return data
 
 
+def database_connection() -> sqlite3.Connection:
+    database = Path(DATABASE_PATH)
+    database.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(database, timeout=10)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA busy_timeout = 10000")
+    return connection
+
+
+def init_database() -> None:
+    with closing(database_connection()) as connection:
+        with connection:
+            connection.execute("PRAGMA journal_mode = WAL")
+            connection.execute("PRAGMA synchronous = NORMAL")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS node_samples (
+                    sampled_at INTEGER PRIMARY KEY,
+                    blocks INTEGER NOT NULL,
+                    verification_progress REAL,
+                    size_on_disk INTEGER,
+                    connections INTEGER,
+                    connections_in INTEGER,
+                    connections_out INTEGER,
+                    mempool_transactions INTEGER,
+                    mempool_bytes INTEGER,
+                    mempool_memory_usage INTEGER,
+                    mempool_min_fee_sat_vb REAL,
+                    fee_2_sat_vb REAL,
+                    fee_6_sat_vb REAL,
+                    fee_12_sat_vb REAL,
+                    bytes_received INTEGER,
+                    bytes_sent INTEGER,
+                    block_transactions INTEGER,
+                    block_total_fee_btc REAL
+                )
+                """
+            )
+
+
+def _number(value: Any) -> int | float | None:
+    return value if isinstance(value, (int, float)) else None
+
+
+def store_snapshot(data: dict[str, Any]) -> None:
+    chain = data.get("chain", {})
+    network = data.get("network", {})
+    mempool = data.get("mempool", {})
+    fees = data.get("fees_sat_vb", {})
+    block = data.get("latest_block") or {}
+    minimum_fee = _number(mempool.get("min_fee_btc_kvb"))
+    sampled_at = int(data.get("generated_at") or time.time())
+
+    values = (
+        sampled_at,
+        int(chain.get("blocks") or 0),
+        _number(chain.get("verification_progress")),
+        _number(chain.get("size_on_disk")),
+        _number(network.get("connections")),
+        _number(network.get("connections_in")),
+        _number(network.get("connections_out")),
+        _number(mempool.get("transactions")),
+        _number(mempool.get("bytes")),
+        _number(mempool.get("memory_usage")),
+        round(float(minimum_fee) * 100_000, 3)
+        if minimum_fee is not None
+        else None,
+        _number(fees.get("2")),
+        _number(fees.get("6")),
+        _number(fees.get("12")),
+        _number(network.get("bytes_received")),
+        _number(network.get("bytes_sent")),
+        _number(block.get("txs")),
+        (float(block["totalfee"]) / 100_000_000)
+        if isinstance(block.get("totalfee"), (int, float))
+        else None,
+    )
+
+    cutoff = sampled_at - HISTORY_RETENTION_DAYS * 24 * 60 * 60
+    with closing(database_connection()) as connection:
+        with connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO node_samples (
+                    sampled_at, blocks, verification_progress, size_on_disk,
+                    connections, connections_in, connections_out,
+                    mempool_transactions, mempool_bytes, mempool_memory_usage,
+                    mempool_min_fee_sat_vb, fee_2_sat_vb, fee_6_sat_vb,
+                    fee_12_sat_vb, bytes_received, bytes_sent,
+                    block_transactions, block_total_fee_btc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                values,
+            )
+            connection.execute(
+                "DELETE FROM node_samples WHERE sampled_at < ?",
+                (cutoff,),
+            )
+
+
+def history_data(range_name: str) -> dict[str, Any]:
+    duration, bucket_seconds = HISTORY_RANGES.get(
+        range_name, HISTORY_RANGES["24h"]
+    )
+    now = int(time.time())
+    cutoff = now - duration
+    init_database()
+    with closing(database_connection()) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                CAST(sampled_at / ? AS INTEGER) * ? AS timestamp,
+                MAX(blocks) AS blocks,
+                AVG(connections) AS connections,
+                AVG(connections_in) AS connections_in,
+                AVG(connections_out) AS connections_out,
+                AVG(mempool_transactions) AS mempool_transactions,
+                AVG(mempool_bytes) AS mempool_bytes,
+                AVG(mempool_min_fee_sat_vb) AS mempool_min_fee_sat_vb,
+                AVG(fee_2_sat_vb) AS fee_2_sat_vb,
+                AVG(fee_6_sat_vb) AS fee_6_sat_vb,
+                AVG(fee_12_sat_vb) AS fee_12_sat_vb
+            FROM node_samples
+            WHERE sampled_at >= ?
+            GROUP BY timestamp
+            ORDER BY timestamp
+            """,
+            (bucket_seconds, bucket_seconds, cutoff),
+        ).fetchall()
+
+    return {
+        "range": range_name if range_name in HISTORY_RANGES else "24h",
+        "bucket_seconds": bucket_seconds,
+        "generated_at": now,
+        "points": [dict(row) for row in rows],
+    }
+
+
+def sampler_loop() -> None:
+    initialized = False
+    while True:
+        started = time.monotonic()
+        try:
+            if not initialized:
+                init_database()
+                initialized = True
+            store_snapshot(snapshot())
+        except Exception as exc:
+            print(f"History sample failed: {exc}", flush=True)
+        elapsed = time.monotonic() - started
+        time.sleep(max(1, SAMPLE_INTERVAL_SECONDS - elapsed))
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = f"BitcoinDashboard/{__version__}"
 
@@ -236,13 +407,27 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path == "/api/dashboard":
             try:
                 body = json.dumps(snapshot(), separators=(",", ":")).encode()
                 self.send_bytes(body, "application/json; charset=utf-8")
             except Exception as exc:  # Return a controlled error, never a traceback.
-                body = json.dumps({"error": str(exc)}).encode()
+                print(f"Dashboard request failed: {exc}", flush=True)
+                body = b'{"error":"Node data unavailable"}'
+                self.send_bytes(body, "application/json; charset=utf-8", 503)
+            return
+        if path == "/api/history":
+            range_name = parse_qs(parsed.query).get("range", ["24h"])[0]
+            try:
+                body = json.dumps(
+                    history_data(range_name), separators=(",", ":")
+                ).encode()
+                self.send_bytes(body, "application/json; charset=utf-8")
+            except Exception as exc:
+                print(f"History request failed: {exc}", flush=True)
+                body = b'{"error":"History data unavailable"}'
                 self.send_bytes(body, "application/json; charset=utf-8", 503)
             return
         if path == "/healthz":
@@ -265,5 +450,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    history_thread = threading.Thread(
+        target=sampler_loop,
+        name="history-sampler",
+        daemon=True,
+    )
+    history_thread.start()
     print(f"Bitcoin dashboard listening on http://{HOST}:{PORT}", flush=True)
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

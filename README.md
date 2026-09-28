@@ -16,6 +16,8 @@ aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - lokaler Listener auf `127.0.0.1:8787`
 - Bitcoin-RPC und Authentifizierungs-Cookie bleiben serverseitig
 - externer Erreichbarkeitsstatus mit fünf Minuten Cache
+- SQLite-Historie mit 24-Stunden-, 7-Tage-, 30-Tage- und Jahresansicht
+- automatische Aufbewahrung und Verdichtung der Diagrammdaten
 - responsive Oberfläche für Desktop und Mobilgeräte
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
 
@@ -78,6 +80,8 @@ Eine vollständige Anleitung einschließlich Plesk-Konfiguration steht in
 ```bash
 cd /home/btc/bitcoin-dashboard
 sudo -u btc git pull --ff-only
+sudo cp bitcoin-dashboard.service /etc/systemd/system/bitcoin-dashboard.service
+sudo systemctl daemon-reload
 sudo systemctl restart bitcoin-dashboard
 ```
 
@@ -87,6 +91,7 @@ sudo systemctl restart bitcoin-dashboard
 |---|---|
 | `/` | Dashboard |
 | `/api/dashboard` | aggregierte Node-Daten als JSON |
+| `/api/history?range=24h` | verdichtete historische Messwerte |
 | `/healthz` | lokaler Funktions- und RPC-Test |
 
 Es gibt bewusst keinen Endpunkt, über den beliebige RPC-Methoden oder Argumente
@@ -96,6 +101,7 @@ an Bitcoin Core übergeben werden können.
 
 - [Installation und Betrieb](docs/INSTALLATION.md)
 - [Architektur](docs/ARCHITECTURE.md)
+- [Datenbank und Datenmenge](docs/DATABASE.md)
 - [Sicherheitskonzept](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Änderungen](CHANGELOG.md)

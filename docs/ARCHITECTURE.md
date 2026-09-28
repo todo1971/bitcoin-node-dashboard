@@ -9,6 +9,7 @@ Plesk / Apache Reverse Proxy
    ▼
 Python-Dashboard (Benutzer btc)
    ├── bitcoin-cli ──► lokaler Bitcoin-Core-RPC
+   ├── SQLite ────────► /var/lib/bitcoin-dashboard/history.sqlite3
    └── HTTPS ────────► öffentliche BTCNodes-API
 ```
 
@@ -36,8 +37,10 @@ Adresse bei `btcnodes.io` abgefragt. Das Ergebnis wird mindestens fünf Minuten
 gespeichert. Ein Ausfall des externen Dienstes beeinflusst die lokalen Node-Daten
 nicht.
 
-## Zustandslosigkeit
+## Historische Daten
 
-Version 1.1 speichert keine Messwerte und benötigt keine Datenbank. Historische
-Diagramme sind für eine spätere Version vorgesehen. Dadurch kann der Dienst mit
-einem weitgehend schreibgeschützten Dateisystem laufen.
+Ein Hintergrund-Thread speichert standardmäßig jede Minute eine Messung in
+SQLite. Die HTTP-Abfragen öffnen jeweils eine eigene kurzlebige Verbindung.
+WAL-Modus und `busy_timeout` erlauben paralleles Lesen während der Messung. Das
+übrige Dateisystem bleibt durch Systemd schreibgeschützt; nur das StateDirectory
+ist beschreibbar.

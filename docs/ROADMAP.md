@@ -1,9 +1,12 @@
 # Roadmap
 
-## Nächste Ausbaustufe
+## Umgesetzt in 1.2
 
 - Messwerte regelmäßig in SQLite speichern
-- Diagramme für 24 Stunden, 7 Tage und 30 Tage
+- Diagramme für 24 Stunden, 7 Tage, 30 Tage und 1 Jahr
+
+## Nächste Ausbaustufe
+
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers
 - Überwachung von Festplattenspeicher, CPU, RAM und Prozesslaufzeit
 - Versionsprüfung für Bitcoin Core

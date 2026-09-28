@@ -8,6 +8,7 @@
 - Der Browser kann keine frei gewählten RPC-Kommandos ausführen.
 - Unterprozesse werden ohne Shell und mit festen Argumentstrukturen gestartet.
 - Der Systemd-Service läuft ohne Root-Rechte als Benutzer `btc`.
+- Nur `/var/lib/bitcoin-dashboard` ist als persistenter Schreibbereich vorgesehen.
 - Browserantworten enthalten CSP-, Frame-, Referrer- und MIME-Sicherheitsheader.
 
 ## Öffentliche Informationen
@@ -34,6 +35,7 @@ Folgende Inhalte dürfen nicht in Git eingecheckt werden:
 - Wallet-Dateien, Seeds oder Private Keys
 - TLS-Private-Keys
 - persönliche Zugangstoken
+- produktive SQLite-Datenbanken
 
 Die Datei `.env` wird deshalb durch `.gitignore` ausgeschlossen.
 

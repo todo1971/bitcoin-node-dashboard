@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.2.0 – 2026-09-28
+
+- SQLite-Historie im WAL-Modus ergänzt
+- Messintervall und Aufbewahrungsdauer konfigurierbar gemacht
+- Diagramme für Peers und Gebührenschätzungen ergänzt
+- feste Zeitbereiche von 24 Stunden bis zu einem Jahr ergänzt
+- Systemd-StateDirectory für persistente Daten eingerichtet
+- Datenbanktests ergänzt
+
 ## 1.1.0 – 2026-09-28
 
 - externe Erreichbarkeitsprüfung über BTCNodes ergänzt

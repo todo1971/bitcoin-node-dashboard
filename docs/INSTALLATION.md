@@ -35,6 +35,9 @@ Verfügbare Einstellungen:
 | `PUBLIC_NODE_ADDRESS` | `217.160.16.224` | öffentliche P2P-Adresse |
 | `PUBLIC_NODE_PORT` | `8333` | öffentlicher P2P-Port |
 | `EXTERNAL_CACHE_SECONDS` | `300` | Cache externer Crawler-Daten |
+| `DATABASE_PATH` | `/var/lib/bitcoin-dashboard/history.sqlite3` | SQLite-Datei |
+| `SAMPLE_INTERVAL_SECONDS` | `60` | Abstand der Messungen |
+| `HISTORY_RETENTION_DAYS` | `365` | Aufbewahrungsdauer |
 
 ## 3. Systemd-Service installieren
 
@@ -44,6 +47,9 @@ sudo cp /home/btc/bitcoin-dashboard/bitcoin-dashboard.service \
 sudo systemctl daemon-reload
 sudo systemctl enable --now bitcoin-dashboard
 ```
+
+`StateDirectory=bitcoin-dashboard` erzeugt automatisch das beschreibbare
+Verzeichnis `/var/lib/bitcoin-dashboard` mit passenden Rechten für `btc`.
 
 Status und Logs:
 
@@ -76,6 +82,8 @@ Bitcoin-RPC-Port 8332 dürfen in der Firewall öffentlich freigegeben werden.
 ```bash
 cd /home/btc/bitcoin-dashboard
 sudo -u btc git pull --ff-only
+sudo cp bitcoin-dashboard.service /etc/systemd/system/bitcoin-dashboard.service
+sudo systemctl daemon-reload
 sudo systemctl restart bitcoin-dashboard
 curl -fsS http://127.0.0.1:8787/healthz
 ```
@@ -92,3 +100,10 @@ sudo -u btc /home/btc/bin/bitcoin-cli \
 
 Wenn `/healthz` den Status 503 liefert, zuerst Cookie-Pfad, Dateirechte,
 Datadir und den Zustand von `bitcoind` prüfen.
+
+Die Datenbank kann separat geprüft werden:
+
+```bash
+sudo -u btc sqlite3 /var/lib/bitcoin-dashboard/history.sqlite3 \
+  'SELECT COUNT(*), MIN(sampled_at), MAX(sampled_at) FROM node_samples;'
+```
