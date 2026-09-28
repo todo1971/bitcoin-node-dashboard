@@ -1,0 +1,20 @@
+server=1
+listen=1
+port=8333
+maxconnections=64
+
+# RPC remains local. Never expose port 8332 publicly.
+rpcbind=127.0.0.1
+rpcallowip=127.0.0.1
+rpcport=8332
+
+# Storage-saving full validation. Set prune=0 only for an archive node.
+prune=20000
+
+# This dashboard does not require a wallet.
+disablewallet=1
+
+# Conservative logging.
+debug=0
+logtimestamps=1
+shrinkdebugfile=1

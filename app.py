@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 PORT = int(os.getenv("DASHBOARD_PORT", "8787"))

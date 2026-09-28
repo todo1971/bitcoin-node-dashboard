@@ -1,0 +1,88 @@
+#!/bin/sh
+set -eu
+
+CONFIG=/etc/bitcoin-dashboard-updater.conf
+BACKUP_DIR=/var/backups/bitcoin-dashboard
+LOCK_FILE=/run/lock/bitcoin-dashboard-update.lock
+
+test -r "$CONFIG" || { echo "Missing $CONFIG" >&2; exit 1; }
+. "$CONFIG"
+: "${UPDATE_ROOT:=/home/todo}"
+: "${DASHBOARD_USER:=btc}"
+: "${DASHBOARD_TARGET:=/home/btc/bitcoin-dashboard}"
+: "${DASHBOARD_SERVICE:=bitcoin-dashboard}"
+: "${DASHBOARD_HEALTH_URL:=http://127.0.0.1:8787/healthz}"
+case "$UPDATE_ROOT" in /home/*) ;; *) echo "Unsafe UPDATE_ROOT" >&2; exit 1 ;; esac
+case "$DASHBOARD_USER" in *[!A-Za-z0-9_-]*|'') echo "Invalid dashboard user" >&2; exit 1 ;; esac
+case "$DASHBOARD_TARGET" in /home/*/bitcoin-dashboard|/opt/bitcoin-dashboard) ;; *) echo "Unsafe dashboard target" >&2; exit 1 ;; esac
+case "$DASHBOARD_SERVICE" in *[!A-Za-z0-9_.@-]*|'') echo "Invalid dashboard service" >&2; exit 1 ;; esac
+ARCHIVE="$UPDATE_ROOT/bitcoin-node-dashboard-update.tar.gz"
+TARGET="$DASHBOARD_TARGET"
+
+exec 9>"$LOCK_FILE"
+flock -n 9 || { echo "Another dashboard update is running" >&2; exit 1; }
+
+test -f "$ARCHIVE" || {
+    echo "Missing update package: $ARCHIVE" >&2
+    exit 1
+}
+
+tmp_dir=$(mktemp -d /var/tmp/bitcoin-dashboard-update.XXXXXX)
+backup=""
+cleanup() { rm -rf -- "$tmp_dir"; }
+trap cleanup EXIT INT TERM
+
+if tar -tzf "$ARCHIVE" | awk '
+    /^\// { bad=1 }
+    /(^|\/)\.\.($|\/)/ { bad=1 }
+    END { exit bad ? 0 : 1 }
+'; then
+    echo "Unsafe path found in update archive" >&2
+    exit 1
+fi
+
+tar -xzf "$ARCHIVE" -C "$tmp_dir"
+source_dir="$tmp_dir/bitcoin-dashboard"
+if find "$source_dir" -type l -print -quit | grep -q .; then
+    echo "Symbolic links are not allowed in dashboard packages" >&2
+    exit 1
+fi
+test -f "$source_dir/app.py" || { echo "app.py missing" >&2; exit 1; }
+test -f "$source_dir/static/index.html" || { echo "UI missing" >&2; exit 1; }
+test -d "$source_dir/tests" || { echo "Tests missing" >&2; exit 1; }
+
+runuser -u "$DASHBOARD_USER" -- sh -c "cd '$source_dir' && python3 -m py_compile app.py && python3 -m unittest discover -s tests -v"
+
+mkdir -p "$BACKUP_DIR"
+if test -d "$TARGET"; then
+    backup="$BACKUP_DIR/bitcoin-dashboard-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+    tar -czf "$backup" -C "$(dirname "$TARGET")" "$(basename "$TARGET")"
+fi
+
+dashboard_group=$(id -gn "$DASHBOARD_USER")
+install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET"
+install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$source_dir/app.py" "$TARGET/app.py"
+for directory in static docs tests; do
+    install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET/$directory"
+    cp -a "$source_dir/$directory/." "$TARGET/$directory/"
+done
+for file in README.md CHANGELOG.md bitcoin-dashboard.env.example plesk-apache.conf; do
+    test ! -f "$source_dir/$file" || install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0640 "$source_dir/$file" "$TARGET/$file"
+done
+chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"
+
+systemctl restart "$DASHBOARD_SERVICE"
+if ! systemctl is-active --quiet "$DASHBOARD_SERVICE" || \
+   ! curl --fail --silent --show-error --max-time 10 "$DASHBOARD_HEALTH_URL" >/dev/null; then
+    echo "Healthcheck failed; rolling back" >&2
+    if test -n "$backup"; then
+        systemctl stop "$DASHBOARD_SERVICE" || true
+        tar -xzf "$backup" -C "$(dirname "$TARGET")"
+        chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"
+        systemctl start "$DASHBOARD_SERVICE"
+    fi
+    exit 1
+fi
+
+echo "Dashboard update completed successfully"
+python3 -c "import sys; sys.path.insert(0, '$TARGET'); import app; print('Version:', app.__version__)"

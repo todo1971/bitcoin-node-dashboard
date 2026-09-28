@@ -5,6 +5,13 @@
 - Messwerte regelmäßig in SQLite speichern
 - Diagramme für 1, 6, 12 und 24 Stunden sowie 7 Tage, 30 Tage und 1 Jahr
 
+## Umgesetzt in 1.3
+
+- lokaler Web-Installer
+- separates Wartungspanel über SSH-Tunnel
+- Dashboard- und Bitcoin-Core-Updatehelfer
+- Backups, Healthchecks und automatischer Rollback bei Startfehlern
+
 ## Nächste Ausbaustufe
 
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers

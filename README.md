@@ -20,6 +20,8 @@ aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - automatische Aufbewahrung und Verdichtung der Diagrammdaten
 - responsive Oberfläche für Desktop und Mobilgeräte
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
+- lokaler Web-Installer für systemd-basierte Linux-Server
+- getrennte Wartungsoberfläche mit geprüften Update-Helfern und Rollback
 
 ## Voraussetzungen
 
@@ -102,6 +104,8 @@ an Bitcoin Core übergeben werden können.
 - [Installation und Betrieb](docs/INSTALLATION.md)
 - [Architektur](docs/ARCHITECTURE.md)
 - [Datenbank und Datenmenge](docs/DATABASE.md)
+- [Web-Installation](docs/WEB_INSTALLATION.md)
+- [Sichere Updates](docs/UPDATES.md)
 - [Sicherheitskonzept](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Änderungen](CHANGELOG.md)

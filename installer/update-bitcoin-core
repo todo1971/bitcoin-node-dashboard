@@ -1,0 +1,118 @@
+#!/bin/sh
+set -eu
+
+CONFIG=/etc/bitcoin-dashboard-updater.conf
+KEYRING=/usr/local/share/bitcoin-core/trustedkeys.gpg
+LOCK_FILE=/run/lock/bitcoin-core-update.lock
+BACKUP_DIR=/var/backups/bitcoin-core
+
+test -r "$CONFIG" || { echo "Missing $CONFIG" >&2; exit 1; }
+. "$CONFIG"
+: "${BITCOIN_SERVICE:=bitcoind}"
+: "${BITCOIN_BIN_DIR:=/home/btc/bin}"
+: "${UPDATE_ROOT:=/home/todo}"
+case "$UPDATE_ROOT" in /home/*) ;; *) echo "Unsafe UPDATE_ROOT" >&2; exit 1 ;; esac
+INBOX="$UPDATE_ROOT/bitcoin-core-update"
+case "$BITCOIN_SERVICE" in
+    *[!A-Za-z0-9_.@-]*|'') echo "Invalid service name" >&2; exit 1 ;;
+esac
+case "$BITCOIN_BIN_DIR" in
+    /home/*/bin|/opt/bitcoin*/bin) ;;
+    *) echo "Unsafe BITCOIN_BIN_DIR" >&2; exit 1 ;;
+esac
+
+exec 9>"$LOCK_FILE"
+flock -n 9 || { echo "Another Bitcoin Core update is running" >&2; exit 1; }
+
+test -r "$INBOX/version" || { echo "Missing $INBOX/version" >&2; exit 1; }
+version=$(tr -d '\r\n' < "$INBOX/version")
+case "$version" in
+    ''|*[!0-9.]*|.*|*.) echo "Invalid Bitcoin Core version" >&2; exit 1 ;;
+esac
+
+case "$(uname -m)" in
+    x86_64) platform=x86_64-linux-gnu ;;
+    aarch64|arm64) platform=aarch64-linux-gnu ;;
+    *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+archive_name="bitcoin-$version-$platform.tar.gz"
+archive="$INBOX/$archive_name"
+sums="$INBOX/SHA256SUMS"
+signatures="$INBOX/SHA256SUMS.asc"
+test -f "$archive" || { echo "Missing $archive" >&2; exit 1; }
+test -f "$sums" || { echo "Missing $sums" >&2; exit 1; }
+test -f "$signatures" || { echo "Missing $signatures" >&2; exit 1; }
+test -f "$KEYRING" || { echo "Missing trusted keyring: $KEYRING" >&2; exit 1; }
+
+tmp_dir=$(mktemp -d /var/tmp/bitcoin-core-update.XXXXXX)
+status_file="$tmp_dir/gpg-status"
+backup="$BACKUP_DIR/bitcoin-core-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+cleanup() { rm -rf -- "$tmp_dir"; }
+trap cleanup EXIT INT TERM
+
+gpg --batch --no-default-keyring --keyring "$KEYRING" \
+    --status-fd 1 --verify "$signatures" "$sums" >"$status_file" 2>/dev/null || true
+grep -q '^\[GNUPG:\] VALIDSIG ' "$status_file" || {
+    echo "No valid signature from the trusted keyring" >&2
+    exit 1
+}
+if grep -Eq '^\[GNUPG:\] (BADSIG|REVKEYSIG|EXPKEYSIG) ' "$status_file"; then
+    echo "A trusted signature is invalid, revoked, or expired" >&2
+    exit 1
+fi
+
+expected=$(awk -v file="$archive_name" '$2 == file { print $1; exit }' "$sums")
+case "$expected" in
+    ''|*[!0-9a-fA-F]*) echo "Checksum missing or invalid" >&2; exit 1 ;;
+esac
+test "${#expected}" -eq 64 || { echo "Checksum has invalid length" >&2; exit 1; }
+actual=$(sha256sum "$archive" | awk '{print $1}')
+test "$actual" = "$expected" || { echo "SHA256 mismatch" >&2; exit 1; }
+
+if tar -tzf "$archive" | awk '
+    /^\// { bad=1 }
+    /(^|\/)\.\.($|\/)/ { bad=1 }
+    END { exit bad ? 0 : 1 }
+'; then
+    echo "Unsafe path found in Bitcoin Core archive" >&2
+    exit 1
+fi
+
+tar -xzf "$archive" -C "$tmp_dir"
+source_bin="$tmp_dir/bitcoin-$version/bin"
+test -x "$source_bin/bitcoind" || { echo "bitcoind missing" >&2; exit 1; }
+test -x "$source_bin/bitcoin-cli" || { echo "bitcoin-cli missing" >&2; exit 1; }
+"$source_bin/bitcoind" -version | head -n 1
+
+if test -d "$BITCOIN_BIN_DIR"; then
+    mkdir -p "$BACKUP_DIR"
+    tar -czf "$backup" -C "$(dirname "$BITCOIN_BIN_DIR")" "$(basename "$BITCOIN_BIN_DIR")"
+fi
+
+systemctl stop "$BITCOIN_SERVICE"
+install -d -o root -g root -m 0755 "$BITCOIN_BIN_DIR"
+for binary in "$source_bin"/bitcoin-* "$source_bin"/bitcoind; do
+    test -f "$binary" || continue
+    install -o root -g root -m 0755 "$binary" "$BITCOIN_BIN_DIR/$(basename "$binary")"
+done
+
+if ! systemctl start "$BITCOIN_SERVICE"; then
+    start_failed=1
+else
+    sleep 5
+    if systemctl is-active --quiet "$BITCOIN_SERVICE"; then start_failed=0; else start_failed=1; fi
+fi
+if test "$start_failed" -ne 0; then
+    echo "Bitcoin Core failed to start; rolling back binaries" >&2
+    systemctl stop "$BITCOIN_SERVICE" || true
+    if test -f "$backup"; then
+        rm -rf -- "$BITCOIN_BIN_DIR"
+        tar -xzf "$backup" -C "$(dirname "$BITCOIN_BIN_DIR")"
+    fi
+    systemctl start "$BITCOIN_SERVICE" || true
+    exit 1
+fi
+
+echo "Bitcoin Core update completed successfully"
+"$BITCOIN_BIN_DIR/bitcoin-cli" -version | head -n 1

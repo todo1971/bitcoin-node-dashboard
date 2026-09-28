@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.3.0 – 2026-09-28
+
+- lokalen, token-geschützten Web-Installer ergänzt
+- getrennte lokale Wartungsoberfläche ergänzt
+- Dashboard-Updates mit Tests, Backup, Healthcheck und Rollback ergänzt
+- Bitcoin-Core-Updates mit GPG- und SHA256-Prüfung ergänzt
+- Beispielkonfiguration für neue Bitcoin-Nodes ergänzt
+- Update-Berechtigungen auf zwei feste Root-Helfer begrenzt
+
 ## 1.2.1 – 2026-09-28
 
 - Historienansichten für 1, 6 und 12 Stunden ergänzt

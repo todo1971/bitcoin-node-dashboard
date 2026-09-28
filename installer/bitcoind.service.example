@@ -1,0 +1,25 @@
+[Unit]
+Description=Bitcoin Core daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=btc
+Group=btc
+ExecStart=/home/btc/bin/bitcoind -datadir=/home/btc/bitcoin-data -printtoconsole
+ExecStop=/home/btc/bin/bitcoin-cli -datadir=/home/btc/bitcoin-data stop
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=600
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/btc/bitcoin-data
+
+[Install]
+WantedBy=multi-user.target
