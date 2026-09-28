@@ -26,7 +26,7 @@ Dann `http://127.0.0.1:8790` öffnen.
 Das gewünschte Release-Paket wird unter dem festen Namen bereitgestellt:
 
 ```bash
-sudo cp /home/todo/bitcoin-node-dashboard-1.4.0.tar.gz \
+sudo cp /home/todo/bitcoin-node-dashboard-1.4.1.tar.gz \
   /home/todo/bitcoin-node-dashboard-update.tar.gz
 ```
 

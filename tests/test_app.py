@@ -95,6 +95,7 @@ class HistoryDatabaseTests(unittest.TestCase):
         self.assertEqual(result["points"][1]["fee_2_sat_vb"], 10.0)
         self.assertEqual(result["points"][0]["cpu_percent"], 12.5)
         self.assertEqual(result["points"][0]["disk_free_percent"], 66.0)
+        self.assertEqual(result["points"][0]["disk_used_percent"], 34.0)
 
     def test_unknown_range_falls_back_to_24_hours(self):
         with patch.object(app.time, "time", return_value=1_500):

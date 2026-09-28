@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -561,7 +561,8 @@ def history_data(range_name: str) -> dict[str, Any]:
                 AVG(fee_12_sat_vb) AS fee_12_sat_vb,
                 AVG(cpu_percent) AS cpu_percent,
                 AVG(memory_used_percent) AS memory_used_percent,
-                AVG(disk_free_percent) AS disk_free_percent
+                AVG(disk_free_percent) AS disk_free_percent,
+                100.0 - AVG(disk_free_percent) AS disk_used_percent
             FROM node_samples
             WHERE sampled_at >= ?
             GROUP BY timestamp

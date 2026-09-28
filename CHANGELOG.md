@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.4.1 – 2026-09-28
+
+- Datenträgerkarte und Verlauf von freiem auf belegten Speicher umgestellt
+- Alarmgrenze weiterhin anhand des freien Speichers berechnet
+
 ## 1.4.0 – 2026-09-28
 
 - Alarme für RPC-Ausfall, Sync-Rückstand und fehlende Inbound-Peers ergänzt
