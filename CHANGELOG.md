@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.6.0 – 2026-09-28
+
+- neuestes Dashboard-Release automatisch über die GitHub Releases API ermitteln
+- private Repositorys über ein nur lesendes Fine-grained Token unterstützen
+- Release-Archiv und separate SHA-256-Datei herunterladen und vor Installation prüfen
+- installierte und neueste Dashboard-Version in `/admin` anzeigen
+- weiterhin parameterloser, eng begrenzter Root-Updateauftrag mit Backup und Rollback
+
 ## 1.5.2 – 2026-09-28
 
 - systemd-Optionen entfernt, die `NoNewPrivileges` indirekt aktivierten

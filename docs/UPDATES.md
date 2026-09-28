@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Unter `/home/todo` bleibt nur das Archiv:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.2.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -24,24 +24,49 @@ Webprozess oder Port wird nicht mehr verwendet.
 
 ## Dashboard aktualisieren
 
-Das gewünschte Release-Paket wird unter dem festen Namen bereitgestellt:
+Das Dashboard fragt die GitHub Releases API ab. Weil das Repository privat ist,
+wird ein Fine-grained Personal Access Token mit ausschließlich lesendem
+`Contents`-Zugriff auf dieses eine Repository benötigt. Es wird nur auf dem
+Server gespeichert:
 
 ```bash
-sudo cp /home/todo/bitcoin-node-dashboard-1.5.2.tar.gz \
-  /home/todo/bitcoin-node-dashboard-update.tar.gz
+sudo editor /etc/default/bitcoin-dashboard
 ```
 
-Danach kann unter `/admin` **Dashboard aktualisieren** gewählt werden. Die
-Webanwendung übergibt keine Browserparameter an Root. Sie darf nur einen exakt
-festgelegten transienten systemd-Auftrag starten. Der Root-Helfer:
+```text
+DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard
+DASHBOARD_GITHUB_TOKEN=github_pat_...
+```
+
+Danach den Dienst neu starten:
+
+```bash
+sudo chmod 0640 /etc/default/bitcoin-dashboard
+sudo chown root:root /etc/default/bitcoin-dashboard
+sudo systemctl restart bitcoin-dashboard
+```
+
+Unter `/admin` werden installierte und neueste Release-Version angezeigt. Bei
+**Dashboard aktualisieren** übergibt die Webanwendung keine Browserparameter an
+Root. Sie darf nur einen exakt festgelegten transienten systemd-Auftrag starten.
+Der Root-Helfer:
 
 1. sperrt parallele Updates,
-2. verwirft Archive mit unsicheren Pfaden oder Symlinks,
-3. führt Kompilierung und Unit-Tests als Dashboard-Benutzer aus,
-4. legt ein Backup unter `/var/backups/bitcoin-dashboard` an,
-5. installiert nur die erlaubten Anwendungsdateien,
-6. startet den Dienst neu,
-7. prüft `/healthz` und führt bei einem Fehler einen Rollback aus.
+2. ermittelt das neueste GitHub-Release,
+3. lädt Archiv und separate SHA-256-Datei herunter und verifiziert beide,
+4. verwirft Archive mit unsicheren Pfaden oder Symlinks,
+5. führt Kompilierung und Unit-Tests als Dashboard-Benutzer aus,
+6. legt ein Backup unter `/var/backups/bitcoin-dashboard` an,
+7. installiert nur die erlaubten Anwendungsdateien,
+8. startet den Dienst neu,
+9. prüft `/healthz` und führt bei einem Fehler einen Rollback aus.
+
+Jedes GitHub-Release benötigt zwei Assets mit genau diesen Namen:
+
+```text
+bitcoin-node-dashboard-VERSION.tar.gz
+bitcoin-node-dashboard-VERSION.tar.gz.sha256
+```
 
 Die Systemd-Unit, Root-Helfer und Sudoers-Dateien werden durch diesen Updater
 bewusst nicht aus einem Update-Archiv überschrieben.
@@ -111,6 +136,6 @@ Dashboard-Update kann den aufrufenden Webprozess gefahrlos neu starten.
 /usr/bin/systemd-run --unit=bitcoin-core-update --collect --no-block /usr/local/sbin/update-bitcoin-core
 ```
 
-Die Pakete unter `/home/todo` dürfen nicht durch den Dashboard-Benutzer
-beschreibbar sein. Andernfalls wäre die Paketprüfung allein keine ausreichende
-Vertrauensgrenze.
+Das GitHub-Token darf niemals in Git, Logs oder Release-Paketen gespeichert
+werden. Nach einer unbeabsichtigten Offenlegung muss es bei GitHub sofort
+widerrufen werden.

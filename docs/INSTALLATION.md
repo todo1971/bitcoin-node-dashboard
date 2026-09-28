@@ -48,6 +48,8 @@ Verfügbare Einstellungen:
 | `DISK_MAX_USED_PERCENT` | `90` | Alarmgrenze für belegten Datenträgerplatz |
 | `MEMORY_MAX_USED_PERCENT` | `90` | Alarmgrenze für RAM-Auslastung |
 | `ADMIN_TOKEN` | leer | mindestens 32 Zeichen; wird durch den Admin-Bootstrap erzeugt |
+| `DASHBOARD_GITHUB_REPOSITORY` | `todo1971/bitcoin-node-dashboard` | Quelle für Dashboard-Releases |
+| `DASHBOARD_GITHUB_TOKEN` | leer | nur lesendes Fine-grained Token; für private Repositorys erforderlich |
 
 ## 3. Systemd-Service installieren
 
@@ -64,7 +66,7 @@ anschließend aus einem temporär entpackten Release eingerichtet. Unter
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.2.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```

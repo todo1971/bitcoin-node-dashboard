@@ -1,4 +1,6 @@
 import base64
+import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,6 +64,41 @@ class VersionTests(unittest.TestCase):
 
     def test_invalid_version_is_empty(self):
         self.assertEqual(app.version_tuple("unknown"), ())
+
+    def test_github_release_reports_dashboard_update(self):
+        payload = json.dumps(
+            {
+                "tag_name": "v9.8.7",
+                "html_url": "https://github.com/example/project/releases/tag/v9.8.7",
+            }
+        ).encode()
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.close()
+
+        app._dashboard_version_cache.update(expires=0.0, data=None)
+        with patch.object(app, "DASHBOARD_GITHUB_REPOSITORY", "example/project"):
+            with patch.object(app, "DASHBOARD_GITHUB_TOKEN", "secret-token"):
+                with patch("urllib.request.urlopen", return_value=Response(payload)) as open_url:
+                    result = app.fetch_latest_dashboard_version()
+
+        self.assertTrue(result["available"])
+        self.assertTrue(result["update_available"])
+        self.assertEqual(result["latest"], "9.8.7")
+        request = open_url.call_args.args[0]
+        self.assertEqual(request.get_header("Authorization"), "Bearer secret-token")
+
+    def test_invalid_github_repository_is_not_requested(self):
+        app._dashboard_version_cache.update(expires=0.0, data=None)
+        with patch.object(app, "DASHBOARD_GITHUB_REPOSITORY", "https://evil.test/x"):
+            with patch("urllib.request.urlopen") as open_url:
+                result = app.fetch_latest_dashboard_version()
+        self.assertFalse(result["available"])
+        open_url.assert_not_called()
 
 
 class AlertEvaluationTests(unittest.TestCase):

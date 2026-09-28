@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.5.2"
+__version__ = "1.6.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -81,6 +81,10 @@ MEMORY_MAX_USED_PERCENT = min(
     99.0, max(50.0, float(os.getenv("MEMORY_MAX_USED_PERCENT", "90")))
 )
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
+DASHBOARD_GITHUB_REPOSITORY = os.getenv(
+    "DASHBOARD_GITHUB_REPOSITORY", "todo1971/bitcoin-node-dashboard"
+).strip()
+DASHBOARD_GITHUB_TOKEN = os.getenv("DASHBOARD_GITHUB_TOKEN", "").strip()
 ADMIN_CSRF_TOKEN = secrets.token_urlsafe(32)
 ADMIN_MAX_FAILURES = 5
 ADMIN_LOCK_SECONDS = 15 * 60
@@ -119,6 +123,8 @@ _external_cache_lock = threading.Lock()
 _external_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _version_cache_lock = threading.Lock()
 _version_cache: dict[str, Any] = {"expires": 0.0, "data": None}
+_dashboard_version_cache_lock = threading.Lock()
+_dashboard_version_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _cpu_lock = threading.Lock()
 _cpu_previous: tuple[int, int] | None = None
 _admin_auth_lock = threading.Lock()
@@ -274,6 +280,62 @@ def fetch_latest_core_version() -> dict[str, Any]:
         except (OSError, ValueError, urllib.error.URLError):
             pass
         _version_cache.update(data=result, expires=now + VERSION_CHECK_SECONDS)
+        return result
+
+
+def fetch_latest_dashboard_version() -> dict[str, Any]:
+    """Check the newest published GitHub release without exposing credentials."""
+    now = time.monotonic()
+    with _dashboard_version_cache_lock:
+        if (
+            _dashboard_version_cache["data"] is not None
+            and now < _dashboard_version_cache["expires"]
+        ):
+            return _dashboard_version_cache["data"]
+        result: dict[str, Any] = {
+            "available": False,
+            "current": __version__,
+            "latest": None,
+            "update_available": False,
+            "release_url": f"https://github.com/{DASHBOARD_GITHUB_REPOSITORY}/releases",
+        }
+        if not re.fullmatch(
+            r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", DASHBOARD_GITHUB_REPOSITORY
+        ):
+            result["error"] = "GitHub-Repository ist ungültig konfiguriert"
+        else:
+            try:
+                headers = {
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": f"BitcoinDashboard/{__version__}",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                }
+                if DASHBOARD_GITHUB_TOKEN:
+                    headers["Authorization"] = f"Bearer {DASHBOARD_GITHUB_TOKEN}"
+                request = urllib.request.Request(
+                    "https://api.github.com/repos/"
+                    f"{DASHBOARD_GITHUB_REPOSITORY}/releases/latest",
+                    headers=headers,
+                )
+                with urllib.request.urlopen(request, timeout=8) as response:
+                    release = json.load(response)
+                tag = str(release.get("tag_name") or "")
+                latest_tuple = version_tuple(tag)
+                current_tuple = version_tuple(__version__)
+                if not latest_tuple:
+                    raise ValueError("GitHub-Release besitzt keine gültige Version")
+                latest = ".".join(str(part) for part in latest_tuple)
+                result.update(
+                    available=True,
+                    latest=latest,
+                    update_available=latest_tuple > current_tuple,
+                    release_url=str(release.get("html_url") or result["release_url"]),
+                )
+            except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError):
+                result["error"] = "GitHub-Release konnte nicht geprüft werden"
+        _dashboard_version_cache.update(
+            data=result, expires=now + VERSION_CHECK_SECONDS
+        )
         return result
 
 
@@ -872,7 +934,7 @@ def admin_status_data() -> dict[str, Any]:
         else "Bitcoin Core nicht erreichbar"
     )
     return {
-        "dashboard": f"Version {__version__}",
+        "dashboard": fetch_latest_dashboard_version(),
         "bitcoin": bitcoin_version,
         "admin_enabled": len(ADMIN_TOKEN) >= 32,
     }

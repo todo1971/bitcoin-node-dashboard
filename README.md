@@ -24,6 +24,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - lokaler Web-Installer für systemd-basierte Linux-Server
 - integrierte, abgesicherte Administration unter `/admin`
 - Updates als isolierte systemd-Aufträge mit geprüften Helfern und Rollback
+- automatische Dashboard-Updates aus verifizierten GitHub-Release-Assets
 - CPU-, RAM-, Datenträger- und bitcoind-Laufzeitüberwachung mit Historie
 - Alarme mit Karenzzeit, Wiederholsperre, Entwarnung, E-Mail und HTTPS-Webhook
 - Versionsvergleich mit der offiziellen Bitcoin-Core-Downloadseite

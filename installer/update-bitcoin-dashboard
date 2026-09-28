@@ -23,10 +23,15 @@ TARGET="$DASHBOARD_TARGET"
 exec 9>"$LOCK_FILE"
 flock -n 9 || { echo "Another dashboard update is running" >&2; exit 1; }
 
-test -f "$ARCHIVE" || {
-    echo "Missing update package: $ARCHIVE" >&2
-    exit 1
-}
+if /usr/local/libexec/fetch-bitcoin-dashboard-release; then
+    :
+else
+    fetch_status=$?
+    test "$fetch_status" -eq 20 && exit 0
+    exit "$fetch_status"
+fi
+
+test -f "$ARCHIVE" || { echo "GitHub downloader did not create $ARCHIVE" >&2; exit 1; }
 
 tmp_dir=$(mktemp -d /var/tmp/bitcoin-dashboard-update.XXXXXX)
 backup=""

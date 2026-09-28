@@ -8,6 +8,8 @@ project_dir=$(dirname "$script_dir")
 
 install -o root -g root -m 0755 "$script_dir/update-bitcoin-dashboard" /usr/local/sbin/update-bitcoin-dashboard
 install -o root -g root -m 0755 "$script_dir/update-bitcoin-core" /usr/local/sbin/update-bitcoin-core
+install -d -o root -g root -m 0755 /usr/local/libexec
+install -o root -g root -m 0755 "$script_dir/fetch-dashboard-release" /usr/local/libexec/fetch-bitcoin-dashboard-release
 
 if test ! -f /etc/bitcoin-dashboard-updater.conf; then
     printf '%s\n' \
@@ -48,6 +50,10 @@ fi
 env_tmp=$(mktemp)
 grep -v '^ADMIN_TOKEN=' "$env_file" >"$env_tmp" || true
 printf 'ADMIN_TOKEN=%s\n' "$token" >>"$env_tmp"
+grep -q '^DASHBOARD_GITHUB_REPOSITORY=' "$env_tmp" || \
+    printf '%s\n' 'DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard' >>"$env_tmp"
+grep -q '^DASHBOARD_GITHUB_TOKEN=' "$env_tmp" || \
+    printf '%s\n' 'DASHBOARD_GITHUB_TOKEN=' >>"$env_tmp"
 install -o root -g root -m 0640 "$env_tmp" "$env_file"
 rm -f -- "$env_tmp"
 

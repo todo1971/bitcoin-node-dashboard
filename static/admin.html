@@ -11,7 +11,7 @@
 <body>
 <main>
   <header><h1>Bitcoin <span>Administration</span></h1><a href="/">Zum Dashboard</a></header>
-  <div class="notice">Updates verwenden ausschließlich vorbereitete Pakete aus <code>/home/todo</code>. Freie Befehle, Pfade oder Versionsangaben können über diese Seite nicht übergeben werden.</div>
+  <div class="notice">Dashboard-Updates werden ausschließlich aus dem konfigurierten GitHub-Repository geladen und vor der Installation per SHA-256 geprüft. Freie Befehle, Pfade oder Versionsangaben können über diese Seite nicht übergeben werden.</div>
   <section class="grid">
     <article class="card"><h2>Dashboard</h2><p class="status" id="dashboardStatus">Status wird geladen …</p><button data-kind="dashboard">Dashboard aktualisieren</button></article>
     <article class="card"><h2>Bitcoin Core</h2><p class="status" id="bitcoinStatus">Status wird geladen …</p><button data-kind="bitcoin">Bitcoin Core aktualisieren</button></article>
@@ -21,8 +21,8 @@
 </main>
 <script>
 const csrf='__CSRF_TOKEN__',output=document.getElementById('output');
-async function status(){try{const r=await fetch('/api/admin/status',{cache:'no-store'}),d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);document.getElementById('dashboardStatus').textContent=d.dashboard;document.getElementById('bitcoinStatus').textContent=d.bitcoin}catch(e){output.textContent='Statusfehler: '+e.message;output.className='bad'}}
-document.querySelectorAll('button').forEach(button=>button.addEventListener('click',async()=>{const kind=button.dataset.kind;if(!confirm(`${kind==='dashboard'?'Dashboard':'Bitcoin Core'} jetzt aus dem vorbereiteten Paket aktualisieren?`))return;button.disabled=true;output.textContent='Update-Auftrag wird gestartet …';output.className='';try{const body=new URLSearchParams({csrf});const r=await fetch(`/api/admin/update/${kind}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),d=await r.json();output.textContent=d.output||d.error||r.statusText;output.className=r.ok?'ok':'bad';await status()}catch(e){output.textContent=e.message;output.className='bad'}finally{button.disabled=false}}));
+async function status(){try{const r=await fetch('/api/admin/status',{cache:'no-store'}),d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);const v=d.dashboard;document.getElementById('dashboardStatus').textContent=v.available?`Installiert: ${v.current} · GitHub: ${v.latest}${v.update_available?' · Update verfügbar':' · aktuell'}`:`Installiert: ${v.current} · GitHub-Prüfung nicht verfügbar`;document.getElementById('bitcoinStatus').textContent=d.bitcoin}catch(e){output.textContent='Statusfehler: '+e.message;output.className='bad'}}
+document.querySelectorAll('button').forEach(button=>button.addEventListener('click',async()=>{const kind=button.dataset.kind,source=kind==='dashboard'?'das neueste verifizierte GitHub-Release':'das vorbereitete Paket';if(!confirm(`${kind==='dashboard'?'Dashboard':'Bitcoin Core'} jetzt aus ${source} aktualisieren?`))return;button.disabled=true;output.textContent='Update-Auftrag wird gestartet …';output.className='';try{const body=new URLSearchParams({csrf});const r=await fetch(`/api/admin/update/${kind}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),d=await r.json();output.textContent=d.output||d.error||r.statusText;output.className=r.ok?'ok':'bad';await status()}catch(e){output.textContent=e.message;output.className='bad'}finally{button.disabled=false}}));
 status();
 </script>
 </body>

@@ -17,7 +17,7 @@ Paket aus `/home/todo` in ein temporäres Verzeichnis entpacken:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.5.2.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.0.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 
