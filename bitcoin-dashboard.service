@@ -1,0 +1,22 @@
+[Unit]
+Description=Read-only Bitcoin Core dashboard
+After=network-online.target bitcoind.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=btc
+Group=btc
+WorkingDirectory=/home/btc/bitcoin-dashboard
+EnvironmentFile=-/etc/default/bitcoin-dashboard
+ExecStart=/usr/bin/python3 /home/btc/bitcoin-dashboard/app.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/home/btc/bitcoin-dashboard /home/btc/bitcoin-data /home/btc/bitcoin-core/.bitcoin
+
+[Install]
+WantedBy=multi-user.target
