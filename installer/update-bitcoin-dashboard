@@ -52,6 +52,8 @@ source_dir="$tmp_dir/bitcoin-dashboard"
 dashboard_group=$(id -gn "$DASHBOARD_USER")
 chgrp "$dashboard_group" "$tmp_dir" "$source_dir"
 chmod 0750 "$tmp_dir" "$source_dir"
+pycache_dir="$tmp_dir/pycache"
+install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0700 "$pycache_dir"
 if find "$source_dir" -type l -print -quit | grep -q .; then
     echo "Symbolic links are not allowed in dashboard packages" >&2
     exit 1
@@ -60,7 +62,8 @@ test -f "$source_dir/app.py" || { echo "app.py missing" >&2; exit 1; }
 test -f "$source_dir/static/index.html" || { echo "UI missing" >&2; exit 1; }
 test -d "$source_dir/tests" || { echo "Tests missing" >&2; exit 1; }
 
-runuser -u "$DASHBOARD_USER" -- sh -c "cd '$source_dir' && python3 -m py_compile app.py && python3 -m unittest discover -s tests -v"
+runuser -u "$DASHBOARD_USER" -- env PYTHONPYCACHEPREFIX="$pycache_dir" \
+    sh -c "cd '$source_dir' && python3 -m py_compile app.py && python3 -m unittest discover -s tests -v"
 
 mkdir -p "$BACKUP_DIR"
 if test -d "$TARGET"; then

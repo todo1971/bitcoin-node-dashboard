@@ -2,6 +2,12 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.8.1 – 2026-09-29
+
+- Python-Tests des Root-Updaters verwenden jetzt ein separates, für den
+  unprivilegierten Benutzer beschreibbares Bytecode-Verzeichnis
+- Fehler `Permission denied: __pycache__` beim Dashboard-Update behoben
+
 ## 1.8.0 – 2026-09-29
 
 - gehärtetes Dashboard-Image und Docker-Compose-Dateien ergänzt

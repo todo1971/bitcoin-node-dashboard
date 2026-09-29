@@ -38,6 +38,17 @@ class ServiceConfigurationTests(unittest.TestCase):
         runuser_position = updater.index('runuser -u "$DASHBOARD_USER"')
         self.assertLess(chmod_position, runuser_position)
 
+    def test_updater_uses_a_writable_python_cache_for_unprivileged_tests(self):
+        project = Path(__file__).parent.parent
+        updater = (project / "installer" / "update-bitcoin-dashboard").read_text()
+        cache_position = updater.index(
+            'install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0700 "$pycache_dir"'
+        )
+        runuser_position = updater.index('runuser -u "$DASHBOARD_USER"')
+
+        self.assertLess(cache_position, runuser_position)
+        self.assertIn('PYTHONPYCACHEPREFIX="$pycache_dir"', updater)
+
     def test_core_updater_verifies_before_stopping_node(self):
         project = Path(__file__).parent.parent
         updater = (project / "installer" / "update-bitcoin-core").read_text()
