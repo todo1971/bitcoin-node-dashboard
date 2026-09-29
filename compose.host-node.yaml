@@ -7,8 +7,8 @@ services:
       args:
         DASHBOARD_UID: ${DASHBOARD_UID:-1010}
         DASHBOARD_GID: ${DASHBOARD_GID:-1010}
-        APP_VERSION: "1.8.1"
-    image: bitcoin-node-dashboard:1.8.1
+        APP_VERSION: "1.8.2"
+    image: bitcoin-node-dashboard:1.8.2
     restart: unless-stopped
     init: true
     network_mode: host

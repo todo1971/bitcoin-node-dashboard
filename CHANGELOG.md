@@ -2,6 +2,12 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.8.2 – 2026-09-29
+
+- Healthcheck nach einem Dienstneustart wartet jetzt bis zu 30 Sekunden
+- verhindert unnötige Rollbacks, während Python den HTTP-Port noch öffnet
+- Zustand des wiederhergestellten Dienstes wird nach einem Rollback geprüft
+
 ## 1.8.1 – 2026-09-29
 
 - Python-Tests des Root-Updaters verwenden jetzt ein separates, für den

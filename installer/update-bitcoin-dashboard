@@ -6,6 +6,20 @@ CONFIG=/etc/bitcoin-dashboard-updater.conf
 BACKUP_DIR=/var/backups/bitcoin-dashboard
 LOCK_FILE=/run/lock/bitcoin-dashboard-update.lock
 
+wait_for_health() {
+    attempt=0
+    while test "$attempt" -lt 30; do
+        if systemctl is-active --quiet "$DASHBOARD_SERVICE" && \
+           curl --fail --silent --show-error --max-time 3 \
+               "$DASHBOARD_HEALTH_URL" >/dev/null 2>&1; then
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    return 1
+}
+
 test -r "$CONFIG" || { echo "Missing $CONFIG" >&2; exit 1; }
 . "$CONFIG"
 : "${UPDATE_ROOT:=/home/todo}"
@@ -83,14 +97,16 @@ done
 chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"
 
 systemctl restart "$DASHBOARD_SERVICE"
-if ! systemctl is-active --quiet "$DASHBOARD_SERVICE" || \
-   ! curl --fail --silent --show-error --max-time 10 "$DASHBOARD_HEALTH_URL" >/dev/null; then
+if ! wait_for_health; then
     echo "Healthcheck failed; rolling back" >&2
     if test -n "$backup"; then
         systemctl stop "$DASHBOARD_SERVICE" || true
         tar -xzf "$backup" -C "$(dirname "$TARGET")"
         chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"
         systemctl start "$DASHBOARD_SERVICE"
+        if ! wait_for_health; then
+            echo "Rollback healthcheck failed" >&2
+        fi
     fi
     exit 1
 fi

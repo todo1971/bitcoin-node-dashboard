@@ -49,6 +49,14 @@ class ServiceConfigurationTests(unittest.TestCase):
         self.assertLess(cache_position, runuser_position)
         self.assertIn('PYTHONPYCACHEPREFIX="$pycache_dir"', updater)
 
+    def test_updater_waits_for_service_health_after_restart(self):
+        project = Path(__file__).parent.parent
+        updater = (project / "installer" / "update-bitcoin-dashboard").read_text()
+
+        self.assertIn('while test "$attempt" -lt 30', updater)
+        self.assertIn("if ! wait_for_health; then", updater)
+        self.assertIn('echo "Rollback healthcheck failed"', updater)
+
     def test_core_updater_verifies_before_stopping_node(self):
         project = Path(__file__).parent.parent
         updater = (project / "installer" / "update-bitcoin-core").read_text()
