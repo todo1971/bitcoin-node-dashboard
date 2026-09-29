@@ -20,6 +20,7 @@ jobs:
       - name: Shell syntax
         run: |
           sh -n installer/bootstrap-admin.sh installer/update-bitcoin-dashboard installer/update-bitcoin-core
+          sh -n installer/install-docker-all-in-one.sh
           bash -n docker/all-in-one-entrypoint.sh
       - name: Unit tests
         run: python -m unittest discover -s tests -v
@@ -38,6 +39,14 @@ jobs:
           PUBLIC_NODE_ADDRESS: 127.0.0.1
           ADMIN_TOKEN: 01234567890123456789012345678901
         run: docker compose -f compose.all-in-one.yaml build
+      - name: Validate shell installer
+        run: |
+          sudo sh installer/install-docker-all-in-one.sh \
+            --public-address 127.0.0.1 \
+            --install-dir /opt/bitcoin-node-dashboard-ci \
+            --prepare-only
+          sudo test -f /opt/bitcoin-node-dashboard-ci/.env
+          sudo test "$(stat -c %a /opt/bitcoin-node-dashboard-ci/.env)" = 600
       - name: Smoke-test all-in-one container
         env:
           PUBLIC_NODE_ADDRESS: 127.0.0.1

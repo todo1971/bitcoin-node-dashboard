@@ -43,6 +43,12 @@
 - kombinierter Healthcheck für RPC und Weboberfläche
 - kontrolliertes Beenden beider Prozesse mit ausreichender Shutdown-Frist
 
+## Umgesetzt in 1.10
+
+- vorbereitender und ausführender Shell-Installer für All-in-one
+- Plesk-Installation wahlweise als Stack oder hinter Apache ohne nginx
+- Schutz vor belegten Ports und unsicheren symbolischen Links
+
 ## Umgesetzt in 1.4
 
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers

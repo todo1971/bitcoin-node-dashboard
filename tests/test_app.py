@@ -126,6 +126,26 @@ class DockerConfigurationTests(unittest.TestCase):
         self.assertIn('wait -n "$bitcoin_pid" "$dashboard_pid"', entrypoint)
         self.assertIn('bitcoin-cli -datadir="$BITCOIN_DATADIR" stop', entrypoint)
 
+    def test_shell_installer_is_non_destructive_and_checks_ports(self):
+        installer = (
+            app.APP_DIR / "installer" / "install-docker-all-in-one.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("--prepare-only", installer)
+        self.assertIn("Port 8333 or 8787 is already in use", installer)
+        self.assertIn("Refusing symbolic link", installer)
+        self.assertNotIn("systemctl stop", installer)
+        self.assertNotIn("down -v", installer)
+
+    def test_plesk_apache_template_contains_no_nginx_directives(self):
+        configuration = (app.APP_DIR / "plesk-apache-docker.conf").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("LimitRequestBody 209715200", configuration)
+        self.assertIn("ProxyPass", configuration)
+        self.assertNotIn("client_max_body_size", configuration)
+
 
 class FeeRateTests(unittest.TestCase):
     def test_converts_btc_per_kvb_to_sat_per_vb(self):

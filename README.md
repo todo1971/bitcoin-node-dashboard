@@ -121,6 +121,8 @@ an Bitcoin Core übergeben werden können.
 - [Datenbank und Datenmenge](docs/DATABASE.md)
 - [Web-Installation](docs/WEB_INSTALLATION.md)
 - [Docker-Betrieb](docs/DOCKER.md)
+- [All-in-one per Shell](docs/SHELL_DOCKER.md)
+- [All-in-one unter Plesk](docs/PLESK_DOCKER.md)
 - [Sichere Updates](docs/UPDATES.md)
 - [Alarme und Systemüberwachung](docs/ALERTS.md)
 - [Sicherheitskonzept](docs/SECURITY.md)

@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.10.0 – 2026-09-29
+
+- sicherer Shell-Installer für die All-in-one-Variante ergänzt
+- `--prepare-only` bereitet Installationen ohne Start oder Dienständerungen vor
+- Plesk-Anleitung für Compose-Stacks und reine Apache-Systeme ergänzt
+- getrennte Apache-Vorlage für das lokal gebundene Container-Dashboard
+- Installer schützt vorhandene Dienste durch Prüfung belegter Ports
+
 ## 1.9.0 – 2026-09-29
 
 - optionale All-in-one-Variante für Bitcoin Core und Dashboard ergänzt

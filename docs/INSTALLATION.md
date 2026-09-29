@@ -70,7 +70,7 @@ anschließend aus einem temporär entpackten Release eingerichtet. Unter
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.9.0.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.10.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```

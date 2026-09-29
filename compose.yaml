@@ -35,8 +35,8 @@ services:
       args:
         DASHBOARD_UID: ${DASHBOARD_UID:-1010}
         DASHBOARD_GID: ${DASHBOARD_GID:-1010}
-        APP_VERSION: "1.9.0"
-    image: bitcoin-node-dashboard:1.9.0
+        APP_VERSION: "1.10.0"
+    image: bitcoin-node-dashboard:1.10.0
     restart: unless-stopped
     init: true
     depends_on:

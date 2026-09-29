@@ -3,6 +3,10 @@
 Das Repository enthält drei getrennte Compose-Varianten. Sie dürfen nicht
 gleichzeitig gestartet werden.
 
+Für die All-in-one-Variante gibt es zusätzlich einen abgesicherten
+[Shell-Installer](SHELL_DOCKER.md) und eine Anleitung für
+[Plesk ohne nginx](PLESK_DOCKER.md).
+
 ## Vorhandenen Host-Node überwachen
 
 `compose.host-node.yaml` ist für den bestehenden Server vorgesehen. bitcoind
