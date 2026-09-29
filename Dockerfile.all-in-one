@@ -29,7 +29,8 @@ RUN groupadd --gid "${NODE_GID}" node \
     && useradd --uid "${NODE_UID}" --gid node --create-home \
         --shell /usr/sbin/nologin node \
     && install -d -o node -g node -m 0700 /data /data/bitcoin \
-    && install -d -o node -g node -m 0750 /data/dashboard /app
+    && install -d -o node -g node -m 0750 /data/dashboard /app \
+    && install -d -o root -g root -m 0755 /etc/bitcoin
 
 COPY --from=bitcoin-core /opt/bitcoin-${BITCOIN_CORE_VERSION} /opt/bitcoin-${BITCOIN_CORE_VERSION}
 COPY --chown=node:node app.py /app/app.py

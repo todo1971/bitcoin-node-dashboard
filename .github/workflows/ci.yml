@@ -34,4 +34,24 @@ jobs:
       - name: Build dashboard container
         run: docker build --build-arg APP_VERSION=ci -t bitcoin-node-dashboard:ci .
       - name: Build all-in-one container
-        run: docker build -f Dockerfile.all-in-one --build-arg APP_VERSION=ci -t bitcoin-node-dashboard-all-in-one:ci .
+        env:
+          PUBLIC_NODE_ADDRESS: 127.0.0.1
+          ADMIN_TOKEN: 01234567890123456789012345678901
+        run: docker compose -f compose.all-in-one.yaml build
+      - name: Smoke-test all-in-one container
+        env:
+          PUBLIC_NODE_ADDRESS: 127.0.0.1
+          ADMIN_TOKEN: 01234567890123456789012345678901
+        run: |
+          docker compose -f compose.all-in-one.yaml up -d --no-build
+          container_id=$(docker compose -f compose.all-in-one.yaml ps -q node)
+          timeout 150 bash -c "until [ \"\$(docker inspect --format '{{.State.Health.Status}}' '$container_id')\" = healthy ]; do sleep 2; done"
+          curl --fail --silent --show-error http://127.0.0.1:8787/healthz
+      - name: Clean up all-in-one smoke test
+        if: always()
+        env:
+          PUBLIC_NODE_ADDRESS: 127.0.0.1
+          ADMIN_TOKEN: 01234567890123456789012345678901
+        run: |
+          docker compose -f compose.all-in-one.yaml logs --tail 100 || true
+          docker compose -f compose.all-in-one.yaml down -v
