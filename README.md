@@ -18,6 +18,8 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - Bitcoin-RPC und Authentifizierungs-Cookie bleiben serverseitig
 - externer Erreichbarkeitsstatus mit fünf Minuten Cache
 - SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
+- tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
+- periodische Mempool-Paketanalyse für Cluster, RBF und CPFP
 - automatische Aufbewahrung und Verdichtung der Diagrammdaten
 - responsive Oberfläche für Desktop und Mobilgeräte
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
@@ -106,6 +108,7 @@ sudo systemctl restart bitcoin-dashboard
 | `/` | Dashboard |
 | `/api/dashboard` | aggregierte Node-Daten als JSON |
 | `/api/history?range=24h` | verdichtete historische Messwerte |
+| `/api/analytics?range=24h` | Block-, UTXO- und Mempool-Analysedaten |
 | `/api/alerts` | derzeit aktive Alarme |
 | `/api/admin/upload/bitcoin` | geschützter Bitcoin-Core-Archivupload |
 | `/admin` | passwortgeschützte Administration |

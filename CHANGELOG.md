@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.0 – 2026-09-29
+
+- tägliche UTXO-Statistik über `gettxoutsetinfo none` ergänzt
+- Blockgrößen und bestätigte Transaktionsraten historisiert
+- periodische Mempool-Cluster-, RBF-Fähigkeits- und CPFP-Kandidatenanalyse ergänzt
+- neue Analyseansicht mit Kennzahlen, Diagrammen, UTXO-Tabelle und Glossar
+- neuer JSON-Endpunkt `/api/analytics`
+
 ## 1.10.0 – 2026-09-29
 
 - sicherer Shell-Installer für die All-in-one-Variante ergänzt

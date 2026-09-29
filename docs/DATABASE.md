@@ -25,6 +25,7 @@ Die Tabelle `node_samples` enthält pro Messzeitpunkt:
 - Gebührenschätzungen für 2, 6 und 12 Blöcke
 - kumulierten Netzwerkverkehr
 - Transaktionen und Gesamtgebühren des neuesten Blocks
+- Blockgröße und bestätigte Transaktionsrate des neuesten Blocks
 - CPU- und RAM-Auslastung
 - freier Datenträgerplatz im Bitcoin-Datadir
 - Laufzeit des bitcoind-Prozesses
@@ -32,6 +33,16 @@ Die Tabelle `node_samples` enthält pro Messzeitpunkt:
 Die Tabelle `alert_states` hält Beginn, Aktivierungszustand und letzte
 Benachrichtigung eines Alarms fest. Dadurch bleiben Karenzzeit und
 Wiederholsperre auch nach einem Dashboard-Neustart wirksam.
+
+Die Tabelle `utxo_samples` speichert höchstens einmal täglich die mit
+`gettxoutsetinfo none` ermittelte Anzahl der UTXOs, Blockhöhe, Datenbankgröße
+und Gesamtmenge. Der Modus `none` vermeidet die teure Berechnung eines
+UTXO-Set-Hashes. Das Intervall lässt sich mit `UTXO_SAMPLE_SECONDS` ändern.
+
+Die Mempool-Paketanalyse wird nicht dauerhaft gespeichert. Sie fasst die
+aktuellen Eltern-/Kind-Beziehungen als Cluster zusammen, kennzeichnet
+RBF-fähige Transaktionen und CPFP-Kandidaten mit höherer Kind-Gebührenrate. Sie wird
+standardmäßig höchstens alle fünf Minuten erneuert (`MEMPOOL_ANALYSIS_SECONDS`).
 
 Die API liefert keine halbe Million Rohdatensätze an den Browser. Sie verdichtet
 die Daten abhängig vom ausgewählten Zeitraum in feste Zeitfenster:

@@ -29,7 +29,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.10.0"
+__version__ = "1.11.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -54,6 +54,12 @@ SAMPLE_INTERVAL_SECONDS = max(
 )
 HISTORY_RETENTION_DAYS = max(
     1, int(os.getenv("HISTORY_RETENTION_DAYS", "365"))
+)
+MEMPOOL_ANALYSIS_SECONDS = max(
+    60, int(os.getenv("MEMPOOL_ANALYSIS_SECONDS", "300"))
+)
+UTXO_SAMPLE_SECONDS = max(
+    3600, int(os.getenv("UTXO_SAMPLE_SECONDS", "86400"))
 )
 VERSION_CHECK_SECONDS = max(
     3600, int(os.getenv("VERSION_CHECK_SECONDS", "21600"))
@@ -148,6 +154,11 @@ _admin_auth_lock = threading.Lock()
 _admin_failures: list[float] = []
 _admin_blocked_until = 0.0
 _bitcoin_upload_lock = threading.Lock()
+_mempool_analysis_lock = threading.Lock()
+_mempool_analysis_cache: dict[str, Any] = {"expires": 0.0, "data": None}
+_utxo_last_attempt = 0
+_block_interval_lock = threading.Lock()
+_block_interval_cache: dict[str, Any] = {"height": None, "seconds": None}
 
 
 class RpcError(RuntimeError):
@@ -244,6 +255,117 @@ def fee_rate(target: int) -> float | None:
         return None
     # Bitcoin Core returns BTC/kvB. Convert to sat/vB.
     return round(float(value) * 100_000, 2)
+
+
+def block_interval_seconds(height: int, block_stats: Any) -> int | None:
+    """Return the interval to the previous block without failing snapshots."""
+    if height < 2 or not isinstance(block_stats, dict):
+        return None
+    with _block_interval_lock:
+        if _block_interval_cache["height"] == height:
+            return _block_interval_cache["seconds"]
+    current_time = _number(block_stats.get("time"))
+    previous = safe_call("getblockstats", str(height - 1), "[\"time\"]")
+    previous_time = _number(previous.get("time")) if isinstance(previous, dict) else None
+    if current_time is None or previous_time is None:
+        return None
+    seconds = max(1, int(current_time - previous_time))
+    with _block_interval_lock:
+        _block_interval_cache.update(height=height, seconds=seconds)
+    return seconds
+
+
+def summarize_mempool(entries: Any) -> dict[str, Any]:
+    """Summarize verbose getrawmempool data without retaining transaction IDs."""
+    if not isinstance(entries, dict):
+        return {
+            "available": False,
+            "transactions": 0,
+            "clusters": 0,
+            "package_transactions": 0,
+            "cpfp_transactions": 0,
+            "rbf_transactions": 0,
+            "rbf_replaceable_transactions": 0,
+            "standalone_transactions": 0,
+        }
+    transaction_ids = set(entries)
+    graph: dict[str, set[str]] = {txid: set() for txid in transaction_ids}
+    rbf = 0
+    cpfp = 0
+    package_transactions: set[str] = set()
+    for txid, entry in entries.items():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("bip125-replaceable") is True:
+            rbf += 1
+        dependencies = entry.get("depends") or []
+        child_rate = mempool_entry_fee_rate(entry)
+        parent_rates = [
+            mempool_entry_fee_rate(entries[parent])
+            for parent in dependencies
+            if parent in entries and isinstance(entries[parent], dict)
+        ]
+        if (
+            dependencies
+            and child_rate is not None
+            and any(rate is not None and child_rate > rate for rate in parent_rates)
+        ):
+            cpfp += 1
+        relatives = list(dependencies) + list(entry.get("spentby") or [])
+        for relative in relatives:
+            if relative in transaction_ids:
+                graph[txid].add(relative)
+                graph[relative].add(txid)
+                package_transactions.update((txid, relative))
+
+    visited: set[str] = set()
+    clusters = 0
+    for txid in transaction_ids:
+        if txid in visited or not graph[txid]:
+            continue
+        clusters += 1
+        pending = [txid]
+        while pending:
+            current = pending.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+            pending.extend(graph[current] - visited)
+    total = len(transaction_ids)
+    return {
+        "available": True,
+        "transactions": total,
+        "clusters": clusters,
+        "package_transactions": len(package_transactions),
+        "cpfp_transactions": cpfp,
+        "rbf_transactions": rbf,
+        "rbf_replaceable_transactions": rbf,
+        "standalone_transactions": total - len(package_transactions),
+    }
+
+
+def mempool_entry_fee_rate(entry: dict[str, Any]) -> float | None:
+    vsize = _number(entry.get("vsize"))
+    fees = entry.get("fees")
+    base_fee = _number(fees.get("base")) if isinstance(fees, dict) else None
+    if not vsize or base_fee is None:
+        return None
+    return float(base_fee) * 100_000_000 / float(vsize)
+
+
+def mempool_analysis() -> dict[str, Any]:
+    now = time.monotonic()
+    with _mempool_analysis_lock:
+        cached = _mempool_analysis_cache.get("data")
+        if cached is not None and now < _mempool_analysis_cache["expires"]:
+            return cached
+        entries = safe_call("getrawmempool", "true")
+        result = summarize_mempool(entries)
+        result["generated_at"] = int(time.time())
+        _mempool_analysis_cache.update(
+            data=result, expires=now + MEMPOOL_ANALYSIS_SECONDS
+        )
+        return result
 
 
 def fetch_external_node_status() -> dict[str, Any]:
@@ -484,6 +606,14 @@ def build_snapshot() -> dict[str, Any]:
 
     height = int(chain.get("blocks", 0))
     block_stats = safe_call("getblockstats", str(height)) if height else None
+    interval_seconds = block_interval_seconds(height, block_stats)
+    if isinstance(block_stats, dict):
+        block_stats["interval_seconds"] = interval_seconds
+        block_stats["transaction_rate"] = (
+            round(float(block_stats.get("txs", 0)) / interval_seconds, 3)
+            if interval_seconds
+            else None
+        )
     peer_networks: dict[str, int] = {}
     inbound = 0
     outbound = 0
@@ -540,6 +670,7 @@ def build_snapshot() -> dict[str, Any]:
             "12": fee_rate(12),
         },
         "latest_block": block_stats,
+        "mempool_analysis": mempool_analysis(),
         "external_node": fetch_external_node_status(),
         "system": system_stats(),
         "version_check": latest_version,
@@ -591,6 +722,8 @@ def init_database() -> None:
                     bytes_sent INTEGER,
                     block_transactions INTEGER,
                     block_total_fee_btc REAL,
+                    block_size_bytes INTEGER,
+                    block_transaction_rate REAL,
                     cpu_percent REAL,
                     memory_used_percent REAL,
                     disk_free_percent REAL,
@@ -611,6 +744,8 @@ def init_database() -> None:
                 "disk_free_percent": "REAL",
                 "disk_free_bytes": "INTEGER",
                 "bitcoind_uptime": "INTEGER",
+                "block_size_bytes": "INTEGER",
+                "block_transaction_rate": "REAL",
             }
             for column, data_type in migrations.items():
                 if column not in existing_columns:
@@ -625,6 +760,19 @@ def init_database() -> None:
                     active INTEGER NOT NULL DEFAULT 0,
                     last_notified INTEGER,
                     message TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS utxo_samples (
+                    sampled_at INTEGER PRIMARY KEY,
+                    height INTEGER NOT NULL,
+                    transactions INTEGER,
+                    txouts INTEGER NOT NULL,
+                    bogosize INTEGER,
+                    disk_size INTEGER,
+                    total_amount_btc REAL
                 )
                 """
             )
@@ -669,6 +817,8 @@ def store_snapshot(data: dict[str, Any]) -> None:
         (float(block["totalfee"]) / 100_000_000)
         if isinstance(block.get("totalfee"), (int, float))
         else None,
+        _number(block.get("total_size")),
+        _number(block.get("transaction_rate")),
         _number(system.get("cpu_percent")),
         _number(memory.get("used_percent")),
         _number(disk.get("free_percent")),
@@ -687,10 +837,11 @@ def store_snapshot(data: dict[str, Any]) -> None:
                     mempool_transactions, mempool_bytes, mempool_memory_usage,
                     mempool_min_fee_sat_vb, fee_2_sat_vb, fee_6_sat_vb,
                     fee_12_sat_vb, bytes_received, bytes_sent,
-                    block_transactions, block_total_fee_btc, cpu_percent,
+                    block_transactions, block_total_fee_btc, block_size_bytes,
+                    block_transaction_rate, cpu_percent,
                     memory_used_percent, disk_free_percent, disk_free_bytes,
                     bitcoind_uptime
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -722,6 +873,10 @@ def history_data(range_name: str) -> dict[str, Any]:
                 AVG(fee_2_sat_vb) AS fee_2_sat_vb,
                 AVG(fee_6_sat_vb) AS fee_6_sat_vb,
                 AVG(fee_12_sat_vb) AS fee_12_sat_vb,
+                AVG(block_transactions) AS block_transactions,
+                AVG(block_total_fee_btc) AS block_total_fee_btc,
+                AVG(block_size_bytes) AS block_size_bytes,
+                AVG(block_transaction_rate) AS block_transaction_rate,
                 AVG(cpu_percent) AS cpu_percent,
                 AVG(memory_used_percent) AS memory_used_percent,
                 AVG(disk_free_percent) AS disk_free_percent,
@@ -739,6 +894,87 @@ def history_data(range_name: str) -> dict[str, Any]:
         "bucket_seconds": bucket_seconds,
         "generated_at": now,
         "points": [dict(row) for row in rows],
+    }
+
+
+def store_daily_utxo_sample(now: int | None = None) -> bool:
+    """Store one inexpensive UTXO-set summary per configured interval."""
+    global _utxo_last_attempt
+    sampled_at = int(time.time()) if now is None else int(now)
+    init_database()
+    with closing(database_connection()) as connection:
+        latest = connection.execute(
+            "SELECT MAX(sampled_at) FROM utxo_samples"
+        ).fetchone()[0]
+    if latest is not None and sampled_at - int(latest) < UTXO_SAMPLE_SECONDS:
+        return False
+    if sampled_at - _utxo_last_attempt < UTXO_SAMPLE_SECONDS:
+        return False
+    _utxo_last_attempt = sampled_at
+    try:
+        result = bitcoin_cli("gettxoutsetinfo", "none", timeout=600)
+    except RpcError:
+        return False
+    if not isinstance(result, dict) or not isinstance(result.get("txouts"), int):
+        return False
+    with closing(database_connection()) as connection:
+        with connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO utxo_samples (
+                    sampled_at, height, transactions, txouts, bogosize,
+                    disk_size, total_amount_btc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    sampled_at,
+                    int(result.get("height") or 0),
+                    _number(result.get("transactions")),
+                    int(result["txouts"]),
+                    _number(result.get("bogosize")),
+                    _number(result.get("disk_size")),
+                    _number(result.get("total_amount")),
+                ),
+            )
+            cutoff = sampled_at - HISTORY_RETENTION_DAYS * 24 * 60 * 60
+            connection.execute(
+                "DELETE FROM utxo_samples WHERE sampled_at < ?", (cutoff,)
+            )
+    return True
+
+
+def analytics_data(range_name: str) -> dict[str, Any]:
+    history = history_data(range_name)
+    duration, _ = HISTORY_RANGES.get(range_name, HISTORY_RANGES["24h"])
+    cutoff = int(time.time()) - duration
+    with closing(database_connection()) as connection:
+        rows = connection.execute(
+            """
+            SELECT sampled_at AS timestamp, height, transactions, txouts,
+                   bogosize, disk_size, total_amount_btc
+            FROM utxo_samples
+            WHERE sampled_at >= ?
+            ORDER BY sampled_at
+            """,
+            (cutoff,),
+        ).fetchall()
+        if len(rows) < 2:
+            recent_rows = connection.execute(
+                """
+                SELECT sampled_at AS timestamp, height, transactions, txouts,
+                       bogosize, disk_size, total_amount_btc
+                FROM utxo_samples
+                ORDER BY sampled_at DESC LIMIT 2
+                """
+            ).fetchall()
+            if len(recent_rows) > len(rows):
+                rows = list(reversed(recent_rows))
+    return {
+        "range": history["range"],
+        "generated_at": int(time.time()),
+        "block_points": history["points"],
+        "utxo_points": [dict(row) for row in rows],
+        "mempool": mempool_analysis(),
     }
 
 
@@ -1174,6 +1410,16 @@ def sampler_loop() -> None:
         time.sleep(max(1, SAMPLE_INTERVAL_SECONDS - elapsed))
 
 
+def analytics_sampler_loop() -> None:
+    """Keep slow analytical RPCs away from health and alert sampling."""
+    while True:
+        try:
+            store_daily_utxo_sample()
+        except Exception as exc:
+            print(f"UTXO sample failed: {exc}", flush=True)
+        time.sleep(min(3600, max(60, UTXO_SAMPLE_SECONDS)))
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = f"BitcoinDashboard/{__version__}"
 
@@ -1256,6 +1502,18 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 print(f"History request failed: {exc}", flush=True)
                 body = b'{"error":"History data unavailable"}'
+                self.send_bytes(body, "application/json; charset=utf-8", 503)
+            return
+        if path == "/api/analytics":
+            range_name = parse_qs(parsed.query).get("range", ["24h"])[0]
+            try:
+                body = json.dumps(
+                    analytics_data(range_name), separators=(",", ":")
+                ).encode()
+                self.send_bytes(body, "application/json; charset=utf-8")
+            except Exception as exc:
+                print(f"Analytics request failed: {exc}", flush=True)
+                body = b'{"error":"Analytics data unavailable"}'
                 self.send_bytes(body, "application/json; charset=utf-8", 503)
             return
         if path == "/api/alerts":
@@ -1402,5 +1660,11 @@ if __name__ == "__main__":
         daemon=True,
     )
     history_thread.start()
+    analytics_thread = threading.Thread(
+        target=analytics_sampler_loop,
+        name="analytics-sampler",
+        daemon=True,
+    )
+    analytics_thread.start()
     print(f"Bitcoin dashboard listening on http://{HOST}:{PORT}", flush=True)
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

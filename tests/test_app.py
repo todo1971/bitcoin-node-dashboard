@@ -3,6 +3,7 @@ import io
 import json
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -159,6 +160,26 @@ class FeeRateTests(unittest.TestCase):
             return_value={"errors": ["insufficient data"]},
         ):
             self.assertIsNone(app.fee_rate(2))
+
+
+class MempoolAnalysisTests(unittest.TestCase):
+    def test_summarizes_clusters_cpfp_rbf_and_standalone_transactions(self):
+        entries = {
+            "parent": {"depends": [], "spentby": ["child"], "bip125-replaceable": False, "vsize": 100, "fees": {"base": 0.000001}},
+            "child": {"depends": ["parent"], "spentby": [], "bip125-replaceable": True, "vsize": 100, "fees": {"base": 0.00001}},
+            "single": {"depends": [], "spentby": [], "bip125-replaceable": False, "vsize": 100, "fees": {"base": 0.000001}},
+        }
+
+        result = app.summarize_mempool(entries)
+
+        self.assertTrue(result["available"])
+        self.assertEqual(result["transactions"], 3)
+        self.assertEqual(result["clusters"], 1)
+        self.assertEqual(result["package_transactions"], 2)
+        self.assertEqual(result["cpfp_transactions"], 1)
+        self.assertEqual(result["rbf_transactions"], 1)
+        self.assertEqual(result["rbf_replaceable_transactions"], 1)
+        self.assertEqual(result["standalone_transactions"], 1)
 
 
 class JsonRpcTests(unittest.TestCase):
@@ -405,7 +426,12 @@ class HistoryDatabaseTests(unittest.TestCase):
                 "min_fee_btc_kvb": 0.00001,
             },
             "fees_sat_vb": {"2": fee, "6": fee / 2, "12": fee / 4},
-            "latest_block": {"txs": 2_000, "totalfee": 123_456},
+            "latest_block": {
+                "txs": 2_000,
+                "totalfee": 123_456,
+                "total_size": 1_500_000,
+                "transaction_rate": 3.25,
+            },
             "system": {
                 "cpu_percent": 12.5,
                 "memory": {"used_percent": 42.0},
@@ -427,6 +453,32 @@ class HistoryDatabaseTests(unittest.TestCase):
         self.assertEqual(result["points"][0]["cpu_percent"], 12.5)
         self.assertEqual(result["points"][0]["disk_free_percent"], 66.0)
         self.assertEqual(result["points"][0]["disk_used_percent"], 34.0)
+        self.assertEqual(result["points"][0]["block_size_bytes"], 1_500_000.0)
+        self.assertEqual(result["points"][0]["block_transaction_rate"], 3.25)
+
+    def test_daily_utxo_sample_is_stored_once_per_interval(self):
+        result = {
+            "height": 900_000,
+            "transactions": 100,
+            "txouts": 200,
+            "bogosize": 300,
+            "disk_size": 400,
+            "total_amount": 19_700_000.0,
+        }
+        old_attempt = app._utxo_last_attempt
+        app._utxo_last_attempt = 0
+        try:
+            with patch.object(app, "bitcoin_cli", return_value=result) as rpc:
+                self.assertTrue(app.store_daily_utxo_sample(100_000))
+                self.assertFalse(app.store_daily_utxo_sample(100_100))
+            rpc.assert_called_once_with("gettxoutsetinfo", "none", timeout=600)
+            with closing(app.database_connection()) as connection:
+                row = connection.execute(
+                    "SELECT txouts FROM utxo_samples"
+                ).fetchone()
+            self.assertEqual(row["txouts"], 200)
+        finally:
+            app._utxo_last_attempt = old_attempt
 
     def test_unknown_range_falls_back_to_24_hours(self):
         with patch.object(app.time, "time", return_value=1_500):

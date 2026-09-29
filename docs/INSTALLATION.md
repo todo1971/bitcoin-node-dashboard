@@ -37,6 +37,8 @@ Verfügbare Einstellungen:
 | `PUBLIC_NODE_PORT` | `8333` | öffentlicher P2P-Port |
 | `EXTERNAL_CACHE_SECONDS` | `300` | Cache externer Crawler-Daten |
 | `DATABASE_PATH` | `/var/lib/bitcoin-dashboard/history.sqlite3` | SQLite-Datei |
+| `MEMPOOL_ANALYSIS_SECONDS` | `300` | Mindestabstand der Mempool-Paketanalyse |
+| `UTXO_SAMPLE_SECONDS` | `86400` | Mindestabstand der UTXO-Messung |
 | `SAMPLE_INTERVAL_SECONDS` | `60` | Abstand der Messungen |
 | `HISTORY_RETENTION_DAYS` | `365` | Aufbewahrungsdauer |
 | `VERSION_CHECK_SECONDS` | `21600` | Cache der Versionsprüfung, mindestens eine Stunde |
@@ -70,7 +72,7 @@ anschließend aus einem temporär entpackten Release eingerichtet. Unter
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.10.0.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.11.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
