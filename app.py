@@ -29,7 +29,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.11.0"
+__version__ = "1.11.1"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -615,15 +615,30 @@ def build_snapshot() -> dict[str, Any]:
             else None
         )
     peer_networks: dict[str, int] = {}
+    peer_directions: dict[str, dict[str, int]] = {
+        name: {"inbound": 0, "outbound": 0}
+        for name in ("ipv4", "ipv6", "onion")
+    }
     inbound = 0
     outbound = 0
     for peer in peers if isinstance(peers, list) else []:
         name = str(peer.get("network", "unknown"))
         peer_networks[name] = peer_networks.get(name, 0) + 1
+        direction = "inbound" if peer.get("inbound") else "outbound"
+        peer_directions.setdefault(name, {"inbound": 0, "outbound": 0})[
+            direction
+        ] += 1
         if peer.get("inbound"):
             inbound += 1
         else:
             outbound += 1
+
+    onion_addresses = [
+        address.get("address")
+        for address in (network.get("localaddresses") or [])
+        if isinstance(address, dict)
+        and str(address.get("address", "")).endswith(".onion")
+    ]
 
     current_version = str(network.get("subversion") or "")
     current_tuple = version_tuple(current_version)
@@ -653,6 +668,8 @@ def build_snapshot() -> dict[str, Any]:
             "connections_in": network.get("connections_in", inbound),
             "connections_out": network.get("connections_out", outbound),
             "networks": peer_networks,
+            "network_directions": peer_directions,
+            "onion_address": onion_addresses[0] if onion_addresses else None,
             "bytes_received": net_totals.get("totalbytesrecv"),
             "bytes_sent": net_totals.get("totalbytessent"),
         },

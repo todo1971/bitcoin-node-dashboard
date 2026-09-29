@@ -20,6 +20,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
 - tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
 - periodische Mempool-Paketanalyse für Cluster, RBF und CPFP
+- getrennte Live-Anzeige für IPv4-, IPv6- und Tor-Peers mit eingehenden und ausgehenden Verbindungen sowie Onion-Adresse
 - automatische Aufbewahrung und Verdichtung der Diagrammdaten
 - responsive Oberfläche für Desktop und Mobilgeräte
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk

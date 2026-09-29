@@ -162,6 +162,42 @@ class FeeRateTests(unittest.TestCase):
             self.assertIsNone(app.fee_rate(2))
 
 
+class PeerNetworkTests(unittest.TestCase):
+    def test_snapshot_separates_peer_networks_and_directions(self):
+        replies = {
+            "getblockchaininfo": {"blocks": 0},
+            "getnetworkinfo": {
+                "connections": 4,
+                "localaddresses": [
+                    {"address": "217.160.16.224", "port": 8333},
+                    {"address": "exampleonion.onion", "port": 8333},
+                ],
+            },
+            "getmempoolinfo": {},
+            "getnettotals": {},
+            "getpeerinfo": [
+                {"network": "ipv4", "inbound": True},
+                {"network": "ipv4", "inbound": False},
+                {"network": "ipv6", "inbound": False},
+                {"network": "onion", "inbound": True},
+            ],
+        }
+        with (
+            patch.object(app, "bitcoin_cli", side_effect=lambda command: replies[command]),
+            patch.object(app, "safe_call", return_value=None),
+            patch.object(app, "fetch_latest_core_version", return_value={}),
+            patch.object(app, "fetch_external_node_status", return_value={}),
+            patch.object(app, "system_stats", return_value={}),
+            patch.object(app, "mempool_analysis", return_value={}),
+        ):
+            network = app.build_snapshot()["network"]
+
+        self.assertEqual(network["network_directions"]["ipv4"], {"inbound": 1, "outbound": 1})
+        self.assertEqual(network["network_directions"]["ipv6"], {"inbound": 0, "outbound": 1})
+        self.assertEqual(network["network_directions"]["onion"], {"inbound": 1, "outbound": 0})
+        self.assertEqual(network["onion_address"], "exampleonion.onion")
+
+
 class MempoolAnalysisTests(unittest.TestCase):
     def test_summarizes_clusters_cpfp_rbf_and_standalone_transactions(self):
         entries = {

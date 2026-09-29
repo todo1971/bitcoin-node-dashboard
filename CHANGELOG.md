@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.1 – 2026-09-30
+
+- IPv4-, IPv6- und Tor-Verbindungen separat nach eingehenden und ausgehenden Peers anzeigen
+- gemeldete Onion-Adresse des Nodes im Dashboard anzeigen
+
 ## 1.11.0 – 2026-09-29
 
 - tägliche UTXO-Statistik über `gettxoutsetinfo none` ergänzt
