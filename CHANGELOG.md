@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.9.0 – 2026-09-29
+
+- optionale All-in-one-Variante für Bitcoin Core und Dashboard ergänzt
+- beide Prozesse laufen im gemeinsamen Container ohne Root-Rechte
+- gemeinsames persistentes Volume mit getrennten Datenverzeichnissen
+- RPC bleibt ausschließlich auf dem Loopback-Interface des Containers
+- kombinierter Healthcheck und geordnetes Herunterfahren beider Prozesse
+
 ## 1.8.2 – 2026-09-29
 
 - Healthcheck nach einem Dienstneustart wartet jetzt bis zu 30 Sekunden

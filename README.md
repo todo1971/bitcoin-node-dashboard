@@ -26,7 +26,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - Updates als isolierte systemd-Aufträge mit geprüften Helfern und Rollback
 - automatische Dashboard-Updates aus verifizierten GitHub-Release-Assets
 - Bitcoin-Core-Upload mit offizieller GPG- und SHA-256-Prüfung
-- Docker-Compose für vorhandene Host-Nodes und vollständige neue Node-Stacks
+- Docker-Compose für Host-Nodes, getrennte Stacks und optionale All-in-one-Nodes
 - CPU-, RAM-, Datenträger- und bitcoind-Laufzeitüberwachung mit Historie
 - Alarme mit Karenzzeit, Wiederholsperre, Entwarnung, E-Mail und HTTPS-Webhook
 - Versionsvergleich mit der offiziellen Bitcoin-Core-Downloadseite
@@ -52,8 +52,8 @@ P2P-Adresse:  217.160.16.224:8333
 
 Alle Werte lassen sich über `/etc/default/bitcoin-dashboard` ändern.
 
-Für den Containerbetrieb stehen `compose.host-node.yaml` und `compose.yaml`
-bereit. Die Unterschiede und sicheren Updatebefehle beschreibt
+Für den Containerbetrieb stehen `compose.host-node.yaml`, `compose.yaml` und
+`compose.all-in-one.yaml` bereit. Die Unterschiede und sicheren Updatebefehle beschreibt
 [docs/DOCKER.md](docs/DOCKER.md).
 
 ## Schnellinstallation

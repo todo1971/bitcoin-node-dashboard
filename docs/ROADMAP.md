@@ -37,6 +37,12 @@
 - optionaler vollständiger Stack mit Bitcoin Core und privatem RPC-Netz
 - direkter JSON-RPC-Zugriff ohne `bitcoin-cli` im Dashboard-Container
 
+## Umgesetzt in 1.9
+
+- optionaler gemeinsamer Container für Bitcoin Core und Dashboard
+- kombinierter Healthcheck für RPC und Weboberfläche
+- kontrolliertes Beenden beider Prozesse mit ausreichender Shutdown-Frist
+
 ## Umgesetzt in 1.4
 
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers

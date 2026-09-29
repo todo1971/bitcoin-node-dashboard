@@ -1,0 +1,41 @@
+name: bitcoin-node-all-in-one
+
+services:
+  node:
+    build:
+      context: .
+      dockerfile: Dockerfile.all-in-one
+      args:
+        BITCOIN_CORE_VERSION: ${BITCOIN_CORE_VERSION:-31.1}
+        NODE_UID: ${BITCOIN_UID:-1010}
+        NODE_GID: ${BITCOIN_GID:-1010}
+        APP_VERSION: "1.9.0"
+    image: bitcoin-node-dashboard-all-in-one:1.9.0
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 3m
+    environment:
+      PUBLIC_NODE_ADDRESS: ${PUBLIC_NODE_ADDRESS:?set PUBLIC_NODE_ADDRESS in .env}
+      PUBLIC_NODE_PORT: 8333
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      ADMIN_UPDATES_ENABLED: "0"
+      DISK_MAX_USED_PERCENT: ${DISK_MAX_USED_PERCENT:-90}
+      MEMORY_MAX_USED_PERCENT: ${MEMORY_MAX_USED_PERCENT:-90}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    volumes:
+      - node-data:/data
+      - ./docker/bitcoin-all-in-one.conf:/etc/bitcoin/bitcoin.conf:ro
+    ports:
+      - "${BITCOIN_P2P_BIND:-0.0.0.0}:8333:8333"
+      - "127.0.0.1:${DASHBOARD_PORT:-8787}:8787"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  node-data:

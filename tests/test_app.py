@@ -98,6 +98,34 @@ class DockerConfigurationTests(unittest.TestCase):
         self.assertIn("USER dashboard:dashboard", dockerfile)
         self.assertNotIn("sudo", dockerfile)
 
+    def test_all_in_one_keeps_rpc_private_and_runs_without_root(self):
+        compose = (app.APP_DIR / "compose.all-in-one.yaml").read_text(
+            encoding="utf-8"
+        )
+        dockerfile = (app.APP_DIR / "Dockerfile.all-in-one").read_text(
+            encoding="utf-8"
+        )
+        bitcoin_config = (
+            app.APP_DIR / "docker" / "bitcoin-all-in-one.conf"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("8332:8332", compose)
+        self.assertNotIn("docker.sock", compose)
+        self.assertIn("read_only: true", compose)
+        self.assertIn("cap_drop:\n      - ALL", compose)
+        self.assertIn("USER node:node", dockerfile)
+        self.assertIn("rpcbind=127.0.0.1", bitcoin_config)
+        self.assertIn("rpcallowip=127.0.0.1", bitcoin_config)
+
+    def test_all_in_one_stops_both_child_processes(self):
+        entrypoint = (
+            app.APP_DIR / "docker" / "all-in-one-entrypoint.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('trap shutdown_children TERM INT', entrypoint)
+        self.assertIn('wait -n "$bitcoin_pid" "$dashboard_pid"', entrypoint)
+        self.assertIn('bitcoin-cli -datadir="$BITCOIN_DATADIR" stop', entrypoint)
+
 
 class FeeRateTests(unittest.TestCase):
     def test_converts_btc_per_kvb_to_sat_per_vb(self):

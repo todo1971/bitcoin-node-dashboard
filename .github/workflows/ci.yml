@@ -18,7 +18,9 @@ jobs:
       - name: Compile
         run: python -m py_compile app.py installer/web_installer.py
       - name: Shell syntax
-        run: sh -n installer/bootstrap-admin.sh installer/update-bitcoin-dashboard installer/update-bitcoin-core
+        run: |
+          sh -n installer/bootstrap-admin.sh installer/update-bitcoin-dashboard installer/update-bitcoin-core
+          bash -n docker/all-in-one-entrypoint.sh
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Docker Compose files
@@ -28,5 +30,8 @@ jobs:
         run: |
           docker compose config --quiet
           docker compose -f compose.host-node.yaml config --quiet
+          docker compose -f compose.all-in-one.yaml config --quiet
       - name: Build dashboard container
         run: docker build --build-arg APP_VERSION=ci -t bitcoin-node-dashboard:ci .
+      - name: Build all-in-one container
+        run: docker build -f Dockerfile.all-in-one --build-arg APP_VERSION=ci -t bitcoin-node-dashboard-all-in-one:ci .

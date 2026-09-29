@@ -1,0 +1,50 @@
+ARG BITCOIN_CORE_VERSION=31.1
+FROM bitcoin/bitcoin:${BITCOIN_CORE_VERSION} AS bitcoin-core
+
+FROM python:3.11-slim-bookworm
+
+ARG BITCOIN_CORE_VERSION=31.1
+ARG NODE_UID=1010
+ARG NODE_GID=1010
+ARG APP_VERSION=1.9.0
+
+LABEL org.opencontainers.image.title="Bitcoin Node Dashboard All-in-one" \
+      org.opencontainers.image.description="Bitcoin Core and its read-only dashboard in one container" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.source="https://github.com/todo1971/bitcoin-node-dashboard"
+
+ENV BITCOIN_CORE_VERSION=${BITCOIN_CORE_VERSION} \
+    PATH=/opt/bitcoin-${BITCOIN_CORE_VERSION}/bin:$PATH \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    BITCOIN_DATADIR=/data/bitcoin \
+    BITCOIN_COOKIE=/data/bitcoin/.cookie \
+    BITCOIN_RPC_URL=http://127.0.0.1:8332 \
+    DASHBOARD_HOST=0.0.0.0 \
+    DASHBOARD_PORT=8787 \
+    DATABASE_PATH=/data/dashboard/history.sqlite3 \
+    ADMIN_UPDATES_ENABLED=0
+
+RUN groupadd --gid "${NODE_GID}" node \
+    && useradd --uid "${NODE_UID}" --gid node --create-home \
+        --shell /usr/sbin/nologin node \
+    && install -d -o node -g node -m 0700 /data /data/bitcoin \
+    && install -d -o node -g node -m 0750 /data/dashboard /app
+
+COPY --from=bitcoin-core /opt/bitcoin-${BITCOIN_CORE_VERSION} /opt/bitcoin-${BITCOIN_CORE_VERSION}
+COPY --chown=node:node app.py /app/app.py
+COPY --chown=node:node static /app/static
+COPY --chown=root:root docker/all-in-one-entrypoint.sh /usr/local/bin/all-in-one-entrypoint
+COPY --chown=root:root docker/all-in-one-healthcheck.py /usr/local/bin/all-in-one-healthcheck
+
+RUN chmod 0755 /usr/local/bin/all-in-one-entrypoint /usr/local/bin/all-in-one-healthcheck \
+    && bitcoind -version | grep "Bitcoin Core daemon version v${BITCOIN_CORE_VERSION}"
+
+WORKDIR /app
+USER node:node
+VOLUME ["/data"]
+EXPOSE 8333 8787
+HEALTHCHECK --interval=30s --timeout=10s --start-period=2m --retries=5 \
+  CMD ["python3", "/usr/local/bin/all-in-one-healthcheck"]
+
+ENTRYPOINT ["/usr/local/bin/all-in-one-entrypoint"]

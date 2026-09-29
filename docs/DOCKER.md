@@ -1,6 +1,6 @@
 # Docker-Betrieb
 
-Das Repository enthält zwei getrennte Compose-Varianten. Sie dürfen nicht
+Das Repository enthält drei getrennte Compose-Varianten. Sie dürfen nicht
 gleichzeitig gestartet werden.
 
 ## Vorhandenen Host-Node überwachen
@@ -41,7 +41,37 @@ sudo docker compose --env-file .env -f compose.host-node.yaml ps
 Bitcoin Core muss RPC an `127.0.0.1:8332` anbieten. Der RPC-Port darf nicht in
 der Firewall oder im Reverse Proxy veröffentlicht werden.
 
-## Vollständiger neuer Docker-Stack
+## All-in-one: Node und Dashboard in einem Container
+
+`compose.all-in-one.yaml` ist die kompakte Variante für eine Neuinstallation.
+Bitcoin Core und Dashboard laufen als derselbe unprivilegierte Benutzer im
+gleichen Container. RPC ist nur über `127.0.0.1:8332` innerhalb dieses
+Containers erreichbar und wird nicht veröffentlicht. Nach außen gehen nur der
+P2P-Port 8333 und der lokal gebundene Dashboard-Port 8787.
+
+```bash
+cp docker.env.example .env
+python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
+sudo editor .env
+sudo docker compose --env-file .env -f compose.all-in-one.yaml config
+sudo docker compose --env-file .env -f compose.all-in-one.yaml up -d --build
+sudo docker compose --env-file .env -f compose.all-in-one.yaml ps
+```
+
+Bitcoin-Daten und Dashboard-Historie liegen gemeinsam im Volume `node-data`,
+aber in den getrennten Unterverzeichnissen `/data/bitcoin` und
+`/data/dashboard`. Der kombinierte Healthcheck verlangt sowohl eine
+funktionierende Bitcoin-RPC-Antwort als auch den Dashboard-Endpunkt. Beendet
+sich einer der beiden Prozesse unerwartet, beendet das Startskript auch den
+anderen; Docker startet anschließend den gesamten Container neu. Beim
+Herunterfahren erhält bitcoind bis zu drei Minuten für einen sauberen Stopp.
+
+Diese Variante ist einfacher zu kopieren und zu betreiben. Dafür lassen sich
+Bitcoin Core und Dashboard nicht unabhängig voneinander neu starten oder
+aktualisieren. Ein vorhandenes Host-Datadir darf niemals gleichzeitig vom
+Hostprozess und vom Container geöffnet werden.
+
+## Vollständiger Stack mit getrennten Containern
 
 `compose.yaml` startet Bitcoin Core und Dashboard gemeinsam. Der P2P-Port 8333
 wird veröffentlicht; RPC-Port 8332 bleibt ausschließlich im privaten
@@ -88,6 +118,15 @@ sudo docker compose --env-file .env pull bitcoin-core
 sudo docker compose --env-file .env up -d bitcoin-core dashboard
 ```
 
+Für die All-in-one-Variante werden Dashboard und Bitcoin Core immer gemeinsam
+neu gebaut und gestartet:
+
+```bash
+git pull --ff-only
+sudo docker compose --env-file .env -f compose.all-in-one.yaml build --pull
+sudo docker compose --env-file .env -f compose.all-in-one.yaml up -d
+```
+
 Keine automatischen Aktualisierungen mit `latest` verwenden. Major-Releases
 können Verhalten, Konfiguration und Datenformate ändern.
 
@@ -104,3 +143,6 @@ Persistente Daten liegen in `bitcoin-data` und `dashboard-data`. Volumes müssen
 separat gesichert werden; `docker compose down` ohne `-v` lässt sie bestehen.
 `docker compose down -v` würde sie dagegen löschen und gehört nicht in den
 normalen Updateablauf.
+
+In der All-in-one-Variante ist stattdessen das einzelne Volume `node-data` zu
+sichern. Auch dort darf `down -v` nicht im normalen Betrieb verwendet werden.
