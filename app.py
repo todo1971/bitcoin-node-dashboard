@@ -29,13 +29,14 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.7.0"
+__version__ = "1.8.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 PORT = int(os.getenv("DASHBOARD_PORT", "8787"))
 CACHE_SECONDS = max(1, int(os.getenv("DASHBOARD_CACHE_SECONDS", "10")))
 BITCOIN_CLI = os.getenv("BITCOIN_CLI", "/home/btc/bin/bitcoin-cli")
+BITCOIN_RPC_URL = os.getenv("BITCOIN_RPC_URL", "").strip()
 BITCOIN_DATADIR = os.getenv("BITCOIN_DATADIR", "/home/btc/bitcoin-data")
 BITCOIN_COOKIE = os.getenv(
     "BITCOIN_COOKIE", "/home/btc/bitcoin-core/.bitcoin/.cookie"
@@ -84,6 +85,11 @@ MEMORY_MAX_USED_PERCENT = min(
     99.0, max(50.0, float(os.getenv("MEMORY_MAX_USED_PERCENT", "90")))
 )
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
+ADMIN_UPDATES_ENABLED = os.getenv("ADMIN_UPDATES_ENABLED", "1").lower() not in (
+    "0",
+    "false",
+    "no",
+)
 DASHBOARD_GITHUB_REPOSITORY = os.getenv(
     "DASHBOARD_GITHUB_REPOSITORY", "todo1971/bitcoin-node-dashboard"
 ).strip()
@@ -149,6 +155,8 @@ class RpcError(RuntimeError):
 
 
 def bitcoin_cli(*args: str, timeout: int = 20) -> Any:
+    if BITCOIN_RPC_URL:
+        return bitcoin_json_rpc(*args, timeout=timeout)
     command = [
         BITCOIN_CLI,
         f"-datadir={BITCOIN_DATADIR}",
@@ -175,6 +183,49 @@ def bitcoin_cli(*args: str, timeout: int = 20) -> Any:
         return json.loads(output)
     except json.JSONDecodeError:
         return output
+
+
+def bitcoin_json_rpc(*args: str, timeout: int = 20) -> Any:
+    if not args:
+        raise RpcError("RPC method is missing")
+    parsed_url = urlparse(BITCOIN_RPC_URL)
+    if parsed_url.scheme not in ("http", "https") or not parsed_url.hostname:
+        raise RpcError("BITCOIN_RPC_URL is invalid")
+    try:
+        credentials = Path(BITCOIN_COOKIE).read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise RpcError(f"RPC cookie unavailable: {exc}") from exc
+    if ":" not in credentials:
+        raise RpcError("RPC cookie is invalid")
+    params: list[Any] = []
+    for value in args[1:]:
+        try:
+            params.append(json.loads(value))
+        except json.JSONDecodeError:
+            params.append(value)
+    payload = json.dumps(
+        {"jsonrpc": "2.0", "id": "dashboard", "method": args[0], "params": params},
+        separators=(",", ":"),
+    ).encode()
+    authorization = base64.b64encode(credentials.encode()).decode()
+    request = urllib.request.Request(
+        BITCOIN_RPC_URL,
+        data=payload,
+        headers={
+            "Authorization": f"Basic {authorization}",
+            "Content-Type": "application/json",
+            "User-Agent": f"BitcoinDashboard/{__version__}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.load(response)
+    except (OSError, ValueError, urllib.error.URLError) as exc:
+        raise RpcError(str(exc)) from exc
+    if not isinstance(result, dict) or result.get("error"):
+        raise RpcError(str(result.get("error") if isinstance(result, dict) else result))
+    return result.get("result")
 
 
 def safe_call(*args: str) -> Any:
@@ -1058,11 +1109,14 @@ def admin_status_data() -> dict[str, Any]:
         "bitcoin_keyring_ready": Path(
             "/usr/local/share/bitcoin-core/trustedkeys.gpg"
         ).is_file(),
+        "updates_enabled": ADMIN_UPDATES_ENABLED,
         "admin_enabled": len(ADMIN_TOKEN) >= 32,
     }
 
 
 def start_admin_update(kind: str) -> tuple[int, str]:
+    if not ADMIN_UPDATES_ENABLED:
+        return 409, "Updates werden in dieser Installation extern verwaltet"
     command = {
         "dashboard": ADMIN_DASHBOARD_COMMAND,
         "bitcoin": ADMIN_BITCOIN_COMMAND,
@@ -1254,6 +1308,13 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             content_length = -1
         if path == "/api/admin/upload/bitcoin":
+            if not ADMIN_UPDATES_ENABLED:
+                self.send_bytes(
+                    b'{"error":"Updates are managed externally"}',
+                    "application/json; charset=utf-8",
+                    409,
+                )
+                return
             supplied_csrf = self.headers.get("X-CSRF-Token", "")
             if not constant_time_equal(supplied_csrf, ADMIN_CSRF_TOKEN):
                 self.send_bytes(

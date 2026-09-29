@@ -21,3 +21,12 @@ jobs:
         run: sh -n installer/bootstrap-admin.sh installer/update-bitcoin-dashboard installer/update-bitcoin-core
       - name: Unit tests
         run: python -m unittest discover -s tests -v
+      - name: Validate Docker Compose files
+        env:
+          PUBLIC_NODE_ADDRESS: 127.0.0.1
+          ADMIN_TOKEN: 01234567890123456789012345678901
+        run: |
+          docker compose config --quiet
+          docker compose -f compose.host-node.yaml config --quiet
+      - name: Build dashboard container
+        run: docker build --build-arg APP_VERSION=ci -t bitcoin-node-dashboard:ci .

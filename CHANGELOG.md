@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.8.0 – 2026-09-29
+
+- gehärtetes Dashboard-Image und Docker-Compose-Dateien ergänzt
+- Varianten für vorhandenen Host-Node und vollständigen neuen Docker-Stack
+- direkten JSON-RPC-Zugriff mit Cookie-Authentifizierung ergänzt
+- Docker-Container ohne Docker-Socket, Host-systemd, Linux-Capabilities oder Root
+- integrierte Root-Updates im Containerbetrieb deaktiviert und verständlich gekennzeichnet
+- feste Bitcoin-Core-Version statt unkontrolliertem `latest` vorgesehen
+
 ## 1.7.0 – 2026-09-29
 
 - Bitcoin-Core-Archiv per Dateiauswahl oder Drag-and-drop unter `/admin` hochladen

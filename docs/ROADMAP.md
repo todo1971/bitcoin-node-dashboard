@@ -30,6 +30,13 @@
 - Prüfsummen und Signaturen automatisch von `bitcoincore.org` laden
 - Plattform, Version, Signaturen und Downgrade-Schutz vor dem Root-Update prüfen
 
+## Umgesetzt in 1.8
+
+- gehärtetes Dashboard-Containerimage
+- Compose-Variante für den vorhandenen Host-Node
+- optionaler vollständiger Stack mit Bitcoin Core und privatem RPC-Netz
+- direkter JSON-RPC-Zugriff ohne `bitcoin-cli` im Dashboard-Container
+
 ## Umgesetzt in 1.4
 
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers

@@ -1,0 +1,15 @@
+.git
+.github
+.env
+__pycache__
+*.pyc
+*.pyo
+*.log
+*.sqlite
+*.sqlite3
+outputs
+work
+docs
+tests
+installer
+admin

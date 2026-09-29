@@ -30,6 +30,7 @@ Verfügbare Einstellungen:
 | `DASHBOARD_PORT` | `8787` | lokaler HTTP-Port |
 | `DASHBOARD_CACHE_SECONDS` | `10` | Cache lokaler RPC-Daten |
 | `BITCOIN_CLI` | `/home/btc/bin/bitcoin-cli` | CLI-Programm |
+| `BITCOIN_RPC_URL` | leer | optionaler direkter JSON-RPC-Endpunkt, insbesondere für Docker |
 | `BITCOIN_DATADIR` | `/home/btc/bitcoin-data` | Bitcoin-Datadir |
 | `BITCOIN_COOKIE` | `/home/btc/bitcoin-core/.bitcoin/.cookie` | RPC-Cookie |
 | `PUBLIC_NODE_ADDRESS` | `217.160.16.224` | öffentliche P2P-Adresse |
@@ -48,6 +49,7 @@ Verfügbare Einstellungen:
 | `DISK_MAX_USED_PERCENT` | `90` | Alarmgrenze für belegten Datenträgerplatz |
 | `MEMORY_MAX_USED_PERCENT` | `90` | Alarmgrenze für RAM-Auslastung |
 | `ADMIN_TOKEN` | leer | mindestens 32 Zeichen; wird durch den Admin-Bootstrap erzeugt |
+| `ADMIN_UPDATES_ENABLED` | `1` | bei Docker `0`, da Updates extern verwaltet werden |
 | `DASHBOARD_GITHUB_REPOSITORY` | `todo1971/bitcoin-node-dashboard` | Quelle für Dashboard-Releases |
 | `DASHBOARD_GITHUB_TOKEN` | leer | nur lesendes Fine-grained Token; für private Repositorys erforderlich |
 | `BITCOIN_UPLOAD_DIR` | `/var/lib/bitcoin-dashboard/bitcoin-core-upload` | isolierter Zwischenordner für Core-Uploads |
@@ -68,7 +70,7 @@ anschließend aus einem temporär entpackten Release eingerichtet. Unter
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.7.0.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.8.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```

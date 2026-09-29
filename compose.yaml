@@ -1,0 +1,83 @@
+name: bitcoin-node-stack
+
+services:
+  bitcoin-core:
+    image: bitcoin/bitcoin:${BITCOIN_CORE_VERSION:-31.1}
+    restart: unless-stopped
+    stop_grace_period: 2m
+    environment:
+      UID: ${BITCOIN_UID:-1010}
+      GID: ${BITCOIN_GID:-1010}
+      BITCOIN_DATA: /home/bitcoin/.bitcoin
+    command:
+      - -conf=/etc/bitcoin/bitcoin.conf
+      - -datadir=/home/bitcoin/.bitcoin
+    volumes:
+      - bitcoin-data:/home/bitcoin/.bitcoin
+      - ./docker/bitcoin.conf:/etc/bitcoin/bitcoin.conf:ro
+    ports:
+      - "${BITCOIN_P2P_BIND:-0.0.0.0}:8333:8333"
+    expose:
+      - "8332"
+    networks:
+      node:
+        ipv4_address: 172.30.0.2
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-datadir=/home/bitcoin/.bitcoin", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      start_period: 2m
+      retries: 10
+
+  dashboard:
+    build:
+      context: .
+      args:
+        DASHBOARD_UID: ${DASHBOARD_UID:-1010}
+        DASHBOARD_GID: ${DASHBOARD_GID:-1010}
+        APP_VERSION: "1.8.0"
+    image: bitcoin-node-dashboard:1.8.0
+    restart: unless-stopped
+    init: true
+    depends_on:
+      bitcoin-core:
+        condition: service_healthy
+    environment:
+      DASHBOARD_HOST: 0.0.0.0
+      DASHBOARD_PORT: 8787
+      BITCOIN_RPC_URL: http://bitcoin-core:8332
+      BITCOIN_DATADIR: /bitcoin-data
+      BITCOIN_COOKIE: /bitcoin-data/.cookie
+      DATABASE_PATH: /var/lib/bitcoin-dashboard/history.sqlite3
+      PUBLIC_NODE_ADDRESS: ${PUBLIC_NODE_ADDRESS:?set PUBLIC_NODE_ADDRESS in .env}
+      PUBLIC_NODE_PORT: 8333
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      ADMIN_UPDATES_ENABLED: "0"
+      DISK_MAX_USED_PERCENT: ${DISK_MAX_USED_PERCENT:-90}
+      MEMORY_MAX_USED_PERCENT: ${MEMORY_MAX_USED_PERCENT:-90}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    volumes:
+      - bitcoin-data:/bitcoin-data:ro
+      - dashboard-data:/var/lib/bitcoin-dashboard
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-8787}:8787"
+    networks:
+      - node
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  node:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  bitcoin-data:
+  dashboard-data:

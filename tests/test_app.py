@@ -53,6 +53,33 @@ class ServiceConfigurationTests(unittest.TestCase):
         )
 
 
+class DockerConfigurationTests(unittest.TestCase):
+    def test_full_stack_keeps_rpc_private_and_drops_privileges(self):
+        compose = (app.APP_DIR / "compose.yaml").read_text(encoding="utf-8")
+
+        self.assertNotIn("8332:8332", compose)
+        self.assertNotIn("docker.sock", compose)
+        self.assertIn('ADMIN_UPDATES_ENABLED: "0"', compose)
+        self.assertIn("cap_drop:\n      - ALL", compose)
+        self.assertIn("no-new-privileges:true", compose)
+
+    def test_host_node_container_has_no_update_or_docker_access(self):
+        compose = (app.APP_DIR / "compose.host-node.yaml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertNotIn("docker.sock", compose)
+        self.assertNotIn("/run/systemd", compose)
+        self.assertIn('ADMIN_UPDATES_ENABLED: "0"', compose)
+        self.assertIn("BITCOIN_RPC_URL: http://127.0.0.1:8332", compose)
+
+    def test_dashboard_image_runs_as_non_root_user(self):
+        dockerfile = (app.APP_DIR / "Dockerfile").read_text(encoding="utf-8")
+
+        self.assertIn("USER dashboard:dashboard", dockerfile)
+        self.assertNotIn("sudo", dockerfile)
+
+
 class FeeRateTests(unittest.TestCase):
     def test_converts_btc_per_kvb_to_sat_per_vb(self):
         with patch.object(app, "safe_call", return_value={"feerate": 0.00001}):
@@ -65,6 +92,33 @@ class FeeRateTests(unittest.TestCase):
             return_value={"errors": ["insufficient data"]},
         ):
             self.assertIsNone(app.fee_rate(2))
+
+
+class JsonRpcTests(unittest.TestCase):
+    def test_direct_rpc_uses_cookie_and_typed_parameters(self):
+        payload = json.dumps({"result": {"feerate": 0.00001}, "error": None}).encode()
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.close()
+
+        with tempfile.TemporaryDirectory() as directory:
+            cookie = Path(directory) / ".cookie"
+            cookie.write_text("__cookie__:secret")
+            with patch.object(app, "BITCOIN_RPC_URL", "http://bitcoin-core:8332"):
+                with patch.object(app, "BITCOIN_COOKIE", str(cookie)):
+                    with patch("urllib.request.urlopen", return_value=Response(payload)) as call:
+                        result = app.bitcoin_json_rpc("estimatesmartfee", "6")
+
+        self.assertEqual(result["feerate"], 0.00001)
+        request = call.call_args.args[0]
+        sent = json.loads(request.data)
+        self.assertEqual(sent["method"], "estimatesmartfee")
+        self.assertEqual(sent["params"], [6])
+        self.assertTrue(request.get_header("Authorization").startswith("Basic "))
 
 
 class ExternalStatusTests(unittest.TestCase):
@@ -185,6 +239,14 @@ class AdminSecurityTests(unittest.TestCase):
             status, _ = app.start_admin_update("dashboard")
         self.assertEqual(status, 202)
         self.assertEqual(run.call_args.args[0], app.ADMIN_DASHBOARD_COMMAND)
+
+    def test_container_mode_rejects_host_update_commands(self):
+        with patch.object(app, "ADMIN_UPDATES_ENABLED", False):
+            with patch.object(app.subprocess, "run") as run:
+                status, message = app.start_admin_update("dashboard")
+        self.assertEqual(status, 409)
+        self.assertIn("extern", message)
+        run.assert_not_called()
 
 
 class BitcoinUploadTests(unittest.TestCase):

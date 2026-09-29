@@ -1,0 +1,40 @@
+name: bitcoin-dashboard-host-node
+
+services:
+  dashboard:
+    build:
+      context: .
+      args:
+        DASHBOARD_UID: ${DASHBOARD_UID:-1010}
+        DASHBOARD_GID: ${DASHBOARD_GID:-1010}
+        APP_VERSION: "1.8.0"
+    image: bitcoin-node-dashboard:1.8.0
+    restart: unless-stopped
+    init: true
+    network_mode: host
+    environment:
+      DASHBOARD_HOST: 127.0.0.1
+      DASHBOARD_PORT: ${DASHBOARD_PORT:-8787}
+      BITCOIN_RPC_URL: http://127.0.0.1:8332
+      BITCOIN_DATADIR: /bitcoin-data
+      BITCOIN_COOKIE: /bitcoin-rpc/.cookie
+      DATABASE_PATH: /var/lib/bitcoin-dashboard/history.sqlite3
+      PUBLIC_NODE_ADDRESS: ${PUBLIC_NODE_ADDRESS:?set PUBLIC_NODE_ADDRESS in .env}
+      PUBLIC_NODE_PORT: 8333
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      ADMIN_UPDATES_ENABLED: "0"
+      DISK_MAX_USED_PERCENT: ${DISK_MAX_USED_PERCENT:-90}
+      MEMORY_MAX_USED_PERCENT: ${MEMORY_MAX_USED_PERCENT:-90}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    volumes:
+      - /home/btc/bitcoin-data:/bitcoin-data:ro
+      - /home/btc/bitcoin-core/.bitcoin:/bitcoin-rpc:ro
+      - /var/lib/bitcoin-dashboard:/var/lib/bitcoin-dashboard
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
