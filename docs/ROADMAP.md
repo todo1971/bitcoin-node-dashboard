@@ -24,6 +24,12 @@
 - Release-Archiv automatisch laden und per SHA-256 prüfen
 - private Repositorys mit minimal berechtigtem Fine-grained Token unterstützen
 
+## Umgesetzt in 1.7
+
+- Upload des offiziellen Bitcoin-Core-Archivs per Dateiauswahl oder Drag-and-drop
+- Prüfsummen und Signaturen automatisch von `bitcoincore.org` laden
+- Plattform, Version, Signaturen und Downgrade-Schutz vor dem Root-Update prüfen
+
 ## Umgesetzt in 1.4
 
 - Alarme bei Node-Ausfall, Sync-Rückstand oder fehlenden Inbound-Peers
@@ -32,9 +38,6 @@
 
 ## Nächste Ausbaustufe
 
-- Upload des offiziellen Bitcoin-Core-Archivs per Dateiauswahl oder Drag-and-drop
-- Prüfsummen und Signaturen automatisch von `bitcoincore.org` laden
-- Plattform, Version, Signaturen und Downgrade-Schutz vor dem Root-Update prüfen
 - Prometheus-Endpunkt für externe Langzeitüberwachung
 - optional getrennte Schwellenwerte je Alarm im Wartungspanel bearbeiten
 - zusätzliche Benachrichtigungskanäle wie Telegram oder ntfy

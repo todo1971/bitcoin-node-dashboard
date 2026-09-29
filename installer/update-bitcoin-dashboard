@@ -74,7 +74,7 @@ for directory in static docs tests; do
     install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET/$directory"
     cp -a "$source_dir/$directory/." "$TARGET/$directory/"
 done
-for file in README.md CHANGELOG.md bitcoin-dashboard.env.example plesk-apache.conf; do
+for file in README.md CHANGELOG.md bitcoin-dashboard.env.example plesk-apache.conf plesk-nginx.conf; do
     test ! -f "$source_dir/$file" || install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0640 "$source_dir/$file" "$TARGET/$file"
 done
 chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"

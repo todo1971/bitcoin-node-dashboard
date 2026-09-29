@@ -11,8 +11,24 @@ test -r "$CONFIG" || { echo "Missing $CONFIG" >&2; exit 1; }
 . "$CONFIG"
 : "${BITCOIN_SERVICE:=bitcoind}"
 : "${BITCOIN_BIN_DIR:=/home/btc/bin}"
+: "${BITCOIN_DATADIR:=/home/btc/bitcoin-data}"
+: "${BITCOIN_COOKIE:=/home/btc/bitcoin-core/.bitcoin/.cookie}"
+: "${BITCOIN_MIN_VALID_SIGNATURES:=2}"
 : "${UPDATE_ROOT:=/home/todo}"
+: "${DASHBOARD_USER:=btc}"
+: "${BITCOIN_UPLOAD_DIR:=/var/lib/bitcoin-dashboard/bitcoin-core-upload}"
 case "$UPDATE_ROOT" in /home/*) ;; *) echo "Unsafe UPDATE_ROOT" >&2; exit 1 ;; esac
+case "$BITCOIN_UPLOAD_DIR" in
+    /var/lib/bitcoin-dashboard/*) ;;
+    *) echo "Unsafe BITCOIN_UPLOAD_DIR" >&2; exit 1 ;;
+esac
+case "$DASHBOARD_USER" in *[!A-Za-z0-9_-]*|'') echo "Invalid dashboard user" >&2; exit 1 ;; esac
+case "$BITCOIN_MIN_VALID_SIGNATURES" in
+    ''|*[!0-9]*) echo "Invalid BITCOIN_MIN_VALID_SIGNATURES" >&2; exit 1 ;;
+esac
+test "$BITCOIN_MIN_VALID_SIGNATURES" -ge 1 && test "$BITCOIN_MIN_VALID_SIGNATURES" -le 10 || {
+    echo "BITCOIN_MIN_VALID_SIGNATURES must be between 1 and 10" >&2; exit 1;
+}
 INBOX="$UPDATE_ROOT/bitcoin-core-update"
 case "$BITCOIN_SERVICE" in
     *[!A-Za-z0-9_.@-]*|'') echo "Invalid service name" >&2; exit 1 ;;
@@ -21,15 +37,11 @@ case "$BITCOIN_BIN_DIR" in
     /home/*/bin|/opt/bitcoin*/bin) ;;
     *) echo "Unsafe BITCOIN_BIN_DIR" >&2; exit 1 ;;
 esac
+case "$BITCOIN_DATADIR" in /home/*) ;; *) echo "Unsafe BITCOIN_DATADIR" >&2; exit 1 ;; esac
+case "$BITCOIN_COOKIE" in /home/*/.cookie) ;; *) echo "Unsafe BITCOIN_COOKIE" >&2; exit 1 ;; esac
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || { echo "Another Bitcoin Core update is running" >&2; exit 1; }
-
-test -r "$INBOX/version" || { echo "Missing $INBOX/version" >&2; exit 1; }
-version=$(tr -d '\r\n' < "$INBOX/version")
-case "$version" in
-    ''|*[!0-9.]*|.*|*.) echo "Invalid Bitcoin Core version" >&2; exit 1 ;;
-esac
 
 case "$(uname -m)" in
     x86_64) platform=x86_64-linux-gnu ;;
@@ -37,13 +49,6 @@ case "$(uname -m)" in
     *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
-archive_name="bitcoin-$version-$platform.tar.gz"
-archive="$INBOX/$archive_name"
-sums="$INBOX/SHA256SUMS"
-signatures="$INBOX/SHA256SUMS.asc"
-test -f "$archive" || { echo "Missing $archive" >&2; exit 1; }
-test -f "$sums" || { echo "Missing $sums" >&2; exit 1; }
-test -f "$signatures" || { echo "Missing $signatures" >&2; exit 1; }
 test -f "$KEYRING" || { echo "Missing trusted keyring: $KEYRING" >&2; exit 1; }
 
 tmp_dir=$(mktemp -d /var/tmp/bitcoin-core-update.XXXXXX)
@@ -52,12 +57,69 @@ backup="$BACKUP_DIR/bitcoin-core-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
 cleanup() { rm -rf -- "$tmp_dir"; }
 trap cleanup EXIT INT TERM
 
+uploaded=0
+metadata="$BITCOIN_UPLOAD_DIR/metadata.json"
+uploaded_archive="$BITCOIN_UPLOAD_DIR/bitcoin-core-upload.tar.gz"
+if test -f "$metadata" && test -f "$uploaded_archive" && \
+   test ! -L "$metadata" && test ! -L "$uploaded_archive"; then
+    test "$(stat -c %U "$metadata")" = "$DASHBOARD_USER" || {
+        echo "Upload metadata has an unexpected owner" >&2; exit 1;
+    }
+    test "$(stat -c %U "$uploaded_archive")" = "$DASHBOARD_USER" || {
+        echo "Uploaded archive has an unexpected owner" >&2; exit 1;
+    }
+    archive_name=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["filename"])' "$metadata")
+    case "$archive_name" in
+        bitcoin-*-$platform.tar.gz) ;;
+        *) echo "Uploaded archive name or platform is invalid" >&2; exit 1 ;;
+    esac
+    version=${archive_name#bitcoin-}
+    version=${version%-$platform.tar.gz}
+    case "$version" in
+        ''|*[!0-9.]*|.*|*.|*..*) echo "Invalid Bitcoin Core version" >&2; exit 1 ;;
+    esac
+    archive="$tmp_dir/$archive_name"
+    cp --reflink=auto -- "$uploaded_archive" "$archive"
+    chmod 0600 "$archive"
+    sums="$tmp_dir/SHA256SUMS"
+    signatures="$tmp_dir/SHA256SUMS.asc"
+    release_url="https://bitcoincore.org/bin/bitcoin-core-$version"
+    curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+        --max-time 60 --output "$sums" "$release_url/SHA256SUMS"
+    curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+        --max-time 60 --output "$signatures" "$release_url/SHA256SUMS.asc"
+    uploaded=1
+else
+    test -r "$INBOX/version" || { echo "No uploaded or prepared Bitcoin Core package found" >&2; exit 1; }
+    version=$(tr -d '\r\n' < "$INBOX/version")
+    case "$version" in
+        ''|*[!0-9.]*|.*|*.|*..*) echo "Invalid Bitcoin Core version" >&2; exit 1 ;;
+    esac
+    archive_name="bitcoin-$version-$platform.tar.gz"
+    archive="$INBOX/$archive_name"
+    sums="$INBOX/SHA256SUMS"
+    signatures="$INBOX/SHA256SUMS.asc"
+    test -f "$archive" || { echo "Missing $archive" >&2; exit 1; }
+    test -f "$sums" || { echo "Missing $sums" >&2; exit 1; }
+    test -f "$signatures" || { echo "Missing $signatures" >&2; exit 1; }
+fi
+
+current_version=$("$BITCOIN_BIN_DIR/bitcoind" -version 2>/dev/null | sed -n '1s/.*v\([0-9][0-9.]*\).*/\1/p')
+if test -n "$current_version"; then
+    newest=$(printf '%s\n%s\n' "$current_version" "$version" | sort -V | tail -n 1)
+    if test "$newest" != "$version" || test "$current_version" = "$version"; then
+        echo "Downgrade or reinstall rejected: installed=$current_version upload=$version" >&2
+        exit 1
+    fi
+fi
+
 gpg --batch --no-default-keyring --keyring "$KEYRING" \
     --status-fd 1 --verify "$signatures" "$sums" >"$status_file" 2>/dev/null || true
-grep -q '^\[GNUPG:\] VALIDSIG ' "$status_file" || {
-    echo "No valid signature from the trusted keyring" >&2
+valid_signatures=$(awk '/^\[GNUPG:\] VALIDSIG / { print $3 }' "$status_file" | sort -u | wc -l)
+if test "$valid_signatures" -lt "$BITCOIN_MIN_VALID_SIGNATURES"; then
+    echo "Only $valid_signatures valid trusted signatures; $BITCOIN_MIN_VALID_SIGNATURES required" >&2
     exit 1
-}
+fi
 if grep -Eq '^\[GNUPG:\] (BADSIG|REVKEYSIG|EXPKEYSIG) ' "$status_file"; then
     echo "A trusted signature is invalid, revoked, or expired" >&2
     exit 1
@@ -98,11 +160,20 @@ for binary in "$source_bin"/bitcoin-* "$source_bin"/bitcoind; do
     install -o root -g root -m 0755 "$binary" "$BITCOIN_BIN_DIR/$(basename "$binary")"
 done
 
-if ! systemctl start "$BITCOIN_SERVICE"; then
-    start_failed=1
-else
-    sleep 5
-    if systemctl is-active --quiet "$BITCOIN_SERVICE"; then start_failed=0; else start_failed=1; fi
+start_failed=1
+if systemctl start "$BITCOIN_SERVICE"; then
+    attempts=0
+    while test "$attempts" -lt 15; do
+        if systemctl is-active --quiet "$BITCOIN_SERVICE" && \
+           runuser -u "$DASHBOARD_USER" -- "$BITCOIN_BIN_DIR/bitcoin-cli" \
+               -datadir="$BITCOIN_DATADIR" -rpccookiefile="$BITCOIN_COOKIE" \
+               getblockchaininfo >/dev/null 2>&1; then
+            start_failed=0
+            break
+        fi
+        attempts=$((attempts + 1))
+        sleep 2
+    done
 fi
 if test "$start_failed" -ne 0; then
     echo "Bitcoin Core failed to start; rolling back binaries" >&2
@@ -117,3 +188,6 @@ fi
 
 echo "Bitcoin Core update completed successfully"
 "$BITCOIN_BIN_DIR/bitcoin-cli" -version | head -n 1
+if test "$uploaded" -eq 1; then
+    rm -f -- "$uploaded_archive" "$metadata"
+fi

@@ -24,6 +24,10 @@ if test ! -f /etc/bitcoin-dashboard-updater.conf; then
     chown root:root /etc/bitcoin-dashboard-updater.conf
     chmod 0640 /etc/bitcoin-dashboard-updater.conf
 fi
+grep -q '^BITCOIN_UPLOAD_DIR=' /etc/bitcoin-dashboard-updater.conf || \
+    printf '%s\n' 'BITCOIN_UPLOAD_DIR=/var/lib/bitcoin-dashboard/bitcoin-core-upload' >> /etc/bitcoin-dashboard-updater.conf
+grep -q '^BITCOIN_MIN_VALID_SIGNATURES=' /etc/bitcoin-dashboard-updater.conf || \
+    printf '%s\n' 'BITCOIN_MIN_VALID_SIGNATURES=2' >> /etc/bitcoin-dashboard-updater.conf
 dashboard_user=$(sed -n 's/^DASHBOARD_USER=//p' /etc/bitcoin-dashboard-updater.conf | tail -n 1)
 case "$dashboard_user" in *[!A-Za-z0-9_-]*|'') echo "Invalid dashboard user" >&2; exit 1 ;; esac
 id "$dashboard_user" >/dev/null 2>&1 || { echo "User $dashboard_user does not exist" >&2; exit 1; }
@@ -54,6 +58,10 @@ grep -q '^DASHBOARD_GITHUB_REPOSITORY=' "$env_tmp" || \
     printf '%s\n' 'DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard' >>"$env_tmp"
 grep -q '^DASHBOARD_GITHUB_TOKEN=' "$env_tmp" || \
     printf '%s\n' 'DASHBOARD_GITHUB_TOKEN=' >>"$env_tmp"
+grep -q '^BITCOIN_UPLOAD_DIR=' "$env_tmp" || \
+    printf '%s\n' 'BITCOIN_UPLOAD_DIR=/var/lib/bitcoin-dashboard/bitcoin-core-upload' >>"$env_tmp"
+grep -q '^BITCOIN_UPLOAD_MAX_BYTES=' "$env_tmp" || \
+    printf '%s\n' 'BITCOIN_UPLOAD_MAX_BYTES=209715200' >>"$env_tmp"
 install -o root -g root -m 0640 "$env_tmp" "$env_file"
 rm -f -- "$env_tmp"
 

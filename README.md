@@ -25,6 +25,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - integrierte, abgesicherte Administration unter `/admin`
 - Updates als isolierte systemd-Aufträge mit geprüften Helfern und Rollback
 - automatische Dashboard-Updates aus verifizierten GitHub-Release-Assets
+- Bitcoin-Core-Upload mit offizieller GPG- und SHA-256-Prüfung
 - CPU-, RAM-, Datenträger- und bitcoind-Laufzeitüberwachung mit Historie
 - Alarme mit Karenzzeit, Wiederholsperre, Entwarnung, E-Mail und HTTPS-Webhook
 - Versionsvergleich mit der offiziellen Bitcoin-Core-Downloadseite
@@ -101,6 +102,7 @@ sudo systemctl restart bitcoin-dashboard
 | `/api/dashboard` | aggregierte Node-Daten als JSON |
 | `/api/history?range=24h` | verdichtete historische Messwerte |
 | `/api/alerts` | derzeit aktive Alarme |
+| `/api/admin/upload/bitcoin` | geschützter Bitcoin-Core-Archivupload |
 | `/admin` | passwortgeschützte Administration |
 | `/healthz` | lokaler Funktions- und RPC-Test |
 

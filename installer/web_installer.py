@@ -205,6 +205,10 @@ WantedBy=multi-user.target
                 f"DASHBOARD_HEALTH_URL=http://127.0.0.1:{dashboard_port}/healthz",
                 "BITCOIN_SERVICE=bitcoind",
                 f"BITCOIN_BIN_DIR={home}/bin",
+                f"BITCOIN_DATADIR={bitcoin_datadir}",
+                f"BITCOIN_COOKIE={bitcoin_cookie}",
+                "BITCOIN_UPLOAD_DIR=/var/lib/bitcoin-dashboard/bitcoin-core-upload",
+                "BITCOIN_MIN_VALID_SIGNATURES=2",
                 "",
             )
         ),

@@ -38,6 +38,20 @@ class ServiceConfigurationTests(unittest.TestCase):
         runuser_position = updater.index('runuser -u "$DASHBOARD_USER"')
         self.assertLess(chmod_position, runuser_position)
 
+    def test_core_updater_verifies_before_stopping_node(self):
+        project = Path(__file__).parent.parent
+        updater = (project / "installer" / "update-bitcoin-core").read_text()
+        self.assertLess(updater.index("gpg --batch"), updater.index('systemctl stop "$BITCOIN_SERVICE"'))
+        self.assertLess(updater.index('sha256sum "$archive"'), updater.index('systemctl stop "$BITCOIN_SERVICE"'))
+        self.assertIn('release_url="https://bitcoincore.org/bin/bitcoin-core-$version"', updater)
+        self.assertIn("Downgrade or reinstall rejected", updater)
+        self.assertIn("BITCOIN_MIN_VALID_SIGNATURES:=2", updater)
+        self.assertIn("valid_signatures", updater)
+        self.assertGreater(
+            updater.index("getblockchaininfo"),
+            updater.index('systemctl start "$BITCOIN_SERVICE"'),
+        )
+
 
 class FeeRateTests(unittest.TestCase):
     def test_converts_btc_per_kvb_to_sat_per_vb(self):
@@ -171,6 +185,60 @@ class AdminSecurityTests(unittest.TestCase):
             status, _ = app.start_admin_update("dashboard")
         self.assertEqual(status, 202)
         self.assertEqual(run.call_args.args[0], app.ADMIN_DASHBOARD_COMMAND)
+
+
+class BitcoinUploadTests(unittest.TestCase):
+    def test_accepts_official_archive_name_for_matching_platform(self):
+        self.assertEqual(
+            app.parse_bitcoin_archive_name(
+                "bitcoin-31.1-x86_64-linux-gnu.tar.gz"
+            ),
+            ("31.1", "x86_64-linux-gnu"),
+        )
+
+    def test_rejects_path_and_debug_archive_names(self):
+        self.assertIsNone(
+            app.parse_bitcoin_archive_name(
+                "../bitcoin-31.1-x86_64-linux-gnu.tar.gz"
+            )
+        )
+        self.assertIsNone(
+            app.parse_bitcoin_archive_name(
+                "bitcoin-31.1-x86_64-linux-gnu-debug.tar.gz"
+            )
+        )
+
+    def test_streams_upload_to_fixed_staging_name(self):
+        payload = b"\x1f\x8b" + b"release" * 100
+        with tempfile.TemporaryDirectory() as directory:
+            old_directory = app.BITCOIN_UPLOAD_DIR
+            app.BITCOIN_UPLOAD_DIR = Path(directory)
+            try:
+                with patch.object(
+                    app, "bitcoin_platform_name", return_value="x86_64-linux-gnu"
+                ):
+                    metadata = app.save_bitcoin_upload(
+                        io.BytesIO(payload),
+                        "bitcoin-31.1-x86_64-linux-gnu.tar.gz",
+                        len(payload),
+                    )
+                self.assertEqual(metadata["version"], "31.1")
+                self.assertEqual(
+                    (Path(directory) / "bitcoin-core-upload.tar.gz").read_bytes(),
+                    payload,
+                )
+                self.assertEqual(app.bitcoin_upload_status()["filename"], metadata["filename"])
+            finally:
+                app.BITCOIN_UPLOAD_DIR = old_directory
+
+    def test_rejects_archive_for_other_platform(self):
+        with patch.object(app, "bitcoin_platform_name", return_value="aarch64-linux-gnu"):
+            with self.assertRaisesRegex(ValueError, "passt nicht"):
+                app.save_bitcoin_upload(
+                    io.BytesIO(b"\x1f\x8bpayload"),
+                    "bitcoin-31.1-x86_64-linux-gnu.tar.gz",
+                    9,
+                )
 
 
 class HistoryDatabaseTests(unittest.TestCase):

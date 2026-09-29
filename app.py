@@ -7,12 +7,15 @@ import json
 import os
 import re
 import base64
+import hashlib
 import hmac
+import platform
 import secrets
 import shutil
 import socket
 import sqlite3
 import subprocess
+import tempfile
 import threading
 import time
 import urllib.error
@@ -26,7 +29,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.6.2"
+__version__ = "1.7.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -85,6 +88,14 @@ DASHBOARD_GITHUB_REPOSITORY = os.getenv(
     "DASHBOARD_GITHUB_REPOSITORY", "todo1971/bitcoin-node-dashboard"
 ).strip()
 DASHBOARD_GITHUB_TOKEN = os.getenv("DASHBOARD_GITHUB_TOKEN", "").strip()
+BITCOIN_UPLOAD_DIR = Path(
+    os.getenv(
+        "BITCOIN_UPLOAD_DIR", "/var/lib/bitcoin-dashboard/bitcoin-core-upload"
+    )
+)
+BITCOIN_UPLOAD_MAX_BYTES = max(
+    1_000_000, int(os.getenv("BITCOIN_UPLOAD_MAX_BYTES", str(200 * 1024 * 1024)))
+)
 ADMIN_CSRF_TOKEN = secrets.token_urlsafe(32)
 ADMIN_MAX_FAILURES = 5
 ADMIN_LOCK_SECONDS = 15 * 60
@@ -130,6 +141,7 @@ _cpu_previous: tuple[int, int] | None = None
 _admin_auth_lock = threading.Lock()
 _admin_failures: list[float] = []
 _admin_blocked_until = 0.0
+_bitcoin_upload_lock = threading.Lock()
 
 
 class RpcError(RuntimeError):
@@ -926,6 +938,112 @@ def admin_origin_allowed(headers: Any) -> bool:
     )
 
 
+def bitcoin_platform_name() -> str | None:
+    machine = platform.machine().lower()
+    if machine in ("x86_64", "amd64"):
+        return "x86_64-linux-gnu"
+    if machine in ("aarch64", "arm64"):
+        return "aarch64-linux-gnu"
+    return None
+
+
+def parse_bitcoin_archive_name(filename: str) -> tuple[str, str] | None:
+    match = re.fullmatch(
+        r"bitcoin-(\d+\.\d+(?:\.\d+)?)-(x86_64-linux-gnu|aarch64-linux-gnu)\.tar\.gz",
+        filename,
+    )
+    return (match.group(1), match.group(2)) if match else None
+
+
+def bitcoin_upload_status() -> dict[str, Any] | None:
+    metadata_path = BITCOIN_UPLOAD_DIR / "metadata.json"
+    archive_path = BITCOIN_UPLOAD_DIR / "bitcoin-core-upload.tar.gz"
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if not archive_path.is_file() or not isinstance(metadata, dict):
+            return None
+        filename = str(metadata.get("filename") or "")
+        parsed = parse_bitcoin_archive_name(filename)
+        if not parsed or archive_path.stat().st_size != metadata.get("size"):
+            return None
+        return {
+            "filename": filename,
+            "version": parsed[0],
+            "platform": parsed[1],
+            "size": metadata["size"],
+            "sha256": metadata.get("sha256"),
+            "uploaded_at": metadata.get("uploaded_at"),
+        }
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def save_bitcoin_upload(stream: Any, filename: str, content_length: int) -> dict[str, Any]:
+    parsed = parse_bitcoin_archive_name(filename)
+    if not parsed:
+        raise ValueError(
+            "Erwartet wird bitcoin-VERSION-x86_64-linux-gnu.tar.gz "
+            "oder bitcoin-VERSION-aarch64-linux-gnu.tar.gz"
+        )
+    version, archive_platform = parsed
+    expected_platform = bitcoin_platform_name()
+    if expected_platform is None or archive_platform != expected_platform:
+        raise ValueError(
+            f"Archivplattform {archive_platform} passt nicht zu "
+            f"{expected_platform or platform.machine()}"
+        )
+    if not 1 <= content_length <= BITCOIN_UPLOAD_MAX_BYTES:
+        raise ValueError("Uploadgröße ist ungültig oder überschreitet das Limit")
+
+    BITCOIN_UPLOAD_DIR.mkdir(mode=0o750, parents=True, exist_ok=True)
+    archive_path = BITCOIN_UPLOAD_DIR / "bitcoin-core-upload.tar.gz"
+    metadata_path = BITCOIN_UPLOAD_DIR / "metadata.json"
+    temporary_path: Path | None = None
+    with _bitcoin_upload_lock:
+        try:
+            digest = hashlib.sha256()
+            remaining = content_length
+            first_bytes = b""
+            with tempfile.NamedTemporaryFile(
+                dir=BITCOIN_UPLOAD_DIR, prefix="upload-", delete=False
+            ) as handle:
+                temporary_path = Path(handle.name)
+                while remaining:
+                    chunk = stream.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        raise ValueError("Upload wurde vorzeitig abgebrochen")
+                    if len(first_bytes) < 2:
+                        first_bytes += chunk[: 2 - len(first_bytes)]
+                    handle.write(chunk)
+                    digest.update(chunk)
+                    remaining -= len(chunk)
+                handle.flush()
+                os.fsync(handle.fileno())
+            if first_bytes != b"\x1f\x8b":
+                raise ValueError("Die hochgeladene Datei ist kein gzip-Archiv")
+            os.chmod(temporary_path, 0o600)
+            os.replace(temporary_path, archive_path)
+            temporary_path = None
+            metadata = {
+                "filename": filename,
+                "version": version,
+                "platform": archive_platform,
+                "size": content_length,
+                "sha256": digest.hexdigest(),
+                "uploaded_at": int(time.time()),
+            }
+            metadata_tmp = metadata_path.with_suffix(".tmp")
+            metadata_tmp.write_text(
+                json.dumps(metadata, separators=(",", ":")), encoding="utf-8"
+            )
+            os.chmod(metadata_tmp, 0o600)
+            os.replace(metadata_tmp, metadata_path)
+            return metadata
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+
+
 def admin_status_data() -> dict[str, Any]:
     network = safe_call("getnetworkinfo")
     bitcoin_version = (
@@ -936,6 +1054,10 @@ def admin_status_data() -> dict[str, Any]:
     return {
         "dashboard": fetch_latest_dashboard_version(),
         "bitcoin": bitcoin_version,
+        "bitcoin_upload": bitcoin_upload_status(),
+        "bitcoin_keyring_ready": Path(
+            "/usr/local/share/bitcoin-core/trustedkeys.gpg"
+        ).is_file(),
         "admin_enabled": len(ADMIN_TOKEN) >= 32,
     }
 
@@ -1113,6 +1235,7 @@ class Handler(BaseHTTPRequestHandler):
         if path not in (
             "/api/admin/update/dashboard",
             "/api/admin/update/bitcoin",
+            "/api/admin/upload/bitcoin",
         ):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -1130,6 +1253,46 @@ class Handler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             content_length = -1
+        if path == "/api/admin/upload/bitcoin":
+            supplied_csrf = self.headers.get("X-CSRF-Token", "")
+            if not constant_time_equal(supplied_csrf, ADMIN_CSRF_TOKEN):
+                self.send_bytes(
+                    b'{"error":"CSRF validation failed"}',
+                    "application/json; charset=utf-8",
+                    403,
+                )
+                return
+            if content_type not in ("application/gzip", "application/octet-stream"):
+                self.send_bytes(
+                    b'{"error":"Only gzip archives are accepted"}',
+                    "application/json; charset=utf-8",
+                    415,
+                )
+                return
+            filename = self.headers.get("X-File-Name", "")
+            try:
+                metadata = save_bitcoin_upload(
+                    self.rfile, filename, content_length
+                )
+            except ValueError as exc:
+                body = json.dumps(
+                    {"error": str(exc)}, separators=(",", ":")
+                ).encode()
+                self.send_bytes(body, "application/json; charset=utf-8", 400)
+                return
+            except OSError as exc:
+                print(f"Bitcoin Core upload failed: {exc}", flush=True)
+                self.send_bytes(
+                    b'{"error":"Upload could not be stored"}',
+                    "application/json; charset=utf-8",
+                    500,
+                )
+                return
+            body = json.dumps(
+                {"ok": True, "upload": metadata}, separators=(",", ":")
+            ).encode()
+            self.send_bytes(body, "application/json; charset=utf-8", 201)
+            return
         if content_type != "application/x-www-form-urlencoded" or not (
             1 <= content_length <= 1024
         ):

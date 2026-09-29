@@ -2,6 +2,16 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.7.0 – 2026-09-29
+
+- Bitcoin-Core-Archiv per Dateiauswahl oder Drag-and-drop unter `/admin` hochladen
+- Upload auf 200 MB, stabile Linux-Dateinamen und passende Serverarchitektur begrenzen
+- Archiv ohne Root-Rechte in einem festen StateDirectory-Pfad zwischenspeichern
+- `SHA256SUMS` und `SHA256SUMS.asc` ausschließlich von `bitcoincore.org` laden
+- GPG-, SHA-256-, Plattform-, Versions- und Downgradeprüfung vor dem Stoppen des Nodes
+- Upload nach erfolgreicher Installation entfernen; Backup und Rollback beibehalten
+- Reverse-Proxy-Beispiele für große, langsamere Uploads ergänzen
+
 ## 1.6.2 – 2026-09-28
 
 - temporäres Update-Verzeichnis für die Tests durch den Benutzer `btc` betretbar gemacht

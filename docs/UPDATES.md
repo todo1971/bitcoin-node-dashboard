@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Unter `/home/todo` bleibt nur das Archiv:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.2.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.7.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -73,40 +73,47 @@ bewusst nicht aus einem Update-Archiv überschrieben.
 
 ## Bitcoin Core aktualisieren
 
-Bitcoin-Core-Updates sind immer manuell vorbereitet. Beispiel für Version
-`VERSION` und die passende Plattform:
+Unter `/admin` wird das von `bitcoincore.org` heruntergeladene Linux-Archiv
+ausgewählt oder per Drag-and-drop abgelegt. Erlaubt sind ausschließlich stabile
+Release-Dateien mit einem dieser Namen:
 
 ```text
-/home/todo/bitcoin-core-update/
-├── version
-├── bitcoin-VERSION-x86_64-linux-gnu.tar.gz
-├── SHA256SUMS
-└── SHA256SUMS.asc
+bitcoin-VERSION-x86_64-linux-gnu.tar.gz
+bitcoin-VERSION-aarch64-linux-gnu.tar.gz
 ```
 
-In `version` steht ausschließlich die Versionsnummer, beispielsweise `32.0`.
-Alle drei Release-Dateien müssen aus demselben offiziellen Release-Verzeichnis
-unter `https://bitcoincore.org/bin/bitcoin-core-VERSION/` stammen.
+Das Dashboard akzeptiert höchstens 200 MiB und nur die Architektur des Servers.
+Debug-, Quellcode-, Windows-, macOS- und Release-Candidate-Archive werden
+abgelehnt. Nach dem Upload zeigt `/admin` Dateiname, Größe und den Anfang des
+lokal berechneten SHA-256-Werts. **Geprüft installieren** startet den
+parameterlosen Root-Auftrag.
 
-### Geplanter Upload im Adminbereich
+Der Root-Helfer kopiert die hochgeladene Datei zunächst aus
+`/var/lib/bitcoin-dashboard/bitcoin-core-upload` in ein root-eigenes temporäres
+Verzeichnis. Aus der bereits streng validierten Version baut er ausschließlich
+diese beiden URLs:
 
-Als nächste Ausbaustufe erhält `/admin` eine Dateiauswahl mit Drag-and-drop
-für das offizielle Archiv
-`bitcoin-VERSION-x86_64-linux-gnu.tar.gz`. Das Archiv wird zunächst ohne
-Root-Rechte in einem isolierten Upload-Verzeichnis gespeichert. Anschließend
-soll der Server `SHA256SUMS` und `SHA256SUMS.asc` selbst aus dem passenden
-Release-Verzeichnis auf `bitcoincore.org` laden.
+```text
+https://bitcoincore.org/bin/bitcoin-core-VERSION/SHA256SUMS
+https://bitcoincore.org/bin/bitcoin-core-VERSION/SHA256SUMS.asc
+```
 
-Vor dem Root-Update werden Dateiname, stabile Versionsnummer, Plattform,
-Dateigröße, SHA-256-Prüfsumme und GPG-Signaturen kontrolliert. Downgrades und
-Archive für eine andere Plattform werden standardmäßig abgelehnt. Erst nach
-einer Bestätigung werden bitcoind gestoppt, die bisherigen Binärdateien
-gesichert und das neue Release installiert. Versions-, RPC- und Startprüfung
-entscheiden anschließend über Erfolg oder automatischen Rollback.
+Anschließend werden GPG-Signatur, SHA-256, Archivpfade, Plattform und Version
+geprüft. Eine bereits installierte oder ältere Version wird abgelehnt. Erst
+danach stoppt der Helfer bitcoind, sichert `/home/btc/bin`, installiert die
+Binärdateien und startet den Dienst. Ein Startfehler stellt das Backup wieder
+her. Nach Erfolg werden Upload und Metadaten entfernt.
 
-Bis diese Funktion implementiert und getestet ist, gilt weiterhin das oben
-beschriebene manuell vorbereitete Verzeichnis. Ein bloß hochgeladenes,
-ungeprüftes Archiv wird niemals als Root installiert.
+Der bisherige manuelle Paketordner unter `/home/todo/bitcoin-core-update` bleibt
+als Wiederherstellungsweg kompatibel, wird im normalen Betrieb aber nicht mehr
+benötigt.
+
+### Reverse Proxy für den Upload
+
+Für Plesk muss `plesk-apache.conf` wegen der längeren Zeitbegrenzung erneut in
+die zusätzlichen Apache-Direktiven übernommen werden. Der Inhalt von
+`plesk-nginx.conf` gehört in **Additional nginx directives**. Er setzt das
+Uploadlimit auf 200 MB und deaktiviert die vollständige nginx-Zwischenpufferung.
 
 ### Vertrauenswürdige Signaturschlüssel
 
@@ -116,16 +123,33 @@ Der Updater benötigt:
 /usr/local/share/bitcoin-core/trustedkeys.gpg
 ```
 
+Mindestens zwei unterschiedliche gültige Signaturen aus diesem Schlüsselbund
+sind erforderlich. Der Grenzwert steht als `BITCOIN_MIN_VALID_SIGNATURES=2` in
+`/etc/bitcoin-dashboard-updater.conf` und sollte nicht ohne bewusste
+Risikoabwägung reduziert werden.
+
 Schlüssel können aus dem offiziellen Repository `bitcoin-core/guix.sigs` bezogen
 werden. Sie dürfen jedoch erst importiert werden, nachdem der jeweilige
 Fingerprint über eine unabhängige, vertrauenswürdige Quelle geprüft wurde:
 
 ```bash
+keywork=$(mktemp -d)
+git clone --depth 1 https://github.com/bitcoin-core/guix.sigs.git \
+  "$keywork/guix.sigs"
+gpg --show-keys --with-fingerprint \
+  "$keywork"/guix.sigs/builder-keys/*.gpg
+```
+
+Erst nach dem Vergleich der Fingerprints mindestens zweier bewusst ausgewählter
+Signer werden deren Schlüssel importiert:
+
+```bash
 sudo install -d -o root -g root -m 0755 /usr/local/share/bitcoin-core
 sudo gpg --batch --no-default-keyring \
   --keyring /usr/local/share/bitcoin-core/trustedkeys.gpg \
-  --import /PFAD/ZUM/VERIFIZIERTEN-SCHLUESSEL.gpg
+  --import /PFAD/ZU/SIGNER-1.gpg /PFAD/ZU/SIGNER-2.gpg
 sudo chmod 0644 /usr/local/share/bitcoin-core/trustedkeys.gpg
+rm -rf -- "$keywork"
 ```
 
 Der Updater verlangt mindestens eine gültige Signatur aus diesem Keyring und
@@ -213,7 +237,7 @@ sudo awk -F= '
 ```
 
 Danach zeigt `/admin` beispielsweise
-`Installiert: 1.6.2 · GitHub: 1.6.2 · aktuell`. Schlägt die Prüfung fehl,
+`Installiert: 1.7.0 · GitHub: 1.7.0 · aktuell`. Schlägt die Prüfung fehl,
 helfen die Logs:
 
 ```bash

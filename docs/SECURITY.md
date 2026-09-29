@@ -16,6 +16,7 @@
 - Root-Updates sind auf zwei vollständige, feste `systemd-run`-Befehle ohne Browserparameter begrenzt.
 - Die root-eigenen Helfer akzeptieren keine Argumente, validieren Paketpfade und führen Updates außerhalb der Webdienst-Control-Group aus.
 - Das Paketverzeichnis `/home/todo` darf für den Dashboard-Benutzer nicht beschreibbar sein.
+- Core-Uploads landen als einzige Ausnahme im festen StateDirectory-Pfad. Der Root-Updater kopiert sie vor der Prüfung in sein eigenes temporäres Verzeichnis.
 
 Wird der Dashboard-Prozess vollständig kompromittiert, kann ein Angreifer die
 beiden festgelegten Update-Aufträge anstoßen, aber weder Argumente noch Paketpfade
@@ -24,6 +25,13 @@ Pakete benötigen zusätzlich eine passende SHA256-Prüfsumme und eine gültige
 Signatur aus dem root-kontrollierten Schlüsselbund. Diese Grenze hängt zwingend
 davon ab, dass `/home/todo`, Root-Helfer, Sudoers-Regel und Updater-Konfiguration
 nicht durch den Benutzer `btc` beschreibbar sind.
+
+Ein kompromittierter Dashboard-Prozess kann ein Core-Archiv im Uploadordner
+ersetzen und den festen Updateauftrag starten. Das verschafft ihm dennoch keine
+Auswahl einer Prüfsumme oder Signatur: Beide Dateien werden vom Root-Helfer über
+eine fest vorgegebene HTTPS-Adresse bei `bitcoincore.org` geladen. Der Node wird
+erst gestoppt, nachdem eine Signatur aus dem root-kontrollierten Schlüsselbund
+und die SHA-256-Prüfsumme erfolgreich geprüft wurden.
 
 ## Öffentliche Informationen
 

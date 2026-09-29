@@ -50,6 +50,8 @@ Verfügbare Einstellungen:
 | `ADMIN_TOKEN` | leer | mindestens 32 Zeichen; wird durch den Admin-Bootstrap erzeugt |
 | `DASHBOARD_GITHUB_REPOSITORY` | `todo1971/bitcoin-node-dashboard` | Quelle für Dashboard-Releases |
 | `DASHBOARD_GITHUB_TOKEN` | leer | nur lesendes Fine-grained Token; für private Repositorys erforderlich |
+| `BITCOIN_UPLOAD_DIR` | `/var/lib/bitcoin-dashboard/bitcoin-core-upload` | isolierter Zwischenordner für Core-Uploads |
+| `BITCOIN_UPLOAD_MAX_BYTES` | `209715200` | maximales Uploadvolumen (200 MiB) |
 
 ## 3. Systemd-Service installieren
 
@@ -66,7 +68,7 @@ anschließend aus einem temporär entpackten Release eingerichtet. Unter
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.2.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.7.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -95,7 +97,9 @@ curl -fsS http://127.0.0.1:8787/api/dashboard | python3 -m json.tool
 3. **Apache & nginx Settings** öffnen.
 4. Den Inhalt von `plesk-apache.conf` unter **Additional Apache directives**
    für HTTP und HTTPS eintragen.
-5. Plesk-Proxy-Modus aktiviert lassen.
+5. Den Inhalt von `plesk-nginx.conf` unter **Additional nginx directives**
+   eintragen. Dadurch sind Bitcoin-Core-Uploads bis 200 MB erlaubt.
+6. Plesk-Proxy-Modus aktiviert lassen.
 
 Port 8787 bleibt ausschließlich an `127.0.0.1` gebunden. Weder Port 8787 noch
 Bitcoin-RPC-Port 8332 dürfen in der Firewall öffentlich freigegeben werden.

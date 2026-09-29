@@ -17,7 +17,7 @@ Paket aus `/home/todo` in ein temporäres Verzeichnis entpacken:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.6.2.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.7.0.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 
@@ -68,3 +68,7 @@ Nach erfolgreicher Installation bleibt das Dashboard auf `127.0.0.1`. Für den
 `plesk-apache.conf` bei. Bei Nginx, Caddy oder Apache ohne Plesk wird lediglich
 HTTPS auf den lokalen Dashboard-Port weitergeleitet. Bitcoin-RPC-Port 8332 darf
 nicht öffentlich freigegeben werden.
+
+Für den Bitcoin-Core-Upload müssen bei Plesk zusätzlich die Direktiven aus
+`plesk-nginx.conf` eingetragen werden. Das Apache-Beispiel enthält bereits das
+längere Zeitlimit für große Archive.
