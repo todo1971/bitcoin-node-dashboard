@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Das Archiv liegt dafür im aktuellen Verz
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.12.0.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.13.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -26,11 +26,12 @@ Webprozess oder Port wird nicht mehr verwendet.
 
 Das Dashboard fragt die GitHub Releases API ab. Weil das Repository privat ist,
 wird ein Fine-grained Personal Access Token mit ausschließlich lesendem
-`Contents`-Zugriff auf dieses eine Repository benötigt. Es wird nur auf dem
-Server gespeichert:
+`Contents`-Zugriff auf dieses eine Repository benötigt. Ab Version 1.13 wird
+es unter `/admin` → Dashboard-Konfiguration eingetragen. Lokal geht es auch
+direkt über die `.env`:
 
 ```bash
-sudo editor /etc/default/bitcoin-dashboard
+sudo editor /var/lib/bitcoin-dashboard/.env
 ```
 
 ```text
@@ -41,8 +42,8 @@ DASHBOARD_GITHUB_TOKEN=github_pat_...
 Danach den Dienst neu starten:
 
 ```bash
-sudo chmod 0640 /etc/default/bitcoin-dashboard
-sudo chown root:root /etc/default/bitcoin-dashboard
+sudo chmod 0600 /var/lib/bitcoin-dashboard/.env
+sudo chown btc:btc /var/lib/bitcoin-dashboard/.env
 sudo systemctl restart bitcoin-dashboard
 ```
 
@@ -220,11 +221,11 @@ Actions-, Administration- oder Kontoberechtigungen sind nicht erforderlich.
 Das Token wird nach dem Erzeugen nur einmal vollständig angezeigt. Es darf
 nicht in Chat, Shell-History, Git oder Dokumentation kopiert werden.
 
-Auf dem Server wird es mit einem Editor direkt in die Root-Konfiguration
-geschrieben:
+Ab Version 1.13 kann das Token unter `/admin` → Dashboard-Konfiguration
+eingetragen werden. Alternativ wird es lokal in die `.env` geschrieben:
 
 ```bash
-sudoedit /etc/default/bitcoin-dashboard
+sudoedit /var/lib/bitcoin-dashboard/.env
 ```
 
 ```text
@@ -237,8 +238,8 @@ GitHub ausgegebene Token ersetzt werden. Anschließend Rechte setzen und Dienst
 neu starten:
 
 ```bash
-sudo chown root:root /etc/default/bitcoin-dashboard
-sudo chmod 0640 /etc/default/bitcoin-dashboard
+sudo chown btc:btc /var/lib/bitcoin-dashboard/.env
+sudo chmod 0600 /var/lib/bitcoin-dashboard/.env
 sudo systemctl restart bitcoin-dashboard
 ```
 
@@ -249,11 +250,11 @@ sudo awk -F= '
   /^DASHBOARD_GITHUB_TOKEN=/ {
     print length($2) >= 20 ? "GitHub-Token ist gesetzt" : "GitHub-Token fehlt"
   }
-' /etc/default/bitcoin-dashboard
+' /var/lib/bitcoin-dashboard/.env
 ```
 
 Danach zeigt `/admin` beispielsweise
-`Installiert: 1.12.0 · GitHub: 1.12.0 · aktuell`. Schlägt die Prüfung fehl,
+`Installiert: 1.13.0 · GitHub: 1.13.0 · aktuell`. Schlägt die Prüfung fehl,
 helfen die Logs:
 
 ```bash
@@ -261,6 +262,6 @@ sudo journalctl -u bitcoin-dashboard -n 50 --no-pager
 ```
 
 Vor Ablauf wird ein neues Token mit denselben Minimalrechten erzeugt, der Wert
-in `/etc/default/bitcoin-dashboard` ersetzt und der Dienst neu gestartet. Das
+in `/var/lib/bitcoin-dashboard/.env` ersetzt und der Dienst neu gestartet. Das
 alte Token danach bei GitHub widerrufen. Bei vermuteter Offenlegung ist es
 sofort zu widerrufen und zu ersetzen.

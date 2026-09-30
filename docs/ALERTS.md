@@ -29,8 +29,8 @@ ein Update aus. Bitcoin-Core-Updates bleiben eine bewusste Administratoraktion.
 
 ## Benachrichtigungen einrichten
 
-In `/etc/default/bitcoin-dashboard` können beide Kanäle unabhängig aktiviert
-werden:
+In der Dashboard-`.env` (`/var/lib/bitcoin-dashboard/.env`) oder unter
+`/admin` → Dashboard-Konfiguration können beide Kanäle unabhängig aktiviert werden:
 
 ```text
 ALERT_EMAIL=admin@example.com

@@ -79,6 +79,17 @@ class DashboardLayoutTests(unittest.TestCase):
 
 
 class ServiceConfigurationTests(unittest.TestCase):
+    def test_state_env_is_used_by_service_bootstrap_and_release_fetcher(self):
+        project = Path(__file__).parent.parent
+        service = (project / "bitcoin-dashboard.service").read_text(encoding="utf-8")
+        bootstrap = (project / "installer" / "bootstrap-admin.sh").read_text(encoding="utf-8")
+        fetcher = (project / "installer" / "fetch-dashboard-release").read_text(encoding="utf-8")
+        self.assertIn("EnvironmentFile=/var/lib/bitcoin-dashboard/.env", service)
+        self.assertIn("legacy_env=/etc/default/bitcoin-dashboard", bootstrap)
+        self.assertIn('ln -s "$env_file" "$dashboard_target/.env"', bootstrap)
+        self.assertIn("--unit=bitcoin-dashboard-config-restart", bootstrap)
+        self.assertIn('ENV_FILE = Path("/var/lib/bitcoin-dashboard/.env")', fetcher)
+
     def test_update_helpers_use_root_owned_cache_and_bootstrap_migrates_config(self):
         project = Path(__file__).parent.parent
         cache = "/var/cache/bitcoin-dashboard-updates"
@@ -499,6 +510,49 @@ class AdminSecurityTests(unittest.TestCase):
             "Sec-Fetch-Site": "cross-site",
         }
         self.assertFalse(app.admin_origin_allowed(headers))
+
+    def test_config_masks_secret_and_preserves_protected_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / ".env"
+            config.write_text("ADMIN_TOKEN=" + "a" * 32 + "\nDASHBOARD_GITHUB_TOKEN=github_pat_secret\nBITCOIN_COOKIE=/secret/cookie\nDISK_MAX_USED_PERCENT=90\n", encoding="utf-8")
+            with patch.object(app, "CONFIG_FILE", config), patch.object(app, "ADMIN_UPDATES_ENABLED", True):
+                data = app.admin_config_data()
+                fields = {field["key"]: field for field in data["fields"]}
+                self.assertEqual(fields["DASHBOARD_GITHUB_TOKEN"]["value"], "")
+                self.assertTrue(fields["DASHBOARD_GITHUB_TOKEN"]["configured"])
+                self.assertNotIn("ADMIN_TOKEN", fields)
+                proposed = {key: field["value"] for key, field in fields.items()}
+                proposed["DISK_MAX_USED_PERCENT"] = "92.5"
+                completed = type("Completed", (), {"returncode": 0})()
+                with patch.object(app.subprocess, "run", return_value=completed) as run:
+                    status, _ = app.save_admin_config(proposed)
+                self.assertEqual(status, 202)
+                self.assertEqual(run.call_args.args[0], app.ADMIN_CONFIG_RESTART_COMMAND)
+                result = config.read_text(encoding="utf-8")
+                self.assertIn("ADMIN_TOKEN=" + "a" * 32, result)
+                self.assertIn("DASHBOARD_GITHUB_TOKEN=github_pat_secret", result)
+                self.assertIn("BITCOIN_COOKIE=/secret/cookie", result)
+                self.assertIn("DISK_MAX_USED_PERCENT=92.5", result)
+
+    def test_config_rejects_injection_and_rolls_back_failed_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / ".env"
+            original = "ADMIN_TOKEN=" + "a" * 32 + "\nDISK_MAX_USED_PERCENT=90\n"
+            config.write_text(original, encoding="utf-8")
+            with patch.object(app, "CONFIG_FILE", config), patch.object(app, "ADMIN_UPDATES_ENABLED", True):
+                proposed = {field["key"]: field["value"] for field in app.admin_config_data()["fields"]}
+                proposed["ALERT_WEBHOOK_URL"] = "https://example.org/hook\nADMIN_TOKEN=bad"
+                with patch.object(app.subprocess, "run") as run:
+                    status, _ = app.save_admin_config(proposed)
+                self.assertEqual(status, 400)
+                run.assert_not_called()
+                proposed["ALERT_WEBHOOK_URL"] = ""
+                proposed["DISK_MAX_USED_PERCENT"] = "95"
+                failed = type("Completed", (), {"returncode": 1})()
+                with patch.object(app.subprocess, "run", return_value=failed):
+                    status, _ = app.save_admin_config(proposed)
+                self.assertEqual(status, 503)
+                self.assertEqual(config.read_text(encoding="utf-8"), original)
 
     def test_update_command_has_no_user_controlled_arguments(self):
         completed = type("Completed", (), {"returncode": 0, "stdout": "", "stderr": ""})()

@@ -31,6 +31,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
 - lokaler Web-Installer für systemd-basierte Linux-Server
 - integrierte, abgesicherte Administration unter `/admin`
+- editierbare Betriebswerte unter `/admin`; `.env` im Dashboard-State-Verzeichnis, vertrauliche Felder geschützt
 - Updates als isolierte systemd-Aufträge mit geprüften Helfern und Rollback
 - automatische Dashboard-Updates aus verifizierten GitHub-Release-Assets
 - root-eigener Update-Cache unter `/var/cache/bitcoin-dashboard-updates` statt eines Benutzer-Home-Verzeichnisses
@@ -60,7 +61,9 @@ Webdienst:    127.0.0.1:8787
 P2P-Adresse:  217.160.16.224:8333
 ```
 
-Alle Werte lassen sich über `/etc/default/bitcoin-dashboard` ändern.
+Die Dashboard-Konfiguration liegt unter `/var/lib/bitcoin-dashboard/.env` und ist
+im Projektverzeichnis als `.env` verlinkt. Betriebswerte lassen sich über `/admin`
+bearbeiten; geschützte Dienst- und RPC-Einstellungen nur lokal als Root.
 
 Für den Containerbetrieb stehen `compose.host-node.yaml`, `compose.yaml` und
 `compose.all-in-one.yaml` bereit. Die Unterschiede und sicheren Updatebefehle beschreibt
@@ -75,17 +78,14 @@ sudo -u btc git clone https://github.com/todo1971/bitcoin-node-dashboard.git \
   /home/btc/bitcoin-dashboard
 ```
 
-Service-Konfiguration installieren:
+Konfiguration und Service mit dem Bootstrap aus dem zuvor geprüften
+Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
-sudo cp /home/btc/bitcoin-dashboard/bitcoin-dashboard.env.example \
-  /etc/default/bitcoin-dashboard
-sudo chmod 0640 /etc/default/bitcoin-dashboard
-
-sudo cp /home/btc/bitcoin-dashboard/bitcoin-dashboard.service \
-  /etc/systemd/system/bitcoin-dashboard.service
-
-sudo systemctl daemon-reload
+tmpdir=$(mktemp -d)
+tar -xzf ./bitcoin-node-dashboard-1.13.0.tar.gz -C "$tmpdir"
+sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
+rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
 ```
 
@@ -120,6 +120,7 @@ sudo systemctl restart bitcoin-dashboard
 | `/api/alerts` | derzeit aktive Alarme |
 | `/api/admin/upload/bitcoin` | geschützter Bitcoin-Core-Archivupload |
 | `/api/admin/logs/dashboard` und `/api/admin/logs/bitcoin` | letzte Update-Logzeilen, nur mit Admin-Anmeldung |
+| `/api/admin/config` | erlaubte Dashboard-Betriebswerte anzeigen und speichern, nur mit Admin-Anmeldung |
 | `/admin` | passwortgeschützte Administration |
 | `/healthz` | lokaler Funktions- und RPC-Test |
 
@@ -137,6 +138,7 @@ an Bitcoin Core übergeben werden können.
 - [All-in-one unter Plesk](docs/PLESK_DOCKER.md)
 - [Sichere Updates](docs/UPDATES.md)
 - [Alarme und Systemüberwachung](docs/ALERTS.md)
+- [Konfiguration und Migration zur Dashboard-.env](docs/CONFIGURATION.md)
 - [Echtzeit über lokales ZMQ und SSE](docs/REALTIME.md)
 - [Sicherheitskonzept](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)

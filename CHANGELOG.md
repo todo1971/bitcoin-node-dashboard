@@ -2,6 +2,13 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.13.0 – 2026-09-30
+
+- systemd-Konfiguration aus `/etc/default/bitcoin-dashboard` in die Dashboard-`.env` im State-Verzeichnis migrieren
+- erlaubte Betriebswerte unter `/admin` bearbeiten, validieren, atomar speichern und den Dashboard-Dienst verzögert neu starten
+- GitHub-Token im Editor nur als gesetzt/nicht gesetzt anzeigen; Admin-Token und interne Pfade bleiben geschützt
+- alten Konfigurationsort nach der Migration als Rückfallkopie behalten
+
 ## 1.12.0 – 2026-09-30
 
 - optionaler lokaler ZMQ-Subscriber für `zmqpubsequence`: Block- und Mempool-Ereignisse sowie Transportsequenzlücken zählen

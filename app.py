@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small, read-only Bitcoin Core dashboard with no external dependencies."""
+"""Small, read-only Bitcoin Core dashboard with optional ZMQ support."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import hmac
 import ipaddress
 import platform
 import secrets
+import shlex
 import shutil
 import socket
 import sqlite3
@@ -32,7 +33,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.12.0"
+__version__ = "1.13.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -112,6 +113,7 @@ BITCOIN_UPLOAD_MAX_BYTES = max(
     1_000_000, int(os.getenv("BITCOIN_UPLOAD_MAX_BYTES", str(200 * 1024 * 1024)))
 )
 ZMQ_SEQUENCE_ENDPOINT = os.getenv("ZMQ_SEQUENCE_ENDPOINT", "").strip()
+CONFIG_FILE = Path(os.getenv("DASHBOARD_CONFIG_FILE", "/var/lib/bitcoin-dashboard/.env"))
 ADMIN_CSRF_TOKEN = secrets.token_urlsafe(32)
 ADMIN_MAX_FAILURES = 5
 ADMIN_LOCK_SECONDS = 15 * 60
@@ -133,6 +135,42 @@ ADMIN_BITCOIN_COMMAND = (
     "--no-block",
     "/usr/local/sbin/update-bitcoin-core",
 )
+ADMIN_CONFIG_RESTART_COMMAND = (
+    "sudo", "-n", "/usr/bin/systemd-run",
+    "--unit=bitcoin-dashboard-config-restart", "--collect", "--no-block",
+    "--on-active=2s", "/usr/bin/systemctl", "restart", "bitcoin-dashboard.service",
+)
+CONFIG_FIELDS = (
+    ("PUBLIC_NODE_ADDRESS", "Öffentliche Node-Adresse", "Node", "address"),
+    ("PUBLIC_NODE_PORT", "P2P-Port", "Node", "port"),
+    ("ZMQ_SEQUENCE_ENDPOINT", "Lokaler ZMQ-Endpunkt", "Node", "zmq"),
+    ("DASHBOARD_CACHE_SECONDS", "Dashboard-Cache (Sekunden)", "Erfassung", "cache"),
+    ("SAMPLE_INTERVAL_SECONDS", "Messintervall (Sekunden)", "Erfassung", "sample"),
+    ("HISTORY_RETENTION_DAYS", "Aufbewahrung (Tage)", "Erfassung", "retention"),
+    ("MEMPOOL_ANALYSIS_SECONDS", "Mempool-Analyse (Sekunden)", "Erfassung", "analysis"),
+    ("UTXO_SAMPLE_SECONDS", "UTXO-Messung (Sekunden)", "Erfassung", "utxo"),
+    ("EXTERNAL_CACHE_SECONDS", "Externe Prüfung (Sekunden)", "Erfassung", "external"),
+    ("VERSION_CHECK_SECONDS", "Versionsprüfung (Sekunden)", "Erfassung", "version"),
+    ("ALERT_EMAIL", "Alarm-E-Mail", "Alarme", "email"),
+    ("ALERT_WEBHOOK_URL", "HTTPS-Webhook", "Alarme", "webhook"),
+    ("ALERT_GRACE_SECONDS", "Alarm-Karenz (Sekunden)", "Alarme", "grace"),
+    ("ALERT_NO_INBOUND_SECONDS", "Ohne Inbound (Sekunden)", "Alarme", "inbound"),
+    ("ALERT_COOLDOWN_SECONDS", "Wiederholsperre (Sekunden)", "Alarme", "cooldown"),
+    ("SYNC_LAG_BLOCKS", "Sync-Rückstand (Blöcke)", "Alarme", "lag"),
+    ("DISK_MAX_USED_PERCENT", "Datenträger-Alarm (%)", "Alarme", "percent"),
+    ("MEMORY_MAX_USED_PERCENT", "RAM-Alarm (%)", "Alarme", "percent"),
+    ("DASHBOARD_GITHUB_REPOSITORY", "GitHub-Repository", "Updates", "repository"),
+    ("DASHBOARD_GITHUB_TOKEN", "GitHub-Token (leer lassen = unverändert)", "Updates", "secret"),
+)
+CONFIG_FIELD_KINDS = {key: kind for key, _, _, kind in CONFIG_FIELDS}
+CONFIG_NUMERIC_RANGES = {
+    "port": (1, 65535), "cache": (1, 3600), "sample": (30, 3600),
+    "retention": (1, 3650), "analysis": (60, 86400),
+    "utxo": (3600, 604800), "external": (60, 86400),
+    "version": (3600, 604800), "grace": (60, 86400),
+    "inbound": (60, 86400), "cooldown": (300, 604800),
+    "lag": (1, 1000), "percent": (50, 99),
+}
 ADMIN_LOG_COMMANDS = {
     kind: (
         "sudo", "-n", "/usr/bin/journalctl", f"--unit={unit}",
@@ -165,6 +203,7 @@ _dashboard_version_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _cpu_lock = threading.Lock()
 _cpu_previous: tuple[int, int] | None = None
 _admin_auth_lock = threading.Lock()
+_config_lock = threading.Lock()
 _admin_failures: list[float] = []
 _admin_blocked_until = 0.0
 _bitcoin_upload_lock = threading.Lock()
@@ -1558,6 +1597,161 @@ def admin_origin_allowed(headers: Any) -> bool:
     )
 
 
+def read_config_file() -> tuple[bytes, dict[str, str]]:
+    if CONFIG_FILE.is_symlink() or not CONFIG_FILE.is_file():
+        raise OSError("Dashboard .env is missing or is a symbolic link")
+    raw = CONFIG_FILE.read_bytes()
+    if len(raw) > 65536:
+        raise ValueError("Dashboard .env is too large")
+    values: dict[str, str] = {}
+    for line in raw.decode("utf-8").splitlines():
+        match = re.match(r"^([A-Z][A-Z0-9_]*)=(.*)$", line)
+        if match:
+            value = match.group(2).strip()
+            try:
+                parts = shlex.split(value, comments=False, posix=True)
+                values[match.group(1)] = parts[0] if len(parts) == 1 else value
+            except ValueError:
+                values[match.group(1)] = value
+    return raw, values
+
+
+def config_defaults() -> dict[str, str]:
+    return {
+        "PUBLIC_NODE_ADDRESS": PUBLIC_NODE_ADDRESS,
+        "PUBLIC_NODE_PORT": str(PUBLIC_NODE_PORT),
+        "ZMQ_SEQUENCE_ENDPOINT": ZMQ_SEQUENCE_ENDPOINT,
+        "DASHBOARD_CACHE_SECONDS": str(CACHE_SECONDS),
+        "SAMPLE_INTERVAL_SECONDS": str(SAMPLE_INTERVAL_SECONDS),
+        "HISTORY_RETENTION_DAYS": str(HISTORY_RETENTION_DAYS),
+        "MEMPOOL_ANALYSIS_SECONDS": str(MEMPOOL_ANALYSIS_SECONDS),
+        "UTXO_SAMPLE_SECONDS": str(UTXO_SAMPLE_SECONDS),
+        "EXTERNAL_CACHE_SECONDS": str(EXTERNAL_CACHE_SECONDS),
+        "VERSION_CHECK_SECONDS": str(VERSION_CHECK_SECONDS),
+        "ALERT_EMAIL": ALERT_EMAIL,
+        "ALERT_WEBHOOK_URL": ALERT_WEBHOOK_URL,
+        "ALERT_GRACE_SECONDS": str(ALERT_GRACE_SECONDS),
+        "ALERT_NO_INBOUND_SECONDS": str(ALERT_NO_INBOUND_SECONDS),
+        "ALERT_COOLDOWN_SECONDS": str(ALERT_COOLDOWN_SECONDS),
+        "SYNC_LAG_BLOCKS": str(SYNC_LAG_BLOCKS),
+        "DISK_MAX_USED_PERCENT": str(DISK_MAX_USED_PERCENT),
+        "MEMORY_MAX_USED_PERCENT": str(MEMORY_MAX_USED_PERCENT),
+        "DASHBOARD_GITHUB_REPOSITORY": DASHBOARD_GITHUB_REPOSITORY,
+        "DASHBOARD_GITHUB_TOKEN": DASHBOARD_GITHUB_TOKEN,
+    }
+
+
+def admin_config_data() -> dict[str, Any]:
+    if not ADMIN_UPDATES_ENABLED:
+        raise OSError("Configuration is managed externally in container mode")
+    _, saved = read_config_file()
+    defaults = config_defaults()
+    fields = []
+    for key, label, section, kind in CONFIG_FIELDS:
+        value = saved.get(key, defaults[key])
+        fields.append({
+            "key": key, "label": label, "section": section, "kind": kind,
+            "value": "" if kind == "secret" else value,
+            "configured": bool(value) if kind == "secret" else None,
+            "range": CONFIG_NUMERIC_RANGES.get(kind),
+        })
+    return {"fields": fields, "restart_required": True}
+
+
+def validate_config_value(key: str, value: Any) -> str:
+    kind = CONFIG_FIELD_KINDS[key]
+    if not isinstance(value, str) or len(value) > 2048 or any(
+        character.isspace() or character in "\\\"'\x00" for character in value
+    ):
+        raise ValueError(f"Invalid value for {key}")
+    if kind in CONFIG_NUMERIC_RANGES:
+        if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?" if kind == "percent" else r"[0-9]+", value):
+            raise ValueError(f"Invalid number for {key}")
+        minimum, maximum = CONFIG_NUMERIC_RANGES[kind]
+        number = float(value) if kind == "percent" else int(value)
+        if not minimum <= number <= maximum:
+            raise ValueError(f"{key} must be between {minimum} and {maximum}")
+        return value if kind == "percent" else str(number)
+    if kind == "address":
+        try:
+            ipaddress.ip_address(value)
+        except ValueError:
+            if len(value) > 253 or not re.fullmatch(r"(?i)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", value):
+                raise ValueError("Invalid public node address") from None
+    elif kind == "zmq" and value:
+        if not re.fullmatch(r"tcp://127\.0\.0\.1:[1-9][0-9]{0,4}", value) or int(value.rsplit(":", 1)[1]) > 65535:
+            raise ValueError("ZMQ endpoint must be on 127.0.0.1")
+    elif kind == "email" and value:
+        if not re.fullmatch(r"[^@]+@[^@.]+(?:\.[^@.]+)+", value):
+            raise ValueError("Invalid alert email")
+    elif kind == "webhook" and value:
+        parsed = urlparse(value)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("Webhook must be an HTTPS URL without credentials")
+    elif kind == "repository":
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", value):
+            raise ValueError("Invalid GitHub repository")
+    return value
+
+
+def write_config_file(content: bytes) -> None:
+    descriptor, temporary = tempfile.mkstemp(prefix=".env.", dir=CONFIG_FILE.parent)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, CONFIG_FILE)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def save_admin_config(submitted: Any) -> tuple[int, str]:
+    if not ADMIN_UPDATES_ENABLED:
+        return 409, "Configuration is managed externally in container mode"
+    if not isinstance(submitted, dict) or set(submitted) != set(CONFIG_FIELD_KINDS):
+        return 400, "Incomplete or unknown configuration fields"
+    with _config_lock:
+        original: bytes | None = None
+        written = False
+        try:
+            original, saved = read_config_file()
+            defaults = config_defaults()
+            values: dict[str, str] = {}
+            for key in CONFIG_FIELD_KINDS:
+                proposed = submitted[key]
+                if CONFIG_FIELD_KINDS[key] == "secret" and proposed == "":
+                    proposed = saved.get(key, defaults[key])
+                values[key] = validate_config_value(key, proposed)
+            kept = [
+                line for line in original.decode("utf-8").splitlines()
+                if not (re.match(r"^([A-Z][A-Z0-9_]*)=", line) and line.split("=", 1)[0] in CONFIG_FIELD_KINDS)
+            ]
+            content = ("\n".join(kept + [f"{key}={values[key]}" for key in CONFIG_FIELD_KINDS]) + "\n").encode()
+            if len(content) > 65536:
+                raise ValueError("Configuration is too large")
+            write_config_file(content)
+            written = True
+            result = subprocess.run(ADMIN_CONFIG_RESTART_COMMAND, capture_output=True, text=True, timeout=10, check=False)
+            if result.returncode != 0:
+                write_config_file(original)
+                written = False
+                return 503, "Configuration restart could not be scheduled; changes were reverted"
+            return 202, "Configuration saved; dashboard restarts in a few seconds"
+        except ValueError as exc:
+            return 400, str(exc)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            if written and original is not None:
+                try:
+                    write_config_file(original)
+                except OSError as rollback_exc:
+                    print(f"Admin config rollback failed: {rollback_exc}", flush=True)
+            print(f"Admin config save failed: {exc}", flush=True)
+            return 503, "Configuration could not be saved"
+
+
 def bitcoin_platform_name() -> str | None:
     machine = platform.machine().lower()
     if machine in ("x86_64", "amd64"):
@@ -1883,6 +2077,16 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps(admin_status_data(), separators=(",", ":")).encode()
             self.send_bytes(body, "application/json; charset=utf-8")
             return
+        if path == "/api/admin/config":
+            if not self.require_admin_auth():
+                return
+            try:
+                body = json.dumps(admin_config_data(), separators=(",", ":")).encode()
+                self.send_bytes(body, "application/json; charset=utf-8")
+            except (OSError, ValueError) as exc:
+                print(f"Admin config unavailable: {exc}", flush=True)
+                self.send_bytes(b'{"error":"Configuration editor is not installed; run admin bootstrap"}', "application/json; charset=utf-8", 503)
+            return
         if path in ("/api/admin/logs/dashboard", "/api/admin/logs/bitcoin"):
             if not self.require_admin_auth():
                 return
@@ -1963,6 +2167,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/admin/update/dashboard",
             "/api/admin/update/bitcoin",
             "/api/admin/upload/bitcoin",
+            "/api/admin/config",
         ):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -1980,6 +2185,22 @@ class Handler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             content_length = -1
+        if path == "/api/admin/config":
+            if not constant_time_equal(self.headers.get("X-CSRF-Token", ""), ADMIN_CSRF_TOKEN):
+                self.send_bytes(b'{"error":"CSRF validation failed"}', "application/json; charset=utf-8", 403)
+                return
+            if content_type != "application/json" or not 1 <= content_length <= 8192:
+                self.send_bytes(b'{"error":"Invalid configuration request"}', "application/json; charset=utf-8", 400)
+                return
+            try:
+                submitted = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                self.send_bytes(b'{"error":"Invalid JSON"}', "application/json; charset=utf-8", 400)
+                return
+            status, message = save_admin_config(submitted)
+            body = json.dumps({"ok": status == 202, "message": message}, separators=(",", ":")).encode()
+            self.send_bytes(body, "application/json; charset=utf-8", status)
+            return
         if path == "/api/admin/upload/bitcoin":
             if not ADMIN_UPDATES_ENABLED:
                 self.send_bytes(

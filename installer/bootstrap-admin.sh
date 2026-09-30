@@ -56,8 +56,35 @@ else
     exit 1
 fi
 
-env_file=/etc/default/bitcoin-dashboard
-test -f "$env_file" || install -o root -g root -m 0640 "$project_dir/bitcoin-dashboard.env.example" "$env_file"
+state_dir=/var/lib/bitcoin-dashboard
+env_file=$state_dir/.env
+legacy_env=/etc/default/bitcoin-dashboard
+dashboard_group=$(id -gn "$dashboard_user")
+test ! -L "$state_dir" || { echo "Unsafe dashboard state directory" >&2; exit 1; }
+install -d -o "$dashboard_user" -g "$dashboard_group" -m 0750 "$state_dir"
+test ! -L "$env_file" || { echo "Unsafe dashboard .env link" >&2; exit 1; }
+if test ! -f "$env_file"; then
+    if test -e "$dashboard_target/.env" && test ! -L "$dashboard_target/.env"; then
+        echo "Existing $dashboard_target/.env must be migrated manually" >&2
+        exit 1
+    fi
+    if test -f "$legacy_env" && test ! -L "$legacy_env"; then
+        install -o "$dashboard_user" -g "$dashboard_group" -m 0600 "$legacy_env" "$env_file"
+    else
+        install -o "$dashboard_user" -g "$dashboard_group" -m 0600 "$project_dir/bitcoin-dashboard.env.example" "$env_file"
+    fi
+fi
+chown "$dashboard_user:$dashboard_group" "$env_file"
+chmod 0600 "$env_file"
+if test -L "$dashboard_target/.env"; then
+    test "$(readlink "$dashboard_target/.env")" = "$env_file" || {
+        echo "Unexpected dashboard .env link" >&2; exit 1;
+    }
+elif test -e "$dashboard_target/.env"; then
+    echo "Existing dashboard .env is not a link" >&2; exit 1
+else
+    ln -s "$env_file" "$dashboard_target/.env"
+fi
 token=$(sed -n 's/^ADMIN_TOKEN=//p' "$env_file" | tail -n 1)
 if test "${#token}" -lt 32; then
     token=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
@@ -73,7 +100,7 @@ grep -q '^BITCOIN_UPLOAD_DIR=' "$env_tmp" || \
     printf '%s\n' 'BITCOIN_UPLOAD_DIR=/var/lib/bitcoin-dashboard/bitcoin-core-upload' >>"$env_tmp"
 grep -q '^BITCOIN_UPLOAD_MAX_BYTES=' "$env_tmp" || \
     printf '%s\n' 'BITCOIN_UPLOAD_MAX_BYTES=209715200' >>"$env_tmp"
-install -o root -g root -m 0640 "$env_tmp" "$env_file"
+install -o "$dashboard_user" -g "$dashboard_group" -m 0600 "$env_tmp" "$env_file"
 rm -f -- "$env_tmp"
 
 sudoers_tmp=$(mktemp)
@@ -81,6 +108,7 @@ trap 'rm -f -- "$sudoers_tmp"' EXIT INT TERM
 printf '%s\n' \
     "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-dashboard-update --collect --no-block /usr/local/sbin/update-bitcoin-dashboard" \
     "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-core-update --collect --no-block /usr/local/sbin/update-bitcoin-core" \
+    "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-dashboard-config-restart --collect --no-block --on-active=2s /usr/bin/systemctl restart bitcoin-dashboard.service" \
     "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/journalctl --unit=bitcoin-dashboard-update --lines=80 --no-pager --output=short-iso --quiet" \
     "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/journalctl --unit=bitcoin-core-update --lines=80 --no-pager --output=short-iso --quiet" \
     >"$sudoers_tmp"

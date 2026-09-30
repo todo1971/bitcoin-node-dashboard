@@ -15,11 +15,12 @@ eine andere GitHub-Anmeldung. Alternativ kann ein Release-Archiv nach
 ## 2. Umgebung konfigurieren
 
 ```bash
-sudo cp /home/btc/bitcoin-dashboard/bitcoin-dashboard.env.example \
-  /etc/default/bitcoin-dashboard
-sudo chown root:root /etc/default/bitcoin-dashboard
-sudo chmod 0640 /etc/default/bitcoin-dashboard
-sudo editor /etc/default/bitcoin-dashboard
+sudo install -d -o btc -g btc -m 0750 /var/lib/bitcoin-dashboard
+sudo install -o btc -g btc -m 0600 \
+  /home/btc/bitcoin-dashboard/bitcoin-dashboard.env.example \
+  /var/lib/bitcoin-dashboard/.env
+sudo ln -s /var/lib/bitcoin-dashboard/.env /home/btc/bitcoin-dashboard/.env
+sudo editor /var/lib/bitcoin-dashboard/.env
 ```
 
 Verfügbare Einstellungen:
@@ -67,12 +68,12 @@ sudo systemctl enable --now bitcoin-dashboard
 ```
 
 Die integrierte Administration samt eng begrenzter Update-Berechtigungen wird
-anschließend aus einem temporär entpackten Release eingerichtet. Unter
+anschließend aus einem temporär entpackten, geprüften Release eingerichtet.
 Das Release-Archiv liegt für diesen einmaligen Schritt im aktuellen Verzeichnis:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.12.0.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.13.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```

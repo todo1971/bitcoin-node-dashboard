@@ -6,7 +6,7 @@ Das Dashboard kann Block- und Mempool-Ereignisse aus `zmqpubsequence` empfangen.
 
 1. Python-Bindings installieren: `sudo apt install python3-zmq`. Das Paket muss für den Python-Interpreter des Dashboard-Dienstes verfügbar sein.
 2. In `/home/btc/bitcoin-data/bitcoin.conf` ergänzen: `zmqpubsequence=tcp://127.0.0.1:28332`.
-3. In der Environment-Datei des Dashboard-Dienstes ergänzen: `ZMQ_SEQUENCE_ENDPOINT=tcp://127.0.0.1:28332`.
+3. Unter `/admin` → Dashboard-Konfiguration den lokalen ZMQ-Endpunkt `tcp://127.0.0.1:28332` eintragen; alternativ in `/var/lib/bitcoin-dashboard/.env` ergänzen.
 4. Bitcoin Core bei Gelegenheit geplant neu starten; danach das Dashboard neu starten. Vorher Dienstnamen mit `systemctl list-units '*bitcoin*'` prüfen. **Nicht** pauschal `bitcoind.service` voraussetzen. Beim Core-Neustart sind kurze Unterbrechungen zu erwarten.
 5. Prüfen:
 

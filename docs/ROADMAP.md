@@ -57,6 +57,8 @@
 
 ## Nächste Ausbaustufe
 
+- Umgesetzt in 1.13: Dashboard-`.env` über `/admin` für ausgewählte Betriebswerte bearbeiten
+
 - Prometheus-Endpunkt für externe Langzeitüberwachung
 - optional getrennte Schwellenwerte je Alarm im Wartungspanel bearbeiten
 - zusätzliche Benachrichtigungskanäle wie Telegram oder ntfy

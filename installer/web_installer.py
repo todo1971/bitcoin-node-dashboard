@@ -159,10 +159,17 @@ SYNC_LAG_BLOCKS=3
 DISK_MAX_USED_PERCENT=90
 MEMORY_MAX_USED_PERCENT=90
 """
-    env_path = Path("/etc/default/bitcoin-dashboard")
+    state_dir = Path("/var/lib/bitcoin-dashboard")
+    if state_dir.is_symlink() or (state_dir / ".env").exists():
+        raise RuntimeError("Dashboard state directory already contains a configuration")
+    state_dir.mkdir(parents=True, exist_ok=True)
+    os.chown(state_dir, account.pw_uid, account.pw_gid)
+    os.chmod(state_dir, 0o750)
+    env_path = state_dir / ".env"
     env_path.write_text(environment, encoding="utf-8")
-    os.chown(env_path, 0, 0)
-    os.chmod(env_path, 0o640)
+    os.chown(env_path, account.pw_uid, account.pw_gid)
+    os.chmod(env_path, 0o600)
+    (target / ".env").symlink_to(env_path)
 
     unit = f"""[Unit]
 Description=Read-only Bitcoin Core dashboard
@@ -174,7 +181,7 @@ Type=simple
 User={user_name}
 Group={group_name}
 WorkingDirectory={target}
-EnvironmentFile=/etc/default/bitcoin-dashboard
+EnvironmentFile=/var/lib/bitcoin-dashboard/.env
 ExecStart=/usr/bin/python3 {target}/app.py
 Restart=on-failure
 RestartSec=5
