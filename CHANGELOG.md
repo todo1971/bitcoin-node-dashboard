@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.5 – 2026-09-30
+
+- vollständige Tor-Onion-Adresse als Knotenkennung im Bereich Node & Version anzeigen
+- Kennung ausdrücklich von einer dauerhaften Bitcoin-Protokoll-ID unterscheiden
+
 ## 1.11.4 – 2026-09-30
 
 - global gültige IPv6-Adressen der Server-Netzwerkschnittstellen zusätzlich anzeigen

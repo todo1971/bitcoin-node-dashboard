@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Unter `/home/todo` bleibt nur das Archiv:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.11.4.tar.gz -C "$tmpdir"
+sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.11.5.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -237,7 +237,7 @@ sudo awk -F= '
 ```
 
 Danach zeigt `/admin` beispielsweise
-`Installiert: 1.11.4 · GitHub: 1.11.4 · aktuell`. Schlägt die Prüfung fehl,
+`Installiert: 1.11.5 · GitHub: 1.11.5 · aktuell`. Schlägt die Prüfung fehl,
 helfen die Logs:
 
 ```bash

@@ -18,7 +18,7 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertEqual(headings, sorted(headings))
         sections = [html[start:end] for start, end in zip(headings, headings[1:] + [html.index("</main>")])]
         for section, ids in zip(sections, (
-            ("blocks", "version", "versionStatus", "uptime"),
+            ("blocks", "version", "versionStatus", "uptime", "nodeIdentity", "nodeIdentityHint"),
             ("peers", "ipv4Peers", "ipv4Address", "ipv6Peers", "ipv6Address", "onionPeers", "recv", "externalStatus"),
             ("cpu", "memory", "disk"),
             ("mempoolTx", "fee2", "peerChart", "utxoCount", "hash"),

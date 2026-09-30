@@ -21,6 +21,7 @@
     .fees { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px }
     .fee { padding:12px; border-radius:10px; background:#0e1216 } .fee b { display:block; font-size:22px }
     .peer-networks { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:12px } .peer-network { min-width:0; padding:14px; border-radius:10px; background:#0e1216 } .peer-network .value { font-size:24px } .node-address { overflow-wrap:anywhere; font-size:12px }
+    .identity-card { min-height:105px } .identity-value { overflow-wrap:anywhere; font-size:18px; font-weight:600 }
     .bar { height:8px; margin-top:16px; overflow:hidden; border-radius:99px; background:#0d1014 } .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--orange),#ffc36f); border-radius:inherit }
     dl { display:grid; grid-template-columns:1fr auto; gap:8px 20px; margin:12px 0 0 } dt { color:var(--muted) } dd { margin:0; text-align:right }
     .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px } .button { display:inline-block; padding:9px 13px; border:1px solid var(--line); border-radius:9px; color:var(--text); text-decoration:none; background:#0e1216 } .button:hover { border-color:var(--orange); color:var(--orange) }
@@ -46,6 +47,7 @@
     <article class="card"><div class="label">Node-Version</div><div class="value small" id="version">–</div><div class="sub" id="mode">–</div></article>
     <article class="card"><div class="label">Versionstest</div><div class="value small" id="versionStatus">Wird geprüft …</div><div class="sub" id="latestVersion">Offizielle Releases</div></article>
     <article class="card"><div class="label">bitcoind-Laufzeit</div><div class="value small" id="uptime">–</div><div class="sub">Seit dem letzten Node-Start</div></article>
+    <article class="card full identity-card"><div class="label">Knotenkennung · Tor-Onion-Adresse</div><div class="value identity-value" id="nodeIdentity">–</div><div class="sub" id="nodeIdentityHint">An den Onion-Dienst gebunden; keine Bitcoin-Protokoll-ID</div></article>
   </div></section>
   <section class="dashboard-section" aria-labelledby="networkHeading"><h2 class="section-title" id="networkHeading">Netzwerk</h2><div class="grid">
     <article class="card wide"><div class="label">Peers</div><div class="value" id="peers">–</div><div class="sub" id="peerSplit">–</div></article>
@@ -123,6 +125,7 @@ async function update(){try{const r=await fetch('/api/dashboard',{cache:'no-stor
  for(const key of ['ipv4','ipv6','onion'])renderPeerNetwork(n,key);
  $('mempoolTx').textContent=nf.format(m.transactions);$('mempoolSize').textContent=`${bytes(m.bytes)} Transaktionsdaten`;
  $('version').textContent=n.version||'–';$('mode').textContent=c.pruned?'Pruned Node':'Archiv-Node';
+ $('nodeIdentity').textContent=n.onion_address||'Keine Onion-Adresse gemeldet';$('nodeIdentityHint').textContent=n.onion_address?'An den Onion-Dienst gebunden; keine Bitcoin-Protokoll-ID':'Bitcoin Core stellt keine allgemeine, dauerhafte Node-ID bereit';
  $('versionStatus').textContent=v.update_available?'Update verfügbar':v.available?'Aktuell':'Prüfung nicht verfügbar';$('versionStatus').className=`value small ${v.update_available?'error':v.available?'ok':''}`;$('latestVersion').textContent=v.latest?`Neueste stabile Version: ${v.latest}`:'Offizielle Releases konnten nicht geprüft werden';
  $('cpu').textContent=percent(s.cpu_percent);$('load').textContent=(s.load_average||[]).length?`Load: ${s.load_average.join(' · ')}`:'Load nicht verfügbar';
  $('memory').textContent=percent(mem.used_percent);$('memoryDetails').textContent=mem.total==null?'Arbeitsspeicher nicht verfügbar':`${bytes(mem.total-mem.available)} von ${bytes(mem.total)} belegt`;
