@@ -2,6 +2,12 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.7 – 2026-09-30
+
+- Update-Journal für Dashboard und Bitcoin Core direkt auf `/admin` anzeigen und alle fünf Sekunden aktualisieren
+- Journal-Zugriff auf zwei feste Units, 80 Zeilen und 32 KiB Antwort begrenzen
+- einmaligen Bootstrap für die neue sudoers-Leseberechtigung dokumentieren
+
 ## 1.11.6 – 2026-09-30
 
 - Updater-Paketablage in einen root-eigenen Cache unter `/var/cache` verlegt

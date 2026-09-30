@@ -30,7 +30,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.11.6"
+__version__ = "1.11.7"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -130,6 +130,16 @@ ADMIN_BITCOIN_COMMAND = (
     "--no-block",
     "/usr/local/sbin/update-bitcoin-core",
 )
+ADMIN_LOG_COMMANDS = {
+    kind: (
+        "sudo", "-n", "/usr/bin/journalctl", f"--unit={unit}",
+        "--lines=80", "--no-pager", "--output=short-iso", "--quiet",
+    )
+    for kind, unit in (
+        ("dashboard", "bitcoin-dashboard-update"),
+        ("bitcoin", "bitcoin-core-update"),
+    )
+}
 
 HISTORY_RANGES: dict[str, tuple[int, int]] = {
     "1h": (60 * 60, 60),
@@ -1440,9 +1450,25 @@ def start_admin_update(kind: str) -> tuple[int, str]:
     if result.returncode != 0:
         return 500, output[-4000:] or "Update-Auftrag konnte nicht gestartet werden"
     return 202, (
-        "Update-Auftrag wurde isoliert gestartet. Status prüfen mit: "
-        f"journalctl -u {'bitcoin-dashboard-update' if kind == 'dashboard' else 'bitcoin-core-update'} -f"
+        "Update-Auftrag wurde isoliert gestartet. Das Protokoll erscheint unten."
     )
+
+
+def admin_update_log(kind: str) -> tuple[int, str]:
+    if not ADMIN_UPDATES_ENABLED:
+        return 409, "Update-Protokolle werden in dieser Installation extern verwaltet"
+    command = ADMIN_LOG_COMMANDS.get(kind)
+    if command is None:
+        return 404, "Unbekanntes Update-Protokoll"
+    try:
+        result = subprocess.run(
+            command, capture_output=True, text=True, timeout=8, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return 503, "Update-Protokoll ist derzeit nicht erreichbar"
+    if result.returncode != 0:
+        return 503, "Update-Protokoll konnte nicht gelesen werden; Bootstrap erneut ausführen"
+    return 200, result.stdout[-32_768:] or "Noch keine Update-Einträge vorhanden."
 
 
 def sampler_loop() -> None:
@@ -1549,6 +1575,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             body = json.dumps(admin_status_data(), separators=(",", ":")).encode()
             self.send_bytes(body, "application/json; charset=utf-8")
+            return
+        if path in ("/api/admin/logs/dashboard", "/api/admin/logs/bitcoin"):
+            if not self.require_admin_auth():
+                return
+            kind = path.rsplit("/", 1)[-1]
+            status, log = admin_update_log(kind)
+            body = json.dumps({"log": log}, separators=(",", ":")).encode()
+            self.send_bytes(body, "application/json; charset=utf-8", status)
             return
         if path == "/api/dashboard":
             try:

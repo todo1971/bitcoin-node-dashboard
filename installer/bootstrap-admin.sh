@@ -81,6 +81,8 @@ trap 'rm -f -- "$sudoers_tmp"' EXIT INT TERM
 printf '%s\n' \
     "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-dashboard-update --collect --no-block /usr/local/sbin/update-bitcoin-dashboard" \
     "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-core-update --collect --no-block /usr/local/sbin/update-bitcoin-core" \
+    "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/journalctl --unit=bitcoin-dashboard-update --lines=80 --no-pager --output=short-iso --quiet" \
+    "$dashboard_user ALL=(root) NOPASSWD: /usr/bin/journalctl --unit=bitcoin-core-update --lines=80 --no-pager --output=short-iso --quiet" \
     >"$sudoers_tmp"
 chmod 0440 "$sudoers_tmp"
 visudo -cf "$sudoers_tmp"

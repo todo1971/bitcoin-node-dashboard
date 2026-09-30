@@ -433,6 +433,30 @@ class AdminSecurityTests(unittest.TestCase):
         self.assertIn("extern", message)
         run.assert_not_called()
 
+    def test_update_logs_use_only_fixed_journal_units(self):
+        completed = type("Completed", (), {"returncode": 0, "stdout": "done\n", "stderr": ""})()
+        with patch.object(app.subprocess, "run", return_value=completed) as run:
+            status, message = app.admin_update_log("dashboard")
+        self.assertEqual((status, message), (200, "done\n"))
+        self.assertEqual(run.call_args.args[0], app.ADMIN_LOG_COMMANDS["dashboard"])
+        self.assertNotIn("shell", run.call_args.kwargs)
+        with patch.object(app.subprocess, "run") as run:
+            status, _ = app.admin_update_log("../../etc/passwd")
+        self.assertEqual(status, 404)
+        run.assert_not_called()
+
+    def test_update_log_is_bounded_and_unavailable_in_container(self):
+        completed = type("Completed", (), {"returncode": 0, "stdout": "x" * 40000, "stderr": ""})()
+        with patch.object(app.subprocess, "run", return_value=completed):
+            status, message = app.admin_update_log("bitcoin")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(message), 32768)
+        with patch.object(app, "ADMIN_UPDATES_ENABLED", False):
+            with patch.object(app.subprocess, "run") as run:
+                status, _ = app.admin_update_log("bitcoin")
+        self.assertEqual(status, 409)
+        run.assert_not_called()
+
 
 class BitcoinUploadTests(unittest.TestCase):
     def test_accepts_official_archive_name_for_matching_platform(self):

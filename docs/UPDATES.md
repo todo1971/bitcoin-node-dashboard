@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Das Archiv liegt dafür im aktuellen Verz
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.11.6.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.11.7.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -74,6 +74,14 @@ einmalig `installer/bootstrap-admin.sh` aus dem entpackten Release als root
 ausführen: Es aktualisiert die Helfer und verlegt die Paketablage in den
 root-eigenen Cache `/var/cache/bitcoin-dashboard-updates`. Erst danach wird
 die bisherige Ablage nicht mehr benötigt.
+
+Ab 1.11.7 zeigt `/admin` die letzten 80 Journalzeilen der beiden Update-Units
+direkt im Browser an und aktualisiert sie alle fünf Sekunden. Der Zugriff ist
+an die Admin-Anmeldung gebunden; es gibt keine frei wählbaren Units oder
+Journal-Parameter. Nach dem Dashboard-Update auf 1.11.7 muss
+`installer/bootstrap-admin.sh` **einmalig erneut als root** ausgeführt werden,
+da der normale Updater die sudoers-Datei absichtlich nicht überschreibt. Erst
+dann kann der Dashboard-Benutzer die fest definierten Log-Ausgaben lesen.
 
 ## Bitcoin Core aktualisieren
 
@@ -241,7 +249,7 @@ sudo awk -F= '
 ```
 
 Danach zeigt `/admin` beispielsweise
-`Installiert: 1.11.6 · GitHub: 1.11.6 · aktuell`. Schlägt die Prüfung fehl,
+`Installiert: 1.11.7 · GitHub: 1.11.7 · aktuell`. Schlägt die Prüfung fehl,
 helfen die Logs:
 
 ```bash

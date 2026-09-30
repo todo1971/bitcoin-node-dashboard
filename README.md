@@ -116,6 +116,7 @@ sudo systemctl restart bitcoin-dashboard
 | `/api/analytics?range=24h` | Block-, UTXO- und Mempool-Analysedaten |
 | `/api/alerts` | derzeit aktive Alarme |
 | `/api/admin/upload/bitcoin` | geschützter Bitcoin-Core-Archivupload |
+| `/api/admin/logs/dashboard` und `/api/admin/logs/bitcoin` | letzte Update-Logzeilen, nur mit Admin-Anmeldung |
 | `/admin` | passwortgeschützte Administration |
 | `/healthz` | lokaler Funktions- und RPC-Test |
 

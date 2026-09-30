@@ -14,6 +14,7 @@
 - `/admin` benötigt ein starkes separates Passwort und schützt Änderungen zusätzlich durch CSRF- und Origin-Prüfungen.
 - Nach fünf falschen Anmeldungen wird die Administration für 15 Minuten gesperrt.
 - Root-Updates sind auf zwei vollständige, feste `systemd-run`-Befehle ohne Browserparameter begrenzt.
+- Die Admin-Logansicht darf per `sudo` nur die letzten 80 Zeilen der beiden festen Update-Units lesen; sie nimmt keine freien Journal-Parameter an und begrenzt die Antwort auf 32 KiB.
 - Die root-eigenen Helfer akzeptieren keine Argumente, validieren Paketpfade und führen Updates außerhalb der Webdienst-Control-Group aus.
 - Der Update-Cache `/var/cache/bitcoin-dashboard-updates` gehört root und hat Modus `0700`.
 - Core-Uploads landen als einzige Ausnahme im festen StateDirectory-Pfad. Der Root-Updater kopiert sie vor der Prüfung in sein eigenes temporäres Verzeichnis.
