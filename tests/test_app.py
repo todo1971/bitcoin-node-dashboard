@@ -436,26 +436,44 @@ class AdminSecurityTests(unittest.TestCase):
     def test_update_logs_use_only_fixed_journal_units(self):
         completed = type("Completed", (), {"returncode": 0, "stdout": "done\n", "stderr": ""})()
         with patch.object(app.subprocess, "run", return_value=completed) as run:
-            status, message = app.admin_update_log("dashboard")
-        self.assertEqual((status, message), (200, "done\n"))
+            status, message, state = app.admin_update_log("dashboard")
+        self.assertEqual((status, message, state), (200, "done", "unknown"))
         self.assertEqual(run.call_args.args[0], app.ADMIN_LOG_COMMANDS["dashboard"])
         self.assertNotIn("shell", run.call_args.kwargs)
         with patch.object(app.subprocess, "run") as run:
-            status, _ = app.admin_update_log("../../etc/passwd")
+            status, _, _ = app.admin_update_log("../../etc/passwd")
         self.assertEqual(status, 404)
         run.assert_not_called()
 
     def test_update_log_is_bounded_and_unavailable_in_container(self):
         completed = type("Completed", (), {"returncode": 0, "stdout": "x" * 40000, "stderr": ""})()
         with patch.object(app.subprocess, "run", return_value=completed):
-            status, message = app.admin_update_log("bitcoin")
+            status, message, state = app.admin_update_log("bitcoin")
         self.assertEqual(status, 200)
         self.assertEqual(len(message), 32768)
+        self.assertEqual(state, "unknown")
         with patch.object(app, "ADMIN_UPDATES_ENABLED", False):
             with patch.object(app.subprocess, "run") as run:
-                status, _ = app.admin_update_log("bitcoin")
+                status, _, _ = app.admin_update_log("bitcoin")
         self.assertEqual(status, 409)
         run.assert_not_called()
+
+    def test_update_result_tracks_latest_systemd_run(self):
+        unit = "bitcoin-dashboard-update.service"
+        lines = [
+            f"Sep 30 10:00:00 host systemd[1]: Started {unit} - updater.",
+            f"Sep 30 10:00:01 host systemd[1]: {unit}: Deactivated successfully.",
+            f"Sep 30 11:00:00 host systemd[1]: Started {unit} - updater.",
+            "Sep 30 11:00:01 host updater[1]: Download läuft",
+        ]
+        state, output = app.update_result_from_journal("dashboard", "\n".join(lines))
+        self.assertEqual(state, "running")
+        self.assertNotIn("10:00:01", output)
+        lines.append(f"Sep 30 11:00:02 host systemd[1]: {unit}: Failed with result 'exit-code'.")
+        self.assertEqual(app.update_result_from_journal("dashboard", "\n".join(lines))[0], "failure")
+        lines.append(f"Sep 30 12:00:00 host systemd[1]: Started {unit} - updater.")
+        lines.append(f"Sep 30 12:00:01 host systemd[1]: {unit}: Deactivated successfully.")
+        self.assertEqual(app.update_result_from_journal("dashboard", "\n".join(lines))[0], "success")
 
 
 class BitcoinUploadTests(unittest.TestCase):

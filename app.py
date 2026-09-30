@@ -30,7 +30,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.11.7"
+__version__ = "1.11.8"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -1454,21 +1454,39 @@ def start_admin_update(kind: str) -> tuple[int, str]:
     )
 
 
-def admin_update_log(kind: str) -> tuple[int, str]:
+def update_result_from_journal(kind: str, log: str) -> tuple[str, str]:
+    """Determine the most recent unit result without guessing from updater output."""
+    unit = "bitcoin-dashboard-update" if kind == "dashboard" else "bitcoin-core-update"
+    state = "unknown"
+    lines = log.splitlines()
+    latest_start = 0
+    for index, line in enumerate(lines):
+        if f"systemd[1]: Started {unit}.service" in line or f"systemd[1]: Starting {unit}.service" in line:
+            state = "running"
+            latest_start = index
+        elif f"systemd[1]: {unit}.service: Failed with result" in line or f"systemd[1]: {unit}.service: Main process exited" in line:
+            state = "failure"
+        elif f"systemd[1]: {unit}.service: Deactivated successfully" in line or f"systemd[1]: Finished {unit}.service" in line:
+            state = "success"
+    return state, "\n".join(lines[latest_start:]) if lines else "Noch keine Update-Einträge vorhanden."
+
+
+def admin_update_log(kind: str) -> tuple[int, str, str]:
     if not ADMIN_UPDATES_ENABLED:
-        return 409, "Update-Protokolle werden in dieser Installation extern verwaltet"
+        return 409, "Update-Protokolle werden in dieser Installation extern verwaltet", "unknown"
     command = ADMIN_LOG_COMMANDS.get(kind)
     if command is None:
-        return 404, "Unbekanntes Update-Protokoll"
+        return 404, "Unbekanntes Update-Protokoll", "unknown"
     try:
         result = subprocess.run(
             command, capture_output=True, text=True, timeout=8, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return 503, "Update-Protokoll ist derzeit nicht erreichbar"
+        return 503, "Update-Protokoll ist derzeit nicht erreichbar", "unknown"
     if result.returncode != 0:
-        return 503, "Update-Protokoll konnte nicht gelesen werden; Bootstrap erneut ausführen"
-    return 200, result.stdout[-32_768:] or "Noch keine Update-Einträge vorhanden."
+        return 503, "Update-Protokoll konnte nicht gelesen werden; Bootstrap erneut ausführen", "unknown"
+    state, log = update_result_from_journal(kind, result.stdout[-32_768:])
+    return 200, log, state
 
 
 def sampler_loop() -> None:
@@ -1580,8 +1598,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_admin_auth():
                 return
             kind = path.rsplit("/", 1)[-1]
-            status, log = admin_update_log(kind)
-            body = json.dumps({"log": log}, separators=(",", ":")).encode()
+            status, log, state = admin_update_log(kind)
+            body = json.dumps({"log": log, "state": state}, separators=(",", ":")).encode()
             self.send_bytes(body, "application/json; charset=utf-8", status)
             return
         if path == "/api/dashboard":

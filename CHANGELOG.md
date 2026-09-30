@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.8 – 2026-09-30
+
+- Admin-Updateprotokoll zeigt den letzten Lauf als grünes „OK“, rotes „Nicht OK“ oder „Läuft …“ an
+- Ausgabe wird auf den jeweils letzten gestarteten Update-Lauf eingegrenzt
+
 ## 1.11.7 – 2026-09-30
 
 - Update-Journal für Dashboard und Bitcoin Core direkt auf `/admin` anzeigen und alle fünf Sekunden aktualisieren
