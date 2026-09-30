@@ -9,7 +9,7 @@ Vorhandene systemd-Dienste werden weder beendet noch verändert.
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf bitcoin-node-dashboard-1.11.8.tar.gz -C "$tmpdir"
+tar -xzf bitcoin-node-dashboard-1.11.9.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/install-docker-all-in-one.sh" \
   --public-address 203.0.113.10 \
   --prepare-only

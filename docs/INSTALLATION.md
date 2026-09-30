@@ -72,7 +72,7 @@ Das Release-Archiv liegt für diesen einmaligen Schritt im aktuellen Verzeichnis
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.11.8.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.11.9.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -134,6 +134,21 @@ sudo -u btc /home/btc/bin/bitcoin-cli \
 
 Wenn `/healthz` den Status 503 liefert, zuerst Cookie-Pfad, Dateirechte,
 Datadir und den Zustand von `bitcoind` prüfen.
+
+## Neustartfestigkeit prüfen
+
+Ohne einen Neustart auszulösen, zeigen diese Befehle Startfreigabe, aktuellen
+Zustand und automatische Wiederanläufe der drei benötigten Dienste:
+
+```bash
+systemctl is-enabled bitcoind.service bitcoin-dashboard.service tor.service
+systemctl is-active bitcoind.service bitcoin-dashboard.service tor@default.service
+systemctl show bitcoind.service bitcoin-dashboard.service tor@default.service \
+  -p Id -p Restart -p After -p Result --no-pager
+```
+
+`enabled` und `active` bestätigen die aktuelle Konfiguration, ersetzen aber
+keinen echten Reboot-Test. Den Server nicht allein für diese Prüfung neu starten.
 
 Alarmzustände und Benachrichtigungskanäle sind in [ALERTS.md](ALERTS.md)
 beschrieben.

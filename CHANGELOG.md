@@ -2,6 +2,12 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.9 – 2026-09-30
+
+- Netzwerkansicht um Verbindungsdauer, Ping, Protokollversion, Transport v2 und beendete Peer-Verbindungen je IPv4/IPv6/Tor ergänzt
+- kurzlebige Testverbindungen bei Peer-Wechseln ausgeschlossen; Node-Neustart setzt Zähler zurück
+- Boot- und Dienstprüfung für bitcoind, Tor und Dashboard dokumentiert
+
 ## 1.11.8 – 2026-09-30
 
 - Admin-Updateprotokoll zeigt den letzten Lauf als grünes „OK“, rotes „Nicht OK“ oder „Läuft …“ an

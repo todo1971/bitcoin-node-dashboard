@@ -21,16 +21,18 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections import Counter, deque
 from contextlib import closing
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from statistics import median
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.11.8"
+__version__ = "1.11.9"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -170,6 +172,13 @@ _mempool_analysis_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _utxo_last_attempt = 0
 _block_interval_lock = threading.Lock()
 _block_interval_cache: dict[str, Any] = {"height": None, "seconds": None}
+_peer_observation_lock = threading.Lock()
+_peer_observation: dict[str, Any] = {
+    "active": None,
+    "uptime": None,
+    "observed_at": None,
+    "departures": deque(),
+}
 
 
 class RpcError(RuntimeError):
@@ -633,12 +642,93 @@ def host_global_ipv6_addresses() -> list[str]:
         return []
 
 
+def _finite_number(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if 0 <= number < float("inf") else None
+
+
+def observe_peer_departures(
+    peers: list[dict[str, Any]], uptime: Any, now: int
+) -> dict[str, int] | None:
+    """Count observed ended connections, never infer a disconnection cause."""
+    current_uptime = _finite_number(uptime)
+    if current_uptime is None:
+        return None
+    active: dict[tuple[int, int], str] = {}
+    for peer in peers:
+        if peer.get("connection_type") in ("feeler", "addr-fetch", "private-broadcast"):
+            continue
+        if not isinstance(peer.get("id"), int) or not isinstance(peer.get("conntime"), int):
+            continue
+        active[(peer["id"], peer["conntime"])] = str(peer.get("network", "unknown"))
+    with _peer_observation_lock:
+        previous = _peer_observation["active"]
+        previous_uptime = _peer_observation["uptime"]
+        previous_at = _peer_observation["observed_at"]
+        events = _peer_observation["departures"]
+        elapsed = now - previous_at if previous_at is not None else 0
+        if previous_uptime is not None and (
+            elapsed < 0 or current_uptime < previous_uptime
+            or current_uptime + 30 < previous_uptime + elapsed
+        ):
+            events.clear()  # bitcoind restarted: no false mass-disconnect alarm.
+            previous = None
+        if previous is not None:
+            for key, network in previous.items():
+                if key not in active:
+                    events.append((now, network))
+        cutoff = now - 3600
+        while events and events[0][0] < cutoff:
+            events.popleft()
+        _peer_observation["active"] = active
+        _peer_observation["uptime"] = current_uptime
+        _peer_observation["observed_at"] = now
+        return dict(Counter(network for _, network in events))
+
+
+def peer_quality_summary(
+    peers: list[dict[str, Any]], now: int, departures: dict[str, int] | None
+) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    for network in ("ipv4", "ipv6", "onion"):
+        selected = [peer for peer in peers if peer.get("network") == network]
+        durations = [
+            max(0, now - int(value))
+            for peer in selected
+            if (value := _finite_number(peer.get("conntime"))) is not None
+            and value <= now
+        ]
+        pings = [
+            value * 1000
+            for peer in selected
+            if (value := _finite_number(peer.get("pingtime"))) is not None
+        ]
+        versions = Counter(
+            peer["version"]
+            for peer in selected
+            if isinstance(peer.get("version"), int)
+        )
+        result[network] = {
+            "count": len(selected),
+            "median_connection_seconds": int(median(durations)) if durations else None,
+            "median_ping_ms": round(median(pings), 1) if pings else None,
+            "protocol_version": versions.most_common(1)[0][0] if versions else None,
+            "transport_v2": sum(peer.get("transport_protocol_type") == "v2" for peer in selected),
+            "departures_1h": departures.get(network, 0) if departures is not None else None,
+        }
+    return result
+
+
 def build_snapshot() -> dict[str, Any]:
     chain = bitcoin_cli("getblockchaininfo")
     network = bitcoin_cli("getnetworkinfo")
     mempool = bitcoin_cli("getmempoolinfo")
     net_totals = bitcoin_cli("getnettotals")
     peers = bitcoin_cli("getpeerinfo")
+    peer_rows = [peer for peer in peers if isinstance(peer, dict)] if isinstance(peers, list) else []
     bitcoind_uptime = safe_call("uptime")
     latest_version = dict(fetch_latest_core_version())
 
@@ -659,7 +749,7 @@ def build_snapshot() -> dict[str, Any]:
     }
     inbound = 0
     outbound = 0
-    for peer in peers if isinstance(peers, list) else []:
+    for peer in peer_rows:
         name = str(peer.get("network", "unknown"))
         peer_networks[name] = peer_networks.get(name, 0) + 1
         direction = "inbound" if peer.get("inbound") else "outbound"
@@ -705,8 +795,10 @@ def build_snapshot() -> dict[str, Any]:
         current_tuple and latest_tuple and current_tuple < latest_tuple
     )
 
+    generated_at = int(time.time())
+    departures = observe_peer_departures(peer_rows, bitcoind_uptime, generated_at)
     return {
-        "generated_at": int(time.time()),
+        "generated_at": generated_at,
         "chain": {
             "chain": chain.get("chain"),
             "blocks": height,
@@ -726,6 +818,7 @@ def build_snapshot() -> dict[str, Any]:
             "connections_out": network.get("connections_out", outbound),
             "networks": peer_networks,
             "network_directions": peer_directions,
+            "peer_quality": peer_quality_summary(peer_rows, generated_at, departures),
             "local_addresses": local_addresses,
             "host_ipv6_addresses": host_global_ipv6_addresses(),
             "configured_public_address": configured_public_address,

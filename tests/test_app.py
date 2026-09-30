@@ -4,6 +4,7 @@ import json
 import re
 import tempfile
 import unittest
+from collections import deque
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
@@ -19,7 +20,7 @@ class DashboardLayoutTests(unittest.TestCase):
         sections = [html[start:end] for start, end in zip(headings, headings[1:] + [html.index("</main>")])]
         for section, ids in zip(sections, (
             ("blocks", "version", "versionStatus", "uptime", "nodeIdentity", "nodeIdentityHint"),
-            ("peers", "ipv4Peers", "ipv4Address", "ipv6Peers", "ipv6Address", "onionPeers", "recv", "externalStatus"),
+            ("peers", "ipv4Peers", "ipv4Address", "ipv6Peers", "ipv6Address", "onionPeers", "peerQualityRows", "recv", "externalStatus"),
             ("cpu", "memory", "disk"),
             ("mempoolTx", "fee2", "peerChart", "utxoCount", "hash"),
         )):
@@ -199,6 +200,42 @@ class FeeRateTests(unittest.TestCase):
 
 
 class PeerNetworkTests(unittest.TestCase):
+    def setUp(self):
+        with app._peer_observation_lock:
+            app._peer_observation.update(active=None, uptime=None, observed_at=None, departures=deque())
+
+    def test_peer_quality_is_aggregated_without_addresses(self):
+        peers = [
+            {"id": 1, "addr": "192.0.2.1:8333", "network": "ipv4", "conntime": 900, "pingtime": 0.01, "version": 70016, "transport_protocol_type": "v2"},
+            {"id": 2, "addr": "192.0.2.2:8333", "network": "ipv4", "conntime": 800, "pingtime": 0.03, "version": 70016, "transport_protocol_type": "v1"},
+            {"id": 3, "network": "onion", "conntime": 950, "version": 70015},
+        ]
+        result = app.peer_quality_summary(peers, 1000, {"ipv4": 2})
+        self.assertEqual(result["ipv4"], {
+            "count": 2,
+            "median_connection_seconds": 150,
+            "median_ping_ms": 20.0,
+            "protocol_version": 70016,
+            "transport_v2": 1,
+            "departures_1h": 2,
+        })
+        self.assertNotIn("192.0.2", json.dumps(result))
+        self.assertIsNone(result["onion"]["median_ping_ms"])
+
+    def test_departures_exclude_short_tests_and_reset_on_node_restart(self):
+        stable = {"id": 1, "network": "ipv6", "conntime": 100, "connection_type": "inbound"}
+        feeler = {"id": 2, "network": "ipv4", "conntime": 100, "connection_type": "feeler"}
+        self.assertEqual(app.observe_peer_departures([stable, feeler], 100, 200), {})
+        self.assertEqual(app.observe_peer_departures([], 160, 260), {"ipv6": 1})
+        self.assertEqual(app.observe_peer_departures([], 161, 261), {"ipv6": 1})
+        self.assertEqual(app.observe_peer_departures([], 2, 262), {})
+        self.assertEqual(app.observe_peer_departures([], 4000, 4262), {})
+
+    def test_departures_reset_after_restart_during_long_observation_gap(self):
+        peer = {"id": 1, "network": "onion", "conntime": 100, "connection_type": "inbound"}
+        app.observe_peer_departures([peer], 100, 200)
+        self.assertEqual(app.observe_peer_departures([], 1000, 3800), {})
+
     def test_only_global_host_ipv6_is_displayed(self):
         interfaces = (
             "fe800000000000000001b0fffe81d201 02 40 20 80 ens6\n"

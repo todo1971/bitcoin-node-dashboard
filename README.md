@@ -21,6 +21,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
 - periodische Mempool-Paketanalyse für Cluster, RBF und CPFP
 - getrennte Live-Anzeige für IPv4-, IPv6- und Tor-Peers mit in/out-Verbindungen und den vom Node gemeldeten Adressen; ersatzweise die konfigurierte öffentliche P2P-IP
+- Peer-Qualität nach Netz: mediane Verbindungsdauer und Pingzeit, häufigste P2P-Protokollversion, Transport-v2-Anteil und beobachtete beendete Verbindungen der letzten Stunde; keine fremden Peer-Adressen im Browser
 - globale Server-IPv6 wird separat angezeigt, auch wenn Bitcoin Core sie noch nicht als P2P-Adresse meldet
 - Tor-Onion-Adresse als Knotenkennung im Node-Bereich, klar von einer Bitcoin-Protokoll-ID unterschieden
 - automatische Aufbewahrung und Verdichtung der Diagrammdaten

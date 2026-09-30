@@ -63,8 +63,8 @@
 
 ## Netzwerkdiagnose
 
-- Peer-Versionen, Netze, Service-Flags und Pingzeiten aggregieren
-- Verbindungsdauer und wiederkehrende Abbrüche darstellen
+- Service-Flags und weitere Peer-Eigenschaften aggregieren
+- beendete Peer-Verbindungen über Dashboard-Neustarts hinweg historisieren
 - Peer-Adressen in öffentlichen Ansichten maskieren
 - Chain-Tips und Reorganisationen mit `getchaintips` überwachen
 - externe Erreichbarkeit über mehrere unabhängige Beobachter vergleichen

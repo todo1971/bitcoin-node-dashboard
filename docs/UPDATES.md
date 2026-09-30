@@ -12,7 +12,7 @@ geprüften Release-Paket eingerichtet. Das Archiv liegt dafür im aktuellen Verz
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.11.8.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.11.9.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -253,7 +253,7 @@ sudo awk -F= '
 ```
 
 Danach zeigt `/admin` beispielsweise
-`Installiert: 1.11.8 · GitHub: 1.11.8 · aktuell`. Schlägt die Prüfung fehl,
+`Installiert: 1.11.9 · GitHub: 1.11.9 · aktuell`. Schlägt die Prüfung fehl,
 helfen die Logs:
 
 ```bash
