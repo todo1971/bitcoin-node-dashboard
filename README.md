@@ -11,13 +11,14 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 
 ## Eigenschaften
 
-- keine externen Python-Pakete
+- keine externen Python-Pakete für den Grundbetrieb; Echtzeit-ZMQ benötigt optional `python3-zmq`
 - feste, ausschließlich lesende RPC-Abfragen über `bitcoin-cli`
 - keine universelle RPC-Weiterleitung an den Browser
 - lokaler Listener auf `127.0.0.1:8787`
 - Bitcoin-RPC und Authentifizierungs-Cookie bleiben serverseitig
 - externer Erreichbarkeitsstatus mit fünf Minuten Cache
 - SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
+- optionale lokale ZMQ-Ereignisse für Blöcke und Mempool, Minutenzähler und Browser-Liveaktualisierung per SSE mit Abfrage-Fallback
 - tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
 - periodische Mempool-Paketanalyse für Cluster, RBF und CPFP
 - getrennte Live-Anzeige für IPv4-, IPv6- und Tor-Peers mit in/out-Verbindungen und den vom Node gemeldeten Adressen; ersatzweise die konfigurierte öffentliche P2P-IP
@@ -46,6 +47,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - lokales `bitcoin-cli`
 - Zugriff des Service-Benutzers auf den Bitcoin-RPC-Cookie
 - optional Plesk/Apache und eine Subdomain für HTTPS
+- optional `python3-zmq` und `zmqpubsequence` für Echtzeitdaten
 
 Die Vorgabewerte passen zur ursprünglichen Installation:
 
@@ -135,6 +137,7 @@ an Bitcoin Core übergeben werden können.
 - [All-in-one unter Plesk](docs/PLESK_DOCKER.md)
 - [Sichere Updates](docs/UPDATES.md)
 - [Alarme und Systemüberwachung](docs/ALERTS.md)
+- [Echtzeit über lokales ZMQ und SSE](docs/REALTIME.md)
 - [Sicherheitskonzept](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Änderungen](CHANGELOG.md)

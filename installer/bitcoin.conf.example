@@ -18,3 +18,6 @@ disablewallet=1
 debug=0
 logtimestamps=1
 shrinkdebugfile=1
+
+# Optional realtime notifications; keep this endpoint on loopback only.
+#zmqpubsequence=tcp://127.0.0.1:28332

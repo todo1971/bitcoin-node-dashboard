@@ -71,10 +71,9 @@
 
 ## Echtzeit
 
-- neue Blöcke über lokales ZMQ empfangen
-- Mempool-Ereignisse über `zmqpubsequence` verarbeiten
-- Browseraktualisierung per Server-Sent Events oder WebSocket
-- Benachrichtigungen per E-Mail oder Telegram
+- Umgesetzt in 1.12: neue Blöcke und Mempool-Ereignisse über lokales `zmqpubsequence` empfangen
+- Umgesetzt in 1.12: Browseraktualisierung per Server-Sent Events mit Abfrage-Fallback
+- Später: Telegram-Benachrichtigungen (E-Mail und Webhook existieren bereits)
 
 ## Erweiterte Analyse
 

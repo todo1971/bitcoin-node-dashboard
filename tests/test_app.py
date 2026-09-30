@@ -3,6 +3,7 @@ import io
 import json
 import re
 import tempfile
+import time
 import unittest
 from collections import deque
 from contextlib import closing
@@ -10,6 +11,50 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app
+
+
+class RealtimeTests(unittest.TestCase):
+    def setUp(self):
+        self.saved = None
+        with app._realtime_lock:
+            self.saved = dict(app._realtime)
+            app._realtime.update(state="waiting", last_event_at=None, last_transport_sequence=None, gaps_since_start=0, pending={})
+
+    def tearDown(self):
+        with app._realtime_lock:
+            app._realtime.clear()
+            app._realtime.update(self.saved)
+
+    @staticmethod
+    def frames(code, sequence):
+        body = b"\x00" * 32 + code + (b"\x00" * 8 if code in (b"A", b"R") else b"")
+        return [b"sequence", body, sequence.to_bytes(4, "little")]
+
+    def test_sequence_counts_blocks_mempool_and_gaps(self):
+        now = int(time.time())
+        self.assertEqual(app.process_zmq_frames(self.frames(b"C", 0xffffffff), now), ("block_connected", False))
+        self.assertEqual(app.process_zmq_frames(self.frames(b"A", 0), now), ("mempool_added", False))
+        self.assertEqual(app.process_zmq_frames(self.frames(b"R", 2), now), ("mempool_removed", True))
+        self.assertEqual(app.process_zmq_frames(self.frames(b"D", 3), now), ("block_disconnected", False))
+        with app._realtime_lock:
+            counts = app._realtime["pending"][now - now % 60]
+            self.assertEqual(tuple(counts[key] for key in app._ZMQ_COUNTERS), (1, 1, 1, 1, 1))
+
+    def test_bad_frames_do_not_change_counters(self):
+        for frames in ([b"other", b"\x00" * 33, b"\x00" * 4], [b"sequence", b"short", b"\x00" * 4], [b"sequence", b"\x00" * 33, b"bad"]):
+            with self.assertRaises(ValueError):
+                app.process_zmq_frames(frames)
+        with app._realtime_lock:
+            self.assertEqual(app._realtime["pending"], {})
+
+    def test_sqlite_flush_and_live_summary(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(app, "DATABASE_PATH", str(Path(directory) / "history.sqlite3")):
+            app.init_database()
+            app.process_zmq_frames(self.frames(b"A", 1))
+            app.flush_zmq_counts()
+            self.assertEqual(app.realtime_data()["counts"]["mempool_added"], 1)
+            with closing(app.database_connection()) as connection:
+                self.assertEqual(connection.execute("SELECT SUM(mempool_added) FROM zmq_events").fetchone()[0], 1)
 
 
 class DashboardLayoutTests(unittest.TestCase):

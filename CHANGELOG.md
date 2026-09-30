@@ -2,6 +2,13 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.12.0 – 2026-09-30
+
+- optionaler lokaler ZMQ-Subscriber für `zmqpubsequence`: Block- und Mempool-Ereignisse sowie Transportsequenzlücken zählen
+- Ereigniszähler minutenweise in SQLite speichern, ohne Transaktions- oder Block-Hashes abzulegen
+- Browser per Server-Sent Events aktualisieren; periodische Abfragen bleiben als Fallback
+- Telegram-Benachrichtigungen für später in die Roadmap verschoben
+
 ## 1.11.9 – 2026-09-30
 
 - Netzwerkansicht um Verbindungsdauer, Ping, Protokollversion, Transport v2 und beendete Peer-Verbindungen je IPv4/IPv6/Tor ergänzt

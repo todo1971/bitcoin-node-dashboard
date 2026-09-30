@@ -32,7 +32,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.11.9"
+__version__ = "1.12.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -111,6 +111,7 @@ BITCOIN_UPLOAD_DIR = Path(
 BITCOIN_UPLOAD_MAX_BYTES = max(
     1_000_000, int(os.getenv("BITCOIN_UPLOAD_MAX_BYTES", str(200 * 1024 * 1024)))
 )
+ZMQ_SEQUENCE_ENDPOINT = os.getenv("ZMQ_SEQUENCE_ENDPOINT", "").strip()
 ADMIN_CSRF_TOKEN = secrets.token_urlsafe(32)
 ADMIN_MAX_FAILURES = 5
 ADMIN_LOCK_SECONDS = 15 * 60
@@ -179,6 +180,158 @@ _peer_observation: dict[str, Any] = {
     "observed_at": None,
     "departures": deque(),
 }
+_realtime_lock = threading.Lock()
+_realtime: dict[str, Any] = {
+    "state": "disabled" if not ZMQ_SEQUENCE_ENDPOINT else "starting",
+    "last_event_at": None,
+    "last_transport_sequence": None,
+    "gaps_since_start": 0,
+    "pending": {},
+}
+_event_condition = threading.Condition()
+_event_serial = 0
+_event_kind = "sample"
+_sse_slots = threading.BoundedSemaphore(12)
+_ZMQ_COUNTERS = ("block_connected", "block_disconnected", "mempool_added", "mempool_removed", "gaps")
+
+
+def publish_browser_event(kind: str) -> None:
+    global _event_serial, _event_kind
+    with _event_condition:
+        _event_serial += 1
+        _event_kind = kind
+        _event_condition.notify_all()
+
+
+def process_zmq_frames(frames: list[bytes], now: int | None = None) -> tuple[str, bool]:
+    """Count Core's sequence events; hashes are deliberately not retained."""
+    if len(frames) != 3 or frames[0] != b"sequence" or len(frames[2]) != 4:
+        raise ValueError("Invalid ZMQ sequence frames")
+    body = frames[1]
+    code = body[32:33]
+    mapping = {b"C": "block_connected", b"D": "block_disconnected", b"A": "mempool_added", b"R": "mempool_removed"}
+    if code not in mapping or len(body) != (41 if code in (b"A", b"R") else 33):
+        raise ValueError("Invalid ZMQ sequence body")
+    sequence = int.from_bytes(frames[2], "little")
+    timestamp = int(time.time() if now is None else now)
+    minute = timestamp - timestamp % 60
+    with _realtime_lock:
+        previous = _realtime["last_transport_sequence"]
+        gap = previous is not None and sequence != ((previous + 1) & 0xffffffff)
+        counts = _realtime["pending"].setdefault(minute, {key: 0 for key in _ZMQ_COUNTERS})
+        counts[mapping[code]] += 1
+        if gap:
+            counts["gaps"] += 1
+            _realtime["gaps_since_start"] += 1
+        _realtime["last_transport_sequence"] = sequence
+        _realtime["last_event_at"] = timestamp
+        _realtime["state"] = "active"
+    return mapping[code], gap
+
+
+def flush_zmq_counts() -> None:
+    with _realtime_lock:
+        pending = _realtime["pending"]
+        _realtime["pending"] = {}
+    if not pending:
+        return
+    try:
+        with closing(database_connection()) as connection:
+            with connection:
+                for minute, counts in pending.items():
+                    connection.execute(
+                        "INSERT INTO zmq_events VALUES (?, ?, ?, ?, ?, ?) "
+                        "ON CONFLICT(minute) DO UPDATE SET "
+                        + ", ".join(f"{key}={key}+excluded.{key}" for key in _ZMQ_COUNTERS),
+                        (minute, *(counts[key] for key in _ZMQ_COUNTERS)),
+                    )
+                connection.execute(
+                    "DELETE FROM zmq_events WHERE minute < ?",
+                    (int(time.time()) - HISTORY_RETENTION_DAYS * 86400,),
+                )
+    except Exception:
+        with _realtime_lock:
+            for minute, counts in pending.items():
+                current = _realtime["pending"].setdefault(minute, {key: 0 for key in _ZMQ_COUNTERS})
+                for key in _ZMQ_COUNTERS:
+                    current[key] += counts[key]
+        raise
+
+
+def realtime_data() -> dict[str, Any]:
+    minute = int(time.time()) // 60 * 60
+    with _realtime_lock:
+        state = _realtime["state"]
+        last_event_at = _realtime["last_event_at"]
+        gaps_since_start = _realtime["gaps_since_start"]
+        pending = dict(_realtime["pending"].get(minute, {}))
+    stored = {key: 0 for key in _ZMQ_COUNTERS}
+    try:
+        with closing(database_connection()) as connection:
+            row = connection.execute("SELECT * FROM zmq_events WHERE minute = ?", (minute,)).fetchone()
+            if row is not None:
+                stored = {key: row[key] for key in _ZMQ_COUNTERS}
+    except sqlite3.Error:
+        pass
+    return {
+        "state": state,
+        "minute": minute,
+        "last_event_at": last_event_at,
+        "gaps_since_start": gaps_since_start,
+        "counts": {key: stored[key] + pending.get(key, 0) for key in _ZMQ_COUNTERS},
+    }
+
+
+def zmq_listener_loop() -> None:
+    try:
+        import zmq
+    except ImportError:
+        with _realtime_lock:
+            _realtime["state"] = "missing_dependency"
+        print("ZMQ disabled: install python3-zmq", flush=True)
+        return
+    while True:
+        context = zmq.Context()
+        socket = context.socket(zmq.SUB)
+        try:
+            socket.setsockopt(zmq.SUBSCRIBE, b"sequence")
+            socket.setsockopt(zmq.RCVTIMEO, 1000)
+            socket.setsockopt(zmq.LINGER, 0)
+            socket.connect(ZMQ_SEQUENCE_ENDPOINT)
+            with _realtime_lock:
+                _realtime["state"] = "waiting"
+                _realtime["last_transport_sequence"] = None
+            last_flush = time.monotonic()
+            last_publish = 0.0
+            while True:
+                try:
+                    frames = socket.recv_multipart()
+                except zmq.Again:
+                    frames = None
+                if frames is not None:
+                    try:
+                        kind, gap = process_zmq_frames(frames)
+                    except ValueError as exc:
+                        print(f"Invalid ZMQ event: {exc}", flush=True)
+                    else:
+                        now = time.monotonic()
+                        if gap or now - last_publish >= (1 if kind.startswith("block_") else 3):
+                            with _cache_lock:
+                                _cache["expires"] = 0
+                            publish_browser_event("resync" if gap else "block" if kind.startswith("block_") else "mempool")
+                            last_publish = now
+                if time.monotonic() - last_flush >= 5:
+                    flush_zmq_counts()
+                    last_flush = time.monotonic()
+        except Exception as exc:
+            with _realtime_lock:
+                _realtime["state"] = "error"
+                _realtime["last_transport_sequence"] = None
+            print(f"ZMQ listener error: {exc}", flush=True)
+            time.sleep(5)
+        finally:
+            socket.close(0)
+            context.term()
 
 
 class RpcError(RuntimeError):
@@ -946,6 +1099,16 @@ def init_database() -> None:
                 )
                 """
             )
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS zmq_events (
+                    minute INTEGER PRIMARY KEY,
+                    block_connected INTEGER NOT NULL DEFAULT 0,
+                    block_disconnected INTEGER NOT NULL DEFAULT 0,
+                    mempool_added INTEGER NOT NULL DEFAULT 0,
+                    mempool_removed INTEGER NOT NULL DEFAULT 0,
+                    gaps INTEGER NOT NULL DEFAULT 0
+                )"""
+            )
 
 
 def _number(value: Any) -> int | float | None:
@@ -1608,6 +1771,7 @@ def sampler_loop() -> None:
             try:
                 store_snapshot(data)
                 evaluate_alerts(data)
+                publish_browser_event("sample")
             except Exception as exc:
                 print(f"Sample processing failed: {exc}", flush=True)
         elapsed = time.monotonic() - started
@@ -1626,6 +1790,38 @@ def analytics_sampler_loop() -> None:
 
 class Handler(BaseHTTPRequestHandler):
     server_version = f"BitcoinDashboard/{__version__}"
+
+    def send_event_stream(self) -> None:
+        if not _sse_slots.acquire(blocking=False):
+            self.send_bytes(b'{"error":"Too many live connections"}', "application/json", 503)
+            return
+        try:
+            with _event_condition:
+                seen = _event_serial
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-transform")
+            self.send_header("Connection", "close")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(b": connected\n\n")
+            self.wfile.flush()
+            deadline = time.monotonic() + 300
+            while time.monotonic() < deadline:
+                with _event_condition:
+                    _event_condition.wait_for(lambda: _event_serial != seen, timeout=15)
+                    serial, kind = _event_serial, _event_kind
+                if serial != seen:
+                    self.wfile.write(f"id: {serial}\nevent: {kind}\ndata: {{}}\n\n".encode())
+                    seen = serial
+                else:
+                    self.wfile.write(b": heartbeat\n\n")
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        finally:
+            self.close_connection = True
+            _sse_slots.release()
 
     def send_bytes(self, body: bytes, content_type: str, status: int = 200) -> None:
         self.send_response(status)
@@ -1703,6 +1899,13 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"Dashboard request failed: {exc}", flush=True)
                 body = b'{"error":"Node data unavailable"}'
                 self.send_bytes(body, "application/json; charset=utf-8", 503)
+            return
+        if path == "/api/realtime":
+            body = json.dumps(realtime_data(), separators=(",", ":")).encode()
+            self.send_bytes(body, "application/json; charset=utf-8")
+            return
+        if path == "/api/events":
+            self.send_event_stream()
             return
         if path == "/api/history":
             range_name = parse_qs(parsed.query).get("range", ["24h"])[0]
@@ -1866,6 +2069,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    if ZMQ_SEQUENCE_ENDPOINT:
+        if not re.fullmatch(r"tcp://127\.0\.0\.1:[1-9][0-9]{0,4}", ZMQ_SEQUENCE_ENDPOINT) or int(ZMQ_SEQUENCE_ENDPOINT.rsplit(":", 1)[1]) > 65535:
+            raise SystemExit("ZMQ_SEQUENCE_ENDPOINT must be a local tcp://127.0.0.1:PORT endpoint")
+        threading.Thread(target=zmq_listener_loop, name="zmq-sequence", daemon=True).start()
     history_thread = threading.Thread(
         target=sampler_loop,
         name="history-sampler",
