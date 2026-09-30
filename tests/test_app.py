@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import re
 import tempfile
 import unittest
 from contextlib import closing
@@ -8,6 +9,24 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app
+
+
+class DashboardLayoutTests(unittest.TestCase):
+    def test_sections_group_node_network_system_and_statistics(self):
+        html = (app.APP_DIR / "static" / "index.html").read_text(encoding="utf-8")
+        headings = [html.index(f'id="{name}Heading"') for name in ("node", "network", "system", "stats")]
+        self.assertEqual(headings, sorted(headings))
+        sections = [html[start:end] for start, end in zip(headings, headings[1:] + [html.index("</main>")])]
+        for section, ids in zip(sections, (
+            ("blocks", "version", "versionStatus", "uptime"),
+            ("peers", "ipv4Peers", "ipv6Peers", "onionPeers", "recv", "externalStatus"),
+            ("cpu", "memory", "disk"),
+            ("mempoolTx", "fee2", "peerChart", "utxoCount", "hash"),
+        )):
+            for element_id in ids:
+                self.assertIn(f'id="{element_id}"', section)
+        html_ids = re.findall(r'\bid="([^"]+)"', html)
+        self.assertEqual(len(html_ids), len(set(html_ids)))
 
 
 class ServiceConfigurationTests(unittest.TestCase):

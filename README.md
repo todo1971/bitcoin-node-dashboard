@@ -23,6 +23,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - getrennte Live-Anzeige für IPv4-, IPv6- und Tor-Peers mit eingehenden und ausgehenden Verbindungen sowie Onion-Adresse
 - automatische Aufbewahrung und Verdichtung der Diagrammdaten
 - responsive Oberfläche für Desktop und Mobilgeräte
+- übersichtliche Bereiche für Node & Version, Netzwerk, System und Statistiken
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
 - lokaler Web-Installer für systemd-basierte Linux-Server
 - integrierte, abgesicherte Administration unter `/admin`

@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.2 – 2026-09-30
+
+- Startseite in Node & Version, Netzwerk, System sowie Statistiken & Analyse gegliedert
+- Kennzahlen in die passenden Bereiche verschoben und Kartenbreiten angepasst
+
 ## 1.11.1 – 2026-09-30
 
 - IPv4-, IPv6- und Tor-Verbindungen separat nach eingehenden und ausgehenden Peers anzeigen
