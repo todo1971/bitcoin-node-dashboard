@@ -19,7 +19,7 @@ class DashboardLayoutTests(unittest.TestCase):
         sections = [html[start:end] for start, end in zip(headings, headings[1:] + [html.index("</main>")])]
         for section, ids in zip(sections, (
             ("blocks", "version", "versionStatus", "uptime"),
-            ("peers", "ipv4Peers", "ipv6Peers", "onionPeers", "recv", "externalStatus"),
+            ("peers", "ipv4Peers", "ipv4Address", "ipv6Peers", "ipv6Address", "onionPeers", "recv", "externalStatus"),
             ("cpu", "memory", "disk"),
             ("mempoolTx", "fee2", "peerChart", "utxoCount", "hash"),
         )):
@@ -27,6 +27,9 @@ class DashboardLayoutTests(unittest.TestCase):
                 self.assertIn(f'id="{element_id}"', section)
         html_ids = re.findall(r'\bid="([^"]+)"', html)
         self.assertEqual(len(html_ids), len(set(html_ids)))
+        self.assertNotRegex(html, r"\b(rein|raus|Inbound|Outbound)\b")
+        self.assertIn(" in · ", html)
+        self.assertIn(" out", html)
 
 
 class ServiceConfigurationTests(unittest.TestCase):
@@ -189,6 +192,9 @@ class PeerNetworkTests(unittest.TestCase):
                 "connections": 4,
                 "localaddresses": [
                     {"address": "217.160.16.224", "port": 8333},
+                    {"address": "217.160.16.224", "port": 8333},
+                    {"address": "2001:db8::1", "port": 8333},
+                    {"address": "not-an-ip", "port": 8333},
                     {"address": "exampleonion.onion", "port": 8333},
                 ],
             },
@@ -202,6 +208,7 @@ class PeerNetworkTests(unittest.TestCase):
             ],
         }
         with (
+            patch.object(app, "PUBLIC_NODE_ADDRESS", "217.160.16.224"),
             patch.object(app, "bitcoin_cli", side_effect=lambda command: replies[command]),
             patch.object(app, "safe_call", return_value=None),
             patch.object(app, "fetch_latest_core_version", return_value={}),
@@ -214,7 +221,15 @@ class PeerNetworkTests(unittest.TestCase):
         self.assertEqual(network["network_directions"]["ipv4"], {"inbound": 1, "outbound": 1})
         self.assertEqual(network["network_directions"]["ipv6"], {"inbound": 0, "outbound": 1})
         self.assertEqual(network["network_directions"]["onion"], {"inbound": 1, "outbound": 0})
+        self.assertEqual(network["local_addresses"], {
+            "ipv4": ["217.160.16.224"],
+            "ipv6": ["2001:db8::1"],
+            "onion": ["exampleonion.onion"],
+        })
         self.assertEqual(network["onion_address"], "exampleonion.onion")
+        self.assertEqual(network["configured_public_address"], {
+            "family": "ipv4", "address": "217.160.16.224"
+        })
 
 
 class MempoolAnalysisTests(unittest.TestCase):

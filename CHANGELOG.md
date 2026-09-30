@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.3 – 2026-09-30
+
+- Peer-Richtungen im Dashboard als `in` und `out` beschriftet
+- von Bitcoin Core gemeldete IPv4- und IPv6-Adressen neben der Onion-Adresse angezeigt; falls nicht gemeldet, die konfigurierte öffentliche P2P-IP gekennzeichnet
+
 ## 1.11.2 – 2026-09-30
 
 - Startseite in Node & Version, Netzwerk, System sowie Statistiken & Analyse gegliedert

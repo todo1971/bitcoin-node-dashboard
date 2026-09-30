@@ -9,6 +9,7 @@ import re
 import base64
 import hashlib
 import hmac
+import ipaddress
 import platform
 import secrets
 import shutil
@@ -29,7 +30,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.11.2"
+__version__ = "1.11.3"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -633,12 +634,31 @@ def build_snapshot() -> dict[str, Any]:
         else:
             outbound += 1
 
-    onion_addresses = [
-        address.get("address")
-        for address in (network.get("localaddresses") or [])
-        if isinstance(address, dict)
-        and str(address.get("address", "")).endswith(".onion")
-    ]
+    local_addresses: dict[str, list[str]] = {
+        "ipv4": [], "ipv6": [], "onion": []
+    }
+    for entry in network.get("localaddresses") or []:
+        if not isinstance(entry, dict):
+            continue
+        address = str(entry.get("address") or "")
+        if address.endswith(".onion"):
+            family = "onion"
+        else:
+            try:
+                family = "ipv4" if ipaddress.ip_address(address).version == 4 else "ipv6"
+            except ValueError:
+                continue
+        if address not in local_addresses[family]:
+            local_addresses[family].append(address)
+    configured_public_address = None
+    try:
+        public_ip = ipaddress.ip_address(PUBLIC_NODE_ADDRESS)
+        configured_public_address = {
+            "family": "ipv4" if public_ip.version == 4 else "ipv6",
+            "address": str(public_ip),
+        }
+    except ValueError:
+        pass
 
     current_version = str(network.get("subversion") or "")
     current_tuple = version_tuple(current_version)
@@ -669,7 +689,9 @@ def build_snapshot() -> dict[str, Any]:
             "connections_out": network.get("connections_out", outbound),
             "networks": peer_networks,
             "network_directions": peer_directions,
-            "onion_address": onion_addresses[0] if onion_addresses else None,
+            "local_addresses": local_addresses,
+            "configured_public_address": configured_public_address,
+            "onion_address": local_addresses["onion"][0] if local_addresses["onion"] else None,
             "bytes_received": net_totals.get("totalbytesrecv"),
             "bytes_sent": net_totals.get("totalbytessent"),
         },
