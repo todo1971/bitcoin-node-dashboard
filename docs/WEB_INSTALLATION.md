@@ -13,11 +13,11 @@ Service-Benutzer Zugriff auf dessen RPC-Cookie besitzen.
 
 ## Start
 
-Paket aus `/home/todo` in ein temporäres Verzeichnis entpacken:
+Release-Archiv aus dem aktuellen Verzeichnis in ein temporäres Verzeichnis entpacken:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.11.5.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.11.6.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 

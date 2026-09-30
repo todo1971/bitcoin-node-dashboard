@@ -198,7 +198,7 @@ WantedBy=multi-user.target
     updater_config.write_text(
         "\n".join(
             (
-                "UPDATE_ROOT=/home/todo",
+                "UPDATE_ROOT=/var/cache/bitcoin-dashboard-updates",
                 f"DASHBOARD_USER={user_name}",
                 f"DASHBOARD_TARGET={target}",
                 "DASHBOARD_SERVICE=bitcoin-dashboard",

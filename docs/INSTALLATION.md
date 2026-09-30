@@ -68,11 +68,11 @@ sudo systemctl enable --now bitcoin-dashboard
 
 Die integrierte Administration samt eng begrenzter Update-Berechtigungen wird
 anschließend aus einem temporär entpackten Release eingerichtet. Unter
-`/home/todo` bleibt nur das Archiv liegen:
+Das Release-Archiv liegt für diesen einmaligen Schritt im aktuellen Verzeichnis:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.11.5.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.11.6.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```

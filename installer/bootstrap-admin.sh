@@ -13,7 +13,7 @@ install -o root -g root -m 0755 "$script_dir/fetch-dashboard-release" /usr/local
 
 if test ! -f /etc/bitcoin-dashboard-updater.conf; then
     printf '%s\n' \
-        'UPDATE_ROOT=/home/todo' \
+        'UPDATE_ROOT=/var/cache/bitcoin-dashboard-updates' \
         'DASHBOARD_USER=btc' \
         'DASHBOARD_TARGET=/home/btc/bitcoin-dashboard' \
         'DASHBOARD_SERVICE=bitcoin-dashboard' \
@@ -24,6 +24,17 @@ if test ! -f /etc/bitcoin-dashboard-updater.conf; then
     chown root:root /etc/bitcoin-dashboard-updater.conf
     chmod 0640 /etc/bitcoin-dashboard-updater.conf
 fi
+update_root=/var/cache/bitcoin-dashboard-updates
+test ! -L /etc/bitcoin-dashboard-updater.conf || { echo "Unsafe updater config link" >&2; exit 1; }
+test ! -L "$update_root" || { echo "Unsafe update cache link" >&2; exit 1; }
+install -d -o root -g root -m 0700 "$update_root"
+if grep -q '^UPDATE_ROOT=' /etc/bitcoin-dashboard-updater.conf; then
+    sed -i "s#^UPDATE_ROOT=.*#UPDATE_ROOT=$update_root#" /etc/bitcoin-dashboard-updater.conf
+else
+    printf 'UPDATE_ROOT=%s\n' "$update_root" >> /etc/bitcoin-dashboard-updater.conf
+fi
+chown root:root /etc/bitcoin-dashboard-updater.conf
+chmod 0640 /etc/bitcoin-dashboard-updater.conf
 grep -q '^BITCOIN_UPLOAD_DIR=' /etc/bitcoin-dashboard-updater.conf || \
     printf '%s\n' 'BITCOIN_UPLOAD_DIR=/var/lib/bitcoin-dashboard/bitcoin-core-upload' >> /etc/bitcoin-dashboard-updater.conf
 grep -q '^BITCOIN_MIN_VALID_SIGNATURES=' /etc/bitcoin-dashboard-updater.conf || \

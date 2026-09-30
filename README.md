@@ -31,6 +31,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - integrierte, abgesicherte Administration unter `/admin`
 - Updates als isolierte systemd-Aufträge mit geprüften Helfern und Rollback
 - automatische Dashboard-Updates aus verifizierten GitHub-Release-Assets
+- root-eigener Update-Cache unter `/var/cache/bitcoin-dashboard-updates` statt eines Benutzer-Home-Verzeichnisses
 - Bitcoin-Core-Upload mit offizieller GPG- und SHA-256-Prüfung
 - Docker-Compose für Host-Nodes, getrennte Stacks und optionale All-in-one-Nodes
 - CPU-, RAM-, Datenträger- und bitcoind-Laufzeitüberwachung mit Historie

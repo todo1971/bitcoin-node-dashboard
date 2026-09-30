@@ -8,11 +8,11 @@ Authentifizierung, einen zusätzlichen CSRF-Token, eine globale Sperre nach fün
 Fehlversuchen sowie Größen-, Methoden- und Origin-Prüfungen.
 
 Die Root-Helfer und das Passwort werden aus dem temporär entpackten, zuvor
-geprüften Release-Paket eingerichtet. Unter `/home/todo` bleibt nur das Archiv:
+geprüften Release-Paket eingerichtet. Das Archiv liegt dafür im aktuellen Verzeichnis:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf /home/todo/bitcoin-node-dashboard-1.11.5.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.11.6.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -69,7 +69,11 @@ bitcoin-node-dashboard-VERSION.tar.gz.sha256
 ```
 
 Die Systemd-Unit, Root-Helfer und Sudoers-Dateien werden durch diesen Updater
-bewusst nicht aus einem Update-Archiv überschrieben.
+bewusst nicht aus einem Update-Archiv überschrieben. Nach dem Upgrade auf 1.11.6
+einmalig `installer/bootstrap-admin.sh` aus dem entpackten Release als root
+ausführen: Es aktualisiert die Helfer und verlegt die Paketablage in den
+root-eigenen Cache `/var/cache/bitcoin-dashboard-updates`. Erst danach wird
+die bisherige Ablage nicht mehr benötigt.
 
 ## Bitcoin Core aktualisieren
 
@@ -104,9 +108,9 @@ danach stoppt der Helfer bitcoind, sichert `/home/btc/bin`, installiert die
 Binärdateien und startet den Dienst. Ein Startfehler stellt das Backup wieder
 her. Nach Erfolg werden Upload und Metadaten entfernt.
 
-Der bisherige manuelle Paketordner unter `/home/todo/bitcoin-core-update` bleibt
-als Wiederherstellungsweg kompatibel, wird im normalen Betrieb aber nicht mehr
-benötigt.
+Ein manuell vorbereitetes Bitcoin-Core-Paket kann weiterhin unter
+`/var/cache/bitcoin-dashboard-updates/bitcoin-core-update` bereitgestellt
+werden; im normalen Betrieb ist der Upload über `/admin` vorgesehen.
 
 ### Reverse Proxy für den Upload
 
@@ -237,7 +241,7 @@ sudo awk -F= '
 ```
 
 Danach zeigt `/admin` beispielsweise
-`Installiert: 1.11.5 · GitHub: 1.11.5 · aktuell`. Schlägt die Prüfung fehl,
+`Installiert: 1.11.6 · GitHub: 1.11.6 · aktuell`. Schlägt die Prüfung fehl,
 helfen die Logs:
 
 ```bash

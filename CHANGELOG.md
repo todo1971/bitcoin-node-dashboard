@@ -2,6 +2,12 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.6 – 2026-09-30
+
+- Updater-Paketablage in einen root-eigenen Cache unter `/var/cache` verlegt
+- Installer migriert vorhandene Updater-Konfiguration beim erneuten Bootstrap
+- alte Home-Verzeichnis-Pfade aus Anleitungen, Beispielen und Tests entfernt
+
 ## 1.11.5 – 2026-09-30
 
 - vollständige Tor-Onion-Adresse als Knotenkennung im Bereich Node & Version anzeigen

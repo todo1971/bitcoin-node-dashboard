@@ -15,7 +15,7 @@
 - Nach fünf falschen Anmeldungen wird die Administration für 15 Minuten gesperrt.
 - Root-Updates sind auf zwei vollständige, feste `systemd-run`-Befehle ohne Browserparameter begrenzt.
 - Die root-eigenen Helfer akzeptieren keine Argumente, validieren Paketpfade und führen Updates außerhalb der Webdienst-Control-Group aus.
-- Das Paketverzeichnis `/home/todo` darf für den Dashboard-Benutzer nicht beschreibbar sein.
+- Der Update-Cache `/var/cache/bitcoin-dashboard-updates` gehört root und hat Modus `0700`.
 - Core-Uploads landen als einzige Ausnahme im festen StateDirectory-Pfad. Der Root-Updater kopiert sie vor der Prüfung in sein eigenes temporäres Verzeichnis.
 
 Wird der Dashboard-Prozess vollständig kompromittiert, kann ein Angreifer die
@@ -23,7 +23,7 @@ beiden festgelegten Update-Aufträge anstoßen, aber weder Argumente noch Paketp
 bestimmen. Dashboard-Pakete werden vor Installation getestet; Bitcoin-Core-
 Pakete benötigen zusätzlich eine passende SHA256-Prüfsumme und eine gültige
 Signatur aus dem root-kontrollierten Schlüsselbund. Diese Grenze hängt zwingend
-davon ab, dass `/home/todo`, Root-Helfer, Sudoers-Regel und Updater-Konfiguration
+davon ab, dass der root-eigene Update-Cache, Root-Helfer, Sudoers-Regel und Updater-Konfiguration
 nicht durch den Benutzer `btc` beschreibbar sind.
 
 Ein kompromittierter Dashboard-Prozess kann ein Core-Archiv im Uploadordner

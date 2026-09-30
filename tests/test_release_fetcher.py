@@ -16,6 +16,14 @@ LOADER.exec_module(release_fetcher)
 
 
 class ReleaseFetcherTests(unittest.TestCase):
+    def test_update_root_is_fixed_to_root_controlled_cache(self):
+        self.assertTrue(
+            release_fetcher.safe_update_root(
+                Path("/var/cache/bitcoin-dashboard-updates")
+            )
+        )
+        self.assertFalse(release_fetcher.safe_update_root(Path("/home/other/updates")))
+
     def test_downloads_only_versioned_assets_after_checksum_match(self):
         archive = b"safe release archive"
         digest = hashlib.sha256(archive).hexdigest()
@@ -38,7 +46,7 @@ class ReleaseFetcherTests(unittest.TestCase):
             root = Path(directory)
             env_file = root / "dashboard.env"
             config_file = root / "updater.conf"
-            update_root = root / "home" / "todo"
+            update_root = root / "cache" / "bitcoin-dashboard-updates"
             target = root / "target"
             target.mkdir()
             (target / "app.py").write_text('__version__ = "1.0.0"\n')

@@ -22,12 +22,17 @@ wait_for_health() {
 
 test -r "$CONFIG" || { echo "Missing $CONFIG" >&2; exit 1; }
 . "$CONFIG"
-: "${UPDATE_ROOT:=/home/todo}"
+: "${UPDATE_ROOT:=/var/cache/bitcoin-dashboard-updates}"
 : "${DASHBOARD_USER:=btc}"
 : "${DASHBOARD_TARGET:=/home/btc/bitcoin-dashboard}"
 : "${DASHBOARD_SERVICE:=bitcoin-dashboard}"
 : "${DASHBOARD_HEALTH_URL:=http://127.0.0.1:8787/healthz}"
-case "$UPDATE_ROOT" in /home/*) ;; *) echo "Unsafe UPDATE_ROOT" >&2; exit 1 ;; esac
+test "$UPDATE_ROOT" = /var/cache/bitcoin-dashboard-updates && \
+    test -d "$UPDATE_ROOT" && test ! -L "$UPDATE_ROOT" && \
+    test "$(stat -c %u "$UPDATE_ROOT")" = 0 && \
+    test "$(stat -c %a "$UPDATE_ROOT")" = 700 || {
+    echo "Unsafe UPDATE_ROOT" >&2; exit 1;
+}
 case "$DASHBOARD_USER" in *[!A-Za-z0-9_-]*|'') echo "Invalid dashboard user" >&2; exit 1 ;; esac
 case "$DASHBOARD_TARGET" in /home/*/bitcoin-dashboard|/opt/bitcoin-dashboard) ;; *) echo "Unsafe dashboard target" >&2; exit 1 ;; esac
 case "$DASHBOARD_SERVICE" in *[!A-Za-z0-9_.@-]*|'') echo "Invalid dashboard service" >&2; exit 1 ;; esac

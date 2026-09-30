@@ -33,6 +33,20 @@ class DashboardLayoutTests(unittest.TestCase):
 
 
 class ServiceConfigurationTests(unittest.TestCase):
+    def test_update_helpers_use_root_owned_cache_and_bootstrap_migrates_config(self):
+        project = Path(__file__).parent.parent
+        cache = "/var/cache/bitcoin-dashboard-updates"
+        for helper in ("update-bitcoin-dashboard", "update-bitcoin-core"):
+            script = (project / "installer" / helper).read_text(encoding="utf-8")
+            self.assertIn(cache, script)
+            self.assertIn('test "$(stat -c %u "$UPDATE_ROOT")" = 0', script)
+            self.assertIn('test "$(stat -c %a "$UPDATE_ROOT")" = 700', script)
+        bootstrap = (project / "installer" / "bootstrap-admin.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('install -d -o root -g root -m 0700 "$update_root"', bootstrap)
+        self.assertIn('sed -i "s#^UPDATE_ROOT=.*#UPDATE_ROOT=$update_root#"', bootstrap)
+
     def test_dashboard_service_does_not_force_no_new_privileges(self):
         project = Path(__file__).parent.parent
         configurations = (

@@ -66,7 +66,7 @@ def installed_version(target: Path) -> tuple[int, ...]:
 
 
 def safe_update_root(path: Path) -> bool:
-    return str(path).startswith("/home/")
+    return path == Path("/var/cache/bitcoin-dashboard-updates") and not path.is_symlink()
 
 
 def main() -> int:
@@ -84,7 +84,7 @@ def main() -> int:
         print("Ungültiges DASHBOARD_GITHUB_REPOSITORY", file=sys.stderr)
         return 1
 
-    update_root = Path(config.get("UPDATE_ROOT", "/home/todo"))
+    update_root = Path(config.get("UPDATE_ROOT", "/var/cache/bitcoin-dashboard-updates"))
     target = Path(config.get("DASHBOARD_TARGET", "/home/btc/bitcoin-dashboard"))
     if not safe_update_root(update_root):
         print("Unsicheres UPDATE_ROOT", file=sys.stderr)
@@ -133,7 +133,7 @@ def main() -> int:
         if actual != expected:
             raise ValueError("SHA-256-Prüfung des GitHub-Releases fehlgeschlagen")
 
-        update_root.mkdir(mode=0o750, parents=True, exist_ok=True)
+        update_root.mkdir(mode=0o700, parents=True, exist_ok=True)
         destination = update_root / "bitcoin-node-dashboard-update.tar.gz"
         with tempfile.NamedTemporaryFile(dir=update_root, delete=False) as handle:
             temporary = Path(handle.name)

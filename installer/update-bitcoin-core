@@ -14,10 +14,15 @@ test -r "$CONFIG" || { echo "Missing $CONFIG" >&2; exit 1; }
 : "${BITCOIN_DATADIR:=/home/btc/bitcoin-data}"
 : "${BITCOIN_COOKIE:=/home/btc/bitcoin-core/.bitcoin/.cookie}"
 : "${BITCOIN_MIN_VALID_SIGNATURES:=2}"
-: "${UPDATE_ROOT:=/home/todo}"
+: "${UPDATE_ROOT:=/var/cache/bitcoin-dashboard-updates}"
 : "${DASHBOARD_USER:=btc}"
 : "${BITCOIN_UPLOAD_DIR:=/var/lib/bitcoin-dashboard/bitcoin-core-upload}"
-case "$UPDATE_ROOT" in /home/*) ;; *) echo "Unsafe UPDATE_ROOT" >&2; exit 1 ;; esac
+test "$UPDATE_ROOT" = /var/cache/bitcoin-dashboard-updates && \
+    test -d "$UPDATE_ROOT" && test ! -L "$UPDATE_ROOT" && \
+    test "$(stat -c %u "$UPDATE_ROOT")" = 0 && \
+    test "$(stat -c %a "$UPDATE_ROOT")" = 700 || {
+    echo "Unsafe UPDATE_ROOT" >&2; exit 1;
+}
 case "$BITCOIN_UPLOAD_DIR" in
     /var/lib/bitcoin-dashboard/*) ;;
     *) echo "Unsafe BITCOIN_UPLOAD_DIR" >&2; exit 1 ;;
