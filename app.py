@@ -30,7 +30,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.11.3"
+__version__ = "1.11.4"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -596,6 +596,33 @@ def system_stats() -> dict[str, Any]:
     }
 
 
+def parse_global_ipv6_addresses(interface_data: str) -> list[str]:
+    """Read globally scoped interface IPs without treating them as P2P listeners."""
+    addresses: list[str] = []
+    for line in interface_data.splitlines():
+        fields = line.split()
+        if len(fields) < 6 or fields[3] != "00":
+            continue
+        try:
+            if len(fields[0]) != 32:
+                continue
+            address = ipaddress.IPv6Address(int(fields[0], 16))
+        except ValueError:
+            continue
+        if address.is_global and str(address) not in addresses:
+            addresses.append(str(address))
+    return addresses
+
+
+def host_global_ipv6_addresses() -> list[str]:
+    try:
+        return parse_global_ipv6_addresses(
+            Path("/proc/net/if_inet6").read_text(encoding="ascii")
+        )
+    except OSError:
+        return []
+
+
 def build_snapshot() -> dict[str, Any]:
     chain = bitcoin_cli("getblockchaininfo")
     network = bitcoin_cli("getnetworkinfo")
@@ -690,6 +717,7 @@ def build_snapshot() -> dict[str, Any]:
             "networks": peer_networks,
             "network_directions": peer_directions,
             "local_addresses": local_addresses,
+            "host_ipv6_addresses": host_global_ipv6_addresses(),
             "configured_public_address": configured_public_address,
             "onion_address": local_addresses["onion"][0] if local_addresses["onion"] else None,
             "bytes_received": net_totals.get("totalbytesrecv"),

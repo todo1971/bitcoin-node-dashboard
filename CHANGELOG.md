@@ -2,6 +2,11 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.11.4 – 2026-09-30
+
+- global gültige IPv6-Adressen der Server-Netzwerkschnittstellen zusätzlich anzeigen
+- Server-IP ausdrücklich von einer durch Bitcoin Core gemeldeten P2P-Adresse unterscheiden
+
 ## 1.11.3 – 2026-09-30
 
 - Peer-Richtungen im Dashboard als `in` und `out` beschriftet

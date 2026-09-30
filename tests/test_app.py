@@ -185,6 +185,17 @@ class FeeRateTests(unittest.TestCase):
 
 
 class PeerNetworkTests(unittest.TestCase):
+    def test_only_global_host_ipv6_is_displayed(self):
+        interfaces = (
+            "fe800000000000000001b0fffe81d201 02 40 20 80 ens6\n"
+            "2a010239029bf9000000000000000001 02 80 00 80 ens6\n"
+            "00000000000000000000000000000001 01 80 10 80 lo\n"
+        )
+        self.assertEqual(
+            app.parse_global_ipv6_addresses(interfaces),
+            ["2a01:239:29b:f900::1"],
+        )
+
     def test_snapshot_separates_peer_networks_and_directions(self):
         replies = {
             "getblockchaininfo": {"blocks": 0},
@@ -209,6 +220,7 @@ class PeerNetworkTests(unittest.TestCase):
         }
         with (
             patch.object(app, "PUBLIC_NODE_ADDRESS", "217.160.16.224"),
+            patch.object(app, "host_global_ipv6_addresses", return_value=["2a01:239:29b:f900::1"]),
             patch.object(app, "bitcoin_cli", side_effect=lambda command: replies[command]),
             patch.object(app, "safe_call", return_value=None),
             patch.object(app, "fetch_latest_core_version", return_value={}),
@@ -230,6 +242,7 @@ class PeerNetworkTests(unittest.TestCase):
         self.assertEqual(network["configured_public_address"], {
             "family": "ipv4", "address": "217.160.16.224"
         })
+        self.assertEqual(network["host_ipv6_addresses"], ["2a01:239:29b:f900::1"])
 
 
 class MempoolAnalysisTests(unittest.TestCase):
