@@ -18,6 +18,7 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - Bitcoin-RPC und Authentifizierungs-Cookie bleiben serverseitig
 - externer Erreichbarkeitsstatus mit fünf Minuten Cache
 - SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
+- Ereignis-Zeitleiste und Hinweise auf bekannte Erfassungslücken; begrenzter RPC-Nachtrag fehlender Blockstatistiken
 - optionale lokale ZMQ-Ereignisse für Blöcke und Mempool, Minutenzähler und Browser-Liveaktualisierung per SSE mit Abfrage-Fallback
 - tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
 - periodische Mempool-Paketanalyse für Cluster, RBF und CPFP
@@ -83,7 +84,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.13.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.14.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
@@ -116,6 +117,7 @@ sudo systemctl restart bitcoin-dashboard
 | `/` | Dashboard |
 | `/api/dashboard` | aggregierte Node-Daten als JSON |
 | `/api/history?range=24h` | verdichtete historische Messwerte |
+| `/api/timeline?range=24h` | Ereignisse und Datenqualitäts-Hinweise im gewählten Zeitraum |
 | `/api/analytics?range=24h` | Block-, UTXO- und Mempool-Analysedaten |
 | `/api/alerts` | derzeit aktive Alarme |
 | `/api/admin/upload/bitcoin` | geschützter Bitcoin-Core-Archivupload |

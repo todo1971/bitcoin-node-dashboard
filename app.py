@@ -33,7 +33,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.13.0"
+__version__ = "1.14.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -231,6 +231,7 @@ _event_condition = threading.Condition()
 _event_serial = 0
 _event_kind = "sample"
 _sse_slots = threading.BoundedSemaphore(12)
+_backfill_lock = threading.Lock()
 _ZMQ_COUNTERS = ("block_connected", "block_disconnected", "mempool_added", "mempool_removed", "gaps")
 
 
@@ -353,6 +354,15 @@ def zmq_listener_loop() -> None:
                     except ValueError as exc:
                         print(f"Invalid ZMQ event: {exc}", flush=True)
                     else:
+                        try:
+                            if gap:
+                                record_event("zmq_gap", "ZMQ-Sequenzlücke: Live-Ereignisse können fehlen")
+                            if kind == "block_connected":
+                                record_event("block_connected", "Neuer Block über ZMQ gemeldet")
+                            elif kind == "block_disconnected":
+                                record_event("block_disconnected", "Block getrennt; mögliche Reorganisation")
+                        except (OSError, sqlite3.Error) as exc:
+                            print(f"ZMQ event history unavailable: {exc}", flush=True)
                         now = time.monotonic()
                         if gap or now - last_publish >= (1 if kind.startswith("block_") else 3):
                             with _cache_lock:
@@ -366,6 +376,10 @@ def zmq_listener_loop() -> None:
             with _realtime_lock:
                 _realtime["state"] = "error"
                 _realtime["last_transport_sequence"] = None
+            try:
+                record_event("zmq_interrupted", "ZMQ-Verbindung unterbrochen; Live-Daten können fehlen")
+            except (OSError, sqlite3.Error):
+                pass
             print(f"ZMQ listener error: {exc}", flush=True)
             time.sleep(5)
         finally:
@@ -1148,6 +1162,114 @@ def init_database() -> None:
                     gaps INTEGER NOT NULL DEFAULT 0
                 )"""
             )
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS dashboard_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    occurred_at INTEGER NOT NULL,
+                    kind TEXT NOT NULL,
+                    message TEXT NOT NULL
+                )"""
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS dashboard_events_time ON dashboard_events(occurred_at)"
+            )
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS block_observations (
+                    height INTEGER PRIMARY KEY,
+                    observed_at INTEGER NOT NULL,
+                    block_time INTEGER,
+                    transactions INTEGER,
+                    total_size INTEGER,
+                    total_fee_btc REAL,
+                    transaction_rate REAL,
+                    source TEXT NOT NULL
+                )"""
+            )
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS dashboard_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )"""
+            )
+
+
+def record_event(kind: str, message: str, at: int | None = None) -> None:
+    """Persist a bounded, address-free operational event for the public view."""
+    if kind not in {
+        "dashboard_started", "dashboard_updated", "node_restarted", "peer_drop",
+        "alert_on", "alert_off", "block_connected", "block_disconnected",
+        "zmq_gap", "zmq_interrupted", "block_backfill", "block_gap",
+    }:
+        raise ValueError("Unknown event kind")
+    timestamp = int(time.time() if at is None else at)
+    with closing(database_connection()) as connection:
+        with connection:
+            connection.execute(
+                "INSERT INTO dashboard_events (occurred_at, kind, message) VALUES (?, ?, ?)",
+                (timestamp, kind, message[:240]),
+            )
+            connection.execute(
+                "DELETE FROM dashboard_events WHERE occurred_at < ?",
+                (timestamp - HISTORY_RETENTION_DAYS * 86400,),
+            )
+
+
+def record_dashboard_start() -> None:
+    init_database()
+    with closing(database_connection()) as connection:
+        with connection:
+            row = connection.execute(
+                "SELECT value FROM dashboard_meta WHERE key = 'version'"
+            ).fetchone()
+            previous = row[0] if row else None
+            connection.execute(
+                "INSERT OR REPLACE INTO dashboard_meta (key, value) VALUES ('version', ?)",
+                (__version__,),
+            )
+    if previous and previous != __version__:
+        record_event("dashboard_updated", f"Dashboard von {previous} auf {__version__} aktualisiert")
+    record_event("dashboard_started", f"Dashboard {__version__} gestartet")
+
+
+def timeline_data(range_name: str) -> dict[str, Any]:
+    duration, _ = HISTORY_RANGES.get(range_name, HISTORY_RANGES["24h"])
+    now = int(time.time())
+    cutoff = now - duration
+    init_database()
+    with closing(database_connection()) as connection:
+        important_rows = connection.execute(
+            """SELECT occurred_at, kind, message FROM dashboard_events
+               WHERE occurred_at >= ? AND kind != 'block_connected'
+               ORDER BY occurred_at DESC, id DESC LIMIT 60""",
+            (cutoff,),
+        ).fetchall()
+        block_rows = connection.execute(
+            """SELECT occurred_at, kind, message FROM dashboard_events
+               WHERE occurred_at >= ? AND kind = 'block_connected'
+               ORDER BY occurred_at DESC, id DESC LIMIT 20""",
+            (cutoff,),
+        ).fetchall()
+        quality = connection.execute(
+            """SELECT kind, COUNT(*) AS count FROM dashboard_events
+               WHERE occurred_at >= ? AND kind IN
+               ('zmq_gap', 'zmq_interrupted', 'dashboard_started', 'block_gap')
+               GROUP BY kind""",
+            (cutoff,),
+        ).fetchall()
+        backfilled = connection.execute(
+            """SELECT COUNT(*) FROM block_observations
+               WHERE block_time >= ? AND source = 'rpc_backfill'""",
+            (cutoff,),
+        ).fetchone()[0]
+    return {
+        "range": range_name if range_name in HISTORY_RANGES else "24h",
+        "generated_at": now,
+        "events": sorted((dict(row) for row in [*important_rows, *block_rows]),
+                         key=lambda row: row["occurred_at"], reverse=True),
+        "quality": {**{key: 0 for key in ("zmq_gap", "zmq_interrupted", "dashboard_started", "block_gap")},
+                    **{row["kind"]: row["count"] for row in quality},
+                    "blocks_backfilled": backfilled},
+    }
 
 
 def _number(value: Any) -> int | float | None:
@@ -1199,8 +1321,13 @@ def store_snapshot(data: dict[str, Any]) -> None:
     )
 
     cutoff = sampled_at - HISTORY_RETENTION_DAYS * 24 * 60 * 60
+    previous = None
     with closing(database_connection()) as connection:
         with connection:
+            previous = connection.execute(
+                "SELECT sampled_at, connections, bitcoind_uptime FROM node_samples "
+                "ORDER BY sampled_at DESC LIMIT 1"
+            ).fetchone()
             connection.execute(
                 """
                 INSERT OR REPLACE INTO node_samples (
@@ -1221,6 +1348,99 @@ def store_snapshot(data: dict[str, Any]) -> None:
                 "DELETE FROM node_samples WHERE sampled_at < ?",
                 (cutoff,),
             )
+    if previous is not None and sampled_at > previous["sampled_at"]:
+        old_uptime, new_uptime = previous["bitcoind_uptime"], network.get("bitcoind_uptime")
+        if isinstance(old_uptime, int) and isinstance(new_uptime, int) and new_uptime < old_uptime:
+            record_event("node_restarted", "Bitcoin Core wurde neu gestartet", sampled_at)
+        old_peers, new_peers = previous["connections"], network.get("connections")
+        if isinstance(old_peers, int) and isinstance(new_peers, int):
+            drop = old_peers - new_peers
+            if old_peers >= 5 and drop >= max(3, (old_peers * 3 + 9) // 10):
+                record_event("peer_drop", f"Peers deutlich gesunken: {old_peers} auf {new_peers}", sampled_at)
+
+
+def backfill_missing_blocks(data: dict[str, Any], max_blocks: int = 12) -> None:
+    """Recover recent block statistics from Core without a costly full rescan."""
+    if not _backfill_lock.acquire(blocking=False):
+        return
+    try:
+        current_height = int(data.get("chain", {}).get("blocks") or 0)
+        if current_height <= 0:
+            return
+        with closing(database_connection()) as connection:
+            row = connection.execute(
+                "SELECT MIN(height), MAX(height) FROM block_observations"
+            ).fetchone()
+            first_observed_height, previous_height = row
+            first_height = (current_height if previous_height is None else
+                            max(first_observed_height, current_height - max_blocks + 1))
+            known = {row[0] for row in connection.execute(
+                "SELECT height FROM block_observations WHERE height BETWEEN ? AND ?",
+                (first_height, current_height),
+            )}
+            heights = [height for height in range(first_height, current_height + 1)
+                       if height not in known]
+            skipped = (max(0, first_height - previous_height - 1)
+                       if previous_height is not None and previous_height < current_height else 0)
+            if not heights and not skipped:
+                return
+            recovered = 0
+            failed = 0
+            observations = []
+            for height in heights:
+                previous_time_row = connection.execute(
+                    "SELECT block_time FROM block_observations WHERE height = ?",
+                    (height - 1,),
+                ).fetchone()
+                previous_time = previous_time_row[0] if previous_time_row else None
+                if observations and observations[-1][0] == height - 1:
+                    previous_time = observations[-1][2]
+                stats = data.get("latest_block") if height == current_height else None
+                if not isinstance(stats, dict):
+                    stats = safe_call("getblockstats", str(height))
+                if not isinstance(stats, dict) or not isinstance(stats.get("time"), int):
+                    failed += 1
+                    continue
+                block_time = stats["time"]
+                interval = block_time - previous_time if previous_time is not None else None
+                rate = (round(float(stats["txs"]) / interval, 3)
+                        if isinstance(stats.get("txs"), int) and interval and interval > 0 else None)
+                fee = stats.get("totalfee")
+                observations.append((height, int(time.time()), block_time,
+                                     _number(stats.get("txs")), _number(stats.get("total_size")),
+                                     float(fee) / 100_000_000 if isinstance(fee, (int, float)) else None,
+                                     rate, "snapshot" if height == current_height else "rpc_backfill"))
+                if height != current_height:
+                    recovered += 1
+            with connection:
+                connection.executemany(
+                    """INSERT OR REPLACE INTO block_observations
+                       (height, observed_at, block_time, transactions, total_size,
+                        total_fee_btc, transaction_rate, source)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    observations,
+                )
+                connection.execute(
+                    "DELETE FROM block_observations WHERE block_time < ?",
+                    (int(time.time()) - HISTORY_RETENTION_DAYS * 86400,),
+                )
+        if recovered:
+            record_event("block_backfill", f"{recovered} fehlende Blockstatistiken per RPC nachgetragen")
+        if skipped or failed:
+            record_event("block_gap", f"{skipped + failed} Blockstatistiken nicht nachgetragen (Grenze oder RPC nicht verfügbar)")
+    finally:
+        _backfill_lock.release()
+
+
+def run_block_backfill(data: dict[str, Any]) -> None:
+    try:
+        backfill_missing_blocks(data)
+    except Exception as exc:
+        print(f"Block backfill failed: {exc}", flush=True)
+        try:
+            record_event("block_gap", "Blockstatistiken konnten nicht nachgetragen werden")
+        except (OSError, sqlite3.Error):
+            pass
 
 
 def history_data(range_name: str) -> dict[str, Any]:
@@ -1317,7 +1537,7 @@ def store_daily_utxo_sample(now: int | None = None) -> bool:
 
 def analytics_data(range_name: str) -> dict[str, Any]:
     history = history_data(range_name)
-    duration, _ = HISTORY_RANGES.get(range_name, HISTORY_RANGES["24h"])
+    duration, bucket_seconds = HISTORY_RANGES.get(range_name, HISTORY_RANGES["24h"])
     cutoff = int(time.time()) - duration
     with closing(database_connection()) as connection:
         rows = connection.execute(
@@ -1341,10 +1561,25 @@ def analytics_data(range_name: str) -> dict[str, Any]:
             ).fetchall()
             if len(recent_rows) > len(rows):
                 rows = list(reversed(recent_rows))
+        block_rows = connection.execute(
+            """SELECT CAST(block_time / ? AS INTEGER) * ? AS timestamp,
+                      AVG(total_size) AS block_size_bytes,
+                      AVG(transaction_rate) AS block_transaction_rate,
+                      AVG(transactions) AS block_transactions,
+                      AVG(total_fee_btc) AS block_total_fee_btc
+               FROM block_observations WHERE block_time >= ?
+               GROUP BY timestamp ORDER BY timestamp""",
+            (bucket_seconds, bucket_seconds, cutoff),
+        ).fetchall()
+    block_points = {point["timestamp"]: point for point in history["points"]}
+    for row in block_rows:
+        point = block_points.setdefault(row["timestamp"], {"timestamp": row["timestamp"]})
+        # A sparse RPC sample must not erase a known value from node snapshots.
+        point.update({key: value for key, value in dict(row).items() if value is not None})
     return {
         "range": history["range"],
         "generated_at": int(time.time()),
-        "block_points": history["points"],
+        "block_points": [block_points[key] for key in sorted(block_points)],
         "utxo_points": [dict(row) for row in rows],
         "mempool": mempool_analysis(),
     }
@@ -1405,6 +1640,7 @@ def set_alert_condition(
 ) -> None:
     now = int(time.time())
     notification: tuple[str, str] | None = None
+    transition: str | None = None
     with closing(database_connection()) as connection:
         with connection:
             row = connection.execute(
@@ -1431,6 +1667,7 @@ def set_alert_condition(
                         (now, message, alert_key),
                     )
                     notification = (f"Alarm: {alert_key}", message)
+                    transition = "alert_on"
                 elif row["active"]:
                     last_notified = row["last_notified"] or 0
                     connection.execute(
@@ -1449,10 +1686,13 @@ def set_alert_condition(
                         f"Entwarnung: {alert_key}",
                         f"Der Zustand ist wieder normal. Zuvor: {row['message']}",
                     )
+                    transition = "alert_off"
                 connection.execute(
                     "DELETE FROM alert_states WHERE alert_key = ?",
                     (alert_key,),
                 )
+    if transition:
+        record_event(transition, f"{'Alarm' if transition == 'alert_on' else 'Entwarnung'}: {alert_key}", now)
     if notification:
         deliver_notification(*notification)
 
@@ -1965,6 +2205,11 @@ def sampler_loop() -> None:
             try:
                 store_snapshot(data)
                 evaluate_alerts(data)
+                if not _backfill_lock.locked():
+                    threading.Thread(
+                        target=run_block_backfill, args=(data,),
+                        name="block-backfill", daemon=True,
+                    ).start()
                 publish_browser_event("sample")
             except Exception as exc:
                 print(f"Sample processing failed: {exc}", flush=True)
@@ -2122,6 +2367,15 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"History request failed: {exc}", flush=True)
                 body = b'{"error":"History data unavailable"}'
                 self.send_bytes(body, "application/json; charset=utf-8", 503)
+            return
+        if path == "/api/timeline":
+            range_name = parse_qs(parsed.query).get("range", ["24h"])[0]
+            try:
+                body = json.dumps(timeline_data(range_name), separators=(",", ":")).encode()
+                self.send_bytes(body, "application/json; charset=utf-8")
+            except Exception as exc:
+                print(f"Timeline request failed: {exc}", flush=True)
+                self.send_bytes(b'{"error":"Timeline unavailable"}', "application/json; charset=utf-8", 503)
             return
         if path == "/api/analytics":
             range_name = parse_qs(parsed.query).get("range", ["24h"])[0]
@@ -2290,6 +2544,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    try:
+        record_dashboard_start()
+    except (OSError, sqlite3.Error) as exc:
+        print(f"Dashboard start event unavailable: {exc}", flush=True)
     if ZMQ_SEQUENCE_ENDPOINT:
         if not re.fullmatch(r"tcp://127\.0\.0\.1:[1-9][0-9]{0,4}", ZMQ_SEQUENCE_ENDPOINT) or int(ZMQ_SEQUENCE_ENDPOINT.rsplit(":", 1)[1]) > 65535:
             raise SystemExit("ZMQ_SEQUENCE_ENDPOINT must be a local tcp://127.0.0.1:PORT endpoint")

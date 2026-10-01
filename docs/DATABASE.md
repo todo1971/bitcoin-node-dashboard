@@ -34,6 +34,17 @@ Die Tabelle `alert_states` hält Beginn, Aktivierungszustand und letzte
 Benachrichtigung eines Alarms fest. Dadurch bleiben Karenzzeit und
 Wiederholsperre auch nach einem Dashboard-Neustart wirksam.
 
+`dashboard_events` speichert die öffentliche Ereignis-Zeitleiste (Zeitpunkt,
+Typ und kurze, adressfreie Meldung). `dashboard_meta` merkt sich die letzte
+Dashboard-Version, damit ein Versionswechsel erkennbar ist.
+`block_observations` speichert Blockstatistiken nach Blockhöhe. Wenn zwischen
+zwei Messungen Blöcke fehlen, werden höchstens zwölf aktuelle Höhen pro
+Durchlauf mit `getblockstats` nachgetragen. Bei größeren Lücken oder nicht
+verfügbaren RPC-Daten bleibt ein sichtbarer Datenqualitäts-Hinweis; historische
+Mempool-ZMQ-Ereignisse lassen sich dadurch nicht rekonstruieren.
+Eine Reorganisation wird in der Zeitleiste markiert; bereits gespeicherte
+Blockstatistiken derselben Höhe sind jedoch keine revisionssichere Chain-Historie.
+
 Die Tabelle `utxo_samples` speichert höchstens einmal täglich die mit
 `gettxoutsetinfo none` ermittelte Anzahl der UTXOs, Blockhöhe, Datenbankgröße
 und Gesamtmenge. Der Modus `none` vermeidet die teure Berechnung eines

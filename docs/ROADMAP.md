@@ -58,6 +58,7 @@
 ## Nächste Ausbaustufe
 
 - Umgesetzt in 1.13: Dashboard-`.env` über `/admin` für ausgewählte Betriebswerte bearbeiten
+- Umgesetzt in 1.14: Ereignis-Zeitleiste, bekannte Erfassungslücken und begrenzter Block-RPC-Nachtrag
 
 - Prometheus-Endpunkt für externe Langzeitüberwachung
 - optional getrennte Schwellenwerte je Alarm im Wartungspanel bearbeiten

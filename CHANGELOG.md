@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.14.0 – 2026-10-01
+
+- öffentliche Ereignis-Zeitleiste für Blöcke, Alarmwechsel, Node-/Dashboard-Neustarts, größere Peer-Abfälle und Dashboard-Versionswechsel
+- ZMQ-Sequenzlücken, Verbindungsstörungen und nicht nachgetragene Blockstatistiken als Datenqualitäts-Hinweise historisieren
+- nach ausgelassenen Blöcken höchstens zwölf aktuelle Blockstatistiken pro Durchlauf per lesendem RPC nachtragen; größere oder nicht verfügbare Lücken ausdrücklich kennzeichnen
+- neue API `/api/timeline?range=24h`; Zeitbereich mit der Historie gekoppelt, Unterbrechungen in Diagrammen markiert
+- fehlende Diagrammwerte nicht mehr als Null darstellen und Linien nicht über Messlücken hinweg verbinden
+
 ## 1.13.0 – 2026-09-30
 
 - systemd-Konfiguration aus `/etc/default/bitcoin-dashboard` in die Dashboard-`.env` im State-Verzeichnis migrieren

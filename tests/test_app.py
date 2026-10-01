@@ -783,6 +783,114 @@ class HistoryDatabaseTests(unittest.TestCase):
             self.assertEqual(app.active_alerts(), [])
             self.assertEqual(notify.call_count, 2)
 
+    def test_timeline_filters_events_and_reports_known_gaps(self):
+        app.record_event("dashboard_started", "Dashboard gestartet", 10_000)
+        app.record_event("zmq_gap", "Sequenzlücke", 10_100)
+        app.record_event("block_connected", "Neuer Block", 10_200)
+        with patch.object(app.time, "time", return_value=10_300):
+            result = app.timeline_data("1h")
+        self.assertEqual([event["kind"] for event in result["events"]],
+                         ["block_connected", "zmq_gap", "dashboard_started"])
+        self.assertEqual(result["quality"]["zmq_gap"], 1)
+        self.assertEqual(result["quality"]["dashboard_started"], 1)
+        with patch.object(app.time, "time", return_value=20_000):
+            self.assertEqual(app.timeline_data("1h")["events"], [])
+
+    def test_node_restart_peer_drop_and_alert_transitions_are_recorded(self):
+        first = self.sample(10_000, 20, 10, 8.0)
+        second = self.sample(10_060, 10, 5, 8.0)
+        second["network"]["bitcoind_uptime"] = 20
+        app.store_snapshot(first)
+        app.store_snapshot(second)
+        with patch.object(app, "deliver_notification"):
+            with patch.object(app.time, "time", return_value=10_100):
+                app.set_alert_condition("test", True, "Fehler", 0)
+            with patch.object(app.time, "time", return_value=10_101):
+                app.set_alert_condition("test", True, "Fehler", 0)
+            with patch.object(app.time, "time", return_value=10_102):
+                app.set_alert_condition("test", False, "OK", 0)
+        with patch.object(app.time, "time", return_value=10_200):
+            kinds = [event["kind"] for event in app.timeline_data("1h")["events"]]
+        self.assertEqual(kinds.count("node_restarted"), 1)
+        self.assertEqual(kinds.count("peer_drop"), 1)
+        self.assertEqual(kinds.count("alert_on"), 1)
+        self.assertEqual(kinds.count("alert_off"), 1)
+
+    def test_recent_blocks_are_backfilled_with_bounded_rpc_work(self):
+        with closing(app.database_connection()) as connection:
+            with connection:
+                connection.execute(
+                    "INSERT INTO block_observations VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
+                )
+        data = self.sample(5_000, 10, 5, 8.0)
+        data["chain"]["blocks"] = 104
+        data["latest_block"].update(time=4_240, txs=24, total_size=2_000)
+        stats = lambda *args: {"time": 4000 + (int(args[1]) - 100) * 60,
+                               "txs": 20, "total_size": 1800, "totalfee": 100000}
+        with patch.object(app, "safe_call", side_effect=stats) as rpc:
+            with patch.object(app.time, "time", return_value=5_000):
+                app.backfill_missing_blocks(data, max_blocks=12)
+                timeline = app.timeline_data("1h")
+                with patch.object(app, "mempool_analysis", return_value={}):
+                    analytics = app.analytics_data("1h")
+        self.assertEqual(rpc.call_count, 3)
+        self.assertEqual(timeline["quality"]["blocks_backfilled"], 3)
+        self.assertEqual(timeline["quality"]["block_gap"], 0)
+        self.assertTrue(any(point["block_size_bytes"] is not None for point in analytics["block_points"]))
+
+    def test_sparse_block_observation_preserves_known_snapshot_rate(self):
+        data = self.sample(5_000, 10, 5, 8.0)
+        app.store_snapshot(data)
+        with closing(app.database_connection()) as connection:
+            with connection:
+                connection.execute(
+                    "INSERT INTO block_observations VALUES (100, 5000, 5000, 20, 2000, 0.01, NULL, 'rpc_backfill')"
+                )
+        with patch.object(app.time, "time", return_value=5_000):
+            with patch.object(app, "mempool_analysis", return_value={}):
+                points = app.analytics_data("1h")["block_points"]
+        self.assertEqual(points[0]["block_transaction_rate"], 3.25)
+
+    def test_failed_rpc_block_is_retried_on_next_sample(self):
+        with closing(app.database_connection()) as connection:
+            with connection:
+                connection.execute(
+                    "INSERT INTO block_observations VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
+                )
+        data = self.sample(5_000, 10, 5, 8.0)
+        data["chain"]["blocks"] = 102
+        data["latest_block"].update(time=4_120)
+        with patch.object(app.time, "time", return_value=5_000):
+            with patch.object(app, "safe_call", return_value=None):
+                app.backfill_missing_blocks(data)
+            with patch.object(app, "safe_call", return_value={
+                "time": 4_060, "txs": 20, "total_size": 1800, "totalfee": 100000,
+            }) as rpc:
+                app.backfill_missing_blocks(data)
+        rpc.assert_called_once_with("getblockstats", "101")
+        with closing(app.database_connection()) as connection:
+            row = connection.execute(
+                "SELECT source FROM block_observations WHERE height = 101"
+            ).fetchone()
+        self.assertEqual(row["source"], "rpc_backfill")
+
+    def test_large_block_gap_is_bounded_and_explicit(self):
+        with closing(app.database_connection()) as connection:
+            with connection:
+                connection.execute(
+                    "INSERT INTO block_observations VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
+                )
+        data = self.sample(5_000, 10, 5, 8.0)
+        data["chain"]["blocks"] = 120
+        data["latest_block"].update(time=5_200)
+        with patch.object(app, "safe_call", return_value={"time": 5_100, "txs": 20, "total_size": 1000}) as rpc:
+            with patch.object(app.time, "time", return_value=5_200):
+                app.backfill_missing_blocks(data, max_blocks=3)
+                timeline = app.timeline_data("1h")
+        self.assertEqual(rpc.call_count, 2)
+        self.assertEqual(timeline["quality"]["block_gap"], 1)
+        self.assertIn("17 Blockstatistiken", next(event["message"] for event in timeline["events"] if event["kind"] == "block_gap"))
+
 
 if __name__ == "__main__":
     unittest.main()
