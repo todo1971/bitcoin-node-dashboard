@@ -2,6 +2,13 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.17.0 – 2026-10-10
+
+- Startseite auf Node-Status, Synchronisation, Verbindungen und Alarme reduzieren
+- Netzwerk, Analyse, Historie und System in getrennte, per Tastatur bedienbare Reiter aufteilen
+- bestehende Messwerte und Datenquellen beibehalten; Diagramme beim Öffnen ihres Reiters in der sichtbaren Breite neu zeichnen
+- Reiter und Zeitraum-Auswahl für schmale Displays anpassen
+
 ## 1.16.0 – 2026-10-10
 
 - aktive Chain-Spitze und bis zu zwölf weitere Chain-Tips mit Status, Höhe, Zweiglänge und Block-Hash aus `getchaintips` anzeigen

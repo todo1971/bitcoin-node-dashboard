@@ -9,7 +9,7 @@ services:
         BITCOIN_CORE_VERSION: ${BITCOIN_CORE_VERSION:-31.1}
         NODE_UID: ${BITCOIN_UID:-1010}
         NODE_GID: ${BITCOIN_GID:-1010}
-        APP_VERSION: "1.16.0"
+        APP_VERSION: "1.17.0"
     image: bitcoin-node-dashboard-all-in-one:1.10.0
     restart: unless-stopped
     init: true

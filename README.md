@@ -29,7 +29,7 @@ externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 - Tor-Onion-Adresse als Knotenkennung im Node-Bereich, klar von einer Bitcoin-Protokoll-ID unterschieden
 - automatische Aufbewahrung und Verdichtung der Diagrammdaten
 - responsive Oberfläche für Desktop und Mobilgeräte
-- übersichtliche Bereiche für Node & Version, Netzwerk, System und Statistiken
+- kompakte Startübersicht und getrennte Reiter für Netzwerk, Analyse, Historie und System
 - Systemd-Härtung und Reverse-Proxy-Beispiel für Plesk
 - lokaler Web-Installer für systemd-basierte Linux-Server
 - integrierte, abgesicherte Administration unter `/admin`
@@ -85,7 +85,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.16.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.17.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard

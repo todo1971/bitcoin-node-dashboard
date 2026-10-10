@@ -58,27 +58,36 @@ class RealtimeTests(unittest.TestCase):
 
 
 class DashboardLayoutTests(unittest.TestCase):
-    def test_sections_group_node_network_system_and_statistics(self):
+    def test_tabs_keep_overview_short_and_details_available(self):
         html = (app.APP_DIR / "static" / "index.html").read_text(encoding="utf-8")
-        headings = [html.index(f'id="{name}Heading"') for name in ("node", "network", "system", "stats")]
-        self.assertEqual(headings, sorted(headings))
-        sections = [html[start:end] for start, end in zip(headings, headings[1:] + [html.index("</main>")])]
-        for section, ids in zip(sections, (
-            ("blocks", "version", "versionStatus", "uptime", "nodeIdentity", "nodeIdentityHint"),
-            ("peers", "ipv4Peers", "ipv4Address", "ipv6Peers", "ipv6Address", "onionPeers", "peerQualityRows", "recv", "externalStatus"),
-            ("cpu", "memory", "disk"),
-            ("mempoolTx", "fee2", "peerChart", "utxoCount", "feeBucketRows", "hash"),
-        )):
+        panels = {}
+        for name in ("overview", "network", "analysis", "history", "system"):
+            match = re.search(rf'<section\b[^>]*id="{name}Panel"[^>]*>.*?</section>', html, re.S)
+            self.assertIsNotNone(match, name)
+            panels[name] = match.group(0)
+            self.assertIn(f'id="tab-{name}"', html)
+            self.assertIn(f'aria-controls="{name}Panel"', html)
+        for name, ids in {
+            "overview": ("blocks", "syncText", "version", "overviewPeers", "overviewAlerts"),
+            "network": ("peers", "ipv4Peers", "ipv6Peers", "onionPeers", "peerQualityRows", "chainTipRows", "nodeIdentity", "externalStatus"),
+            "analysis": ("mempoolTx", "fee2", "utxoCount", "feeBucketRows", "hash"),
+            "history": ("peerChart", "feeChart", "systemChart", "diskChart", "timelineList"),
+            "system": ("cpu", "memory", "disk", "versionStatus", "uptime"),
+        }.items():
             for element_id in ids:
-                self.assertIn(f'id="{element_id}"', section)
+                self.assertIn(f'id="{element_id}"', panels[name])
+        self.assertNotIn('id="peerQualityRows"', panels["overview"])
+        self.assertNotIn('id="feeBucketRows"', panels["overview"])
         html_ids = re.findall(r'\bid="([^"]+)"', html)
         self.assertEqual(len(html_ids), len(set(html_ids)))
+        self.assertIn('panel.hidden=!selected', html)
+        self.assertIn('requestAnimationFrame(()=>{renderHistory();renderAnalytics()})', html)
         self.assertNotRegex(html, r"\b(rein|raus|Inbound|Outbound)\b")
         self.assertIn(" in · ", html)
         self.assertIn(" out", html)
         self.assertIn("Im externen Verzeichnis nicht erfasst", html)
-        for element_id in ("chainTipsStatus", "activeTipHeight", "otherTipCount", "disconnectedBlocks", "chainTipRows"):
-            self.assertIn(f'id="{element_id}"', html)
+        for element_id in ("chainTipsStatus", "activeTipHeight", "otherTipCount", "disconnectedBlocks"):
+            self.assertIn(f'id="{element_id}"', panels["network"])
 
 
 class ChainTipsTests(unittest.TestCase):
