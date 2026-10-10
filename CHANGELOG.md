@@ -2,6 +2,13 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.15.0 – 2026-10-10
+
+- BTCNodes-Status als externen Verzeichniseintrag kennzeichnen; `found=false` bedeutet unbekannt statt „Node offline“ und löst keinen Port-Alarm aus
+- Mempool-Gebührenverteilung nach sat/vB mit Transaktionszahl und virtuellen Bytes anzeigen
+- Gebührenbereiche aus dem bereits vorhandenen, periodisch zwischengespeicherten `getrawmempool true`-Abruf berechnen; keine zusätzliche RPC-Abfrage und keine Speicherung einzelner Transaktions-IDs
+- fehlende Gebührenangaben separat zählen und die Grenzen der Einzeltransaktions-Gebührenrate gegenüber CPFP-Paketpreisen erläutern
+
 ## 1.14.0 – 2026-10-01
 
 - öffentliche Ereignis-Zeitleiste für Blöcke, Alarmwechsel, Node-/Dashboard-Neustarts, größere Peer-Abfälle und Dashboard-Versionswechsel

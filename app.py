@@ -10,6 +10,7 @@ import base64
 import hashlib
 import hmac
 import ipaddress
+import math
 import platform
 import secrets
 import shlex
@@ -33,7 +34,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.14.0"
+__version__ = "1.15.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -503,6 +504,11 @@ def block_interval_seconds(height: int, block_stats: Any) -> int | None:
 
 def summarize_mempool(entries: Any) -> dict[str, Any]:
     """Summarize verbose getrawmempool data without retaining transaction IDs."""
+    fee_ranges = ((0, 1), (1, 2), (2, 5), (5, 10), (10, 20), (20, 50), (50, None))
+    fee_buckets = [
+        {"min_sat_vb": low, "max_sat_vb": high, "transactions": 0, "vbytes": 0}
+        for low, high in fee_ranges
+    ]
     if not isinstance(entries, dict):
         return {
             "available": False,
@@ -513,15 +519,32 @@ def summarize_mempool(entries: Any) -> dict[str, Any]:
             "rbf_transactions": 0,
             "rbf_replaceable_transactions": 0,
             "standalone_transactions": 0,
+            "fee_buckets": fee_buckets,
+            "unclassified_transactions": 0,
+            "classified_vbytes": 0,
         }
     transaction_ids = set(entries)
     graph: dict[str, set[str]] = {txid: set() for txid in transaction_ids}
     rbf = 0
     cpfp = 0
+    unclassified = 0
+    classified_vbytes = 0
     package_transactions: set[str] = set()
     for txid, entry in entries.items():
         if not isinstance(entry, dict):
+            unclassified += 1
             continue
+        rate = mempool_entry_fee_rate(entry)
+        vsize = _number(entry.get("vsize"))
+        if rate is None or not math.isfinite(rate) or rate < 0 or vsize is None or not math.isfinite(vsize) or vsize <= 0:
+            unclassified += 1
+        else:
+            for bucket in fee_buckets:
+                if rate >= bucket["min_sat_vb"] and (bucket["max_sat_vb"] is None or rate < bucket["max_sat_vb"]):
+                    bucket["transactions"] += 1
+                    bucket["vbytes"] += int(vsize)
+                    classified_vbytes += int(vsize)
+                    break
         if entry.get("bip125-replaceable") is True:
             rbf += 1
         dependencies = entry.get("depends") or []
@@ -567,6 +590,9 @@ def summarize_mempool(entries: Any) -> dict[str, Any]:
         "rbf_transactions": rbf,
         "rbf_replaceable_transactions": rbf,
         "standalone_transactions": total - len(package_transactions),
+        "fee_buckets": fee_buckets,
+        "unclassified_transactions": unclassified,
+        "classified_vbytes": classified_vbytes,
     }
 
 
@@ -612,6 +638,7 @@ def fetch_external_node_status() -> dict[str, Any]:
         result: dict[str, Any] = {
             "available": False,
             "reachable": None,
+            "found": None,
             "address": PUBLIC_NODE_ADDRESS,
             "port": PUBLIC_NODE_PORT,
             "page_url": page_url,
@@ -626,11 +653,19 @@ def fetch_external_node_status() -> dict[str, Any]:
             )
             with urllib.request.urlopen(request, timeout=5) as response:
                 payload = json.load(response)
-            details = payload.get("data") or []
+            if not isinstance(payload, dict):
+                raise ValueError("Invalid external node response")
+            details = payload.get("data")
+            if not isinstance(details, list):
+                details = []
+            found = payload.get("found") if isinstance(payload.get("found"), bool) else None
+            status = payload.get("status")
+            reachable = status == "UP" if found is True and status in ("UP", "DOWN") else None
             result.update(
                 available=True,
-                reachable=payload.get("status") == "UP",
-                status=payload.get("status"),
+                reachable=reachable,
+                found=found,
+                status=status,
                 user_agent=details[1] if len(details) > 1 else None,
                 last_seen=details[2] if len(details) > 2 else None,
                 height=details[4] if len(details) > 4 else None,
@@ -1746,8 +1781,8 @@ def evaluate_alerts(data: dict[str, Any]) -> None:
 
     set_alert_condition(
         "external_unreachable",
-        external.get("available") is True and external.get("reachable") is False,
-        f"Öffentlicher P2P-Port {PUBLIC_NODE_ADDRESS}:{PUBLIC_NODE_PORT} ist extern nicht erreichbar",
+        external.get("found") is True and external.get("reachable") is False,
+        f"Externer Crawler meldet {PUBLIC_NODE_ADDRESS}:{PUBLIC_NODE_PORT} als nicht erreichbar",
         ALERT_NO_INBOUND_SECONDS,
     )
     set_alert_condition(

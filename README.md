@@ -3,8 +3,8 @@
 Ein leichtgewichtiges, nur lesendes Web-Dashboard für Bitcoin Core. Es zeigt
 Synchronisation, Peers, Mempool, Gebührenschätzungen, Netzwerkverkehr und den
 letzten Block. Hinzu kommen Host-Metriken, Alarmierung und die Prüfung auf neue
-Bitcoin-Core-Versionen. Über BTCNodes wird außerdem geprüft, ob der öffentliche
-P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
+Bitcoin-Core-Versionen. BTCNodes liefert einen getrennt gekennzeichneten
+externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab)
 ![Bitcoin Core](https://img.shields.io/badge/Bitcoin%20Core-31.x-f7931a)
@@ -16,12 +16,12 @@ P2P-Port aus Sicht eines unabhängigen Crawlers erreichbar ist.
 - keine universelle RPC-Weiterleitung an den Browser
 - lokaler Listener auf `127.0.0.1:8787`
 - Bitcoin-RPC und Authentifizierungs-Cookie bleiben serverseitig
-- externer Erreichbarkeitsstatus mit fünf Minuten Cache
+- externer BTCNodes-Verzeichnisstatus mit fünf Minuten Cache; nicht gelistete Nodes gelten nicht als offline
 - SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
 - Ereignis-Zeitleiste und Hinweise auf bekannte Erfassungslücken; begrenzter RPC-Nachtrag fehlender Blockstatistiken
 - optionale lokale ZMQ-Ereignisse für Blöcke und Mempool, Minutenzähler und Browser-Liveaktualisierung per SSE mit Abfrage-Fallback
 - tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
-- periodische Mempool-Paketanalyse für Cluster, RBF und CPFP
+- periodische Mempool-Paketanalyse für Cluster, RBF und CPFP sowie Gebührenbereiche nach Transaktionen und virtuellen Bytes
 - getrennte Live-Anzeige für IPv4-, IPv6- und Tor-Peers mit in/out-Verbindungen und den vom Node gemeldeten Adressen; ersatzweise die konfigurierte öffentliche P2P-IP
 - Peer-Qualität nach Netz: mediane Verbindungsdauer und Pingzeit, häufigste P2P-Protokollversion, Transport-v2-Anteil und beobachtete beendete Verbindungen der letzten Stunde; keine fremden Peer-Adressen im Browser
 - globale Server-IPv6 wird separat angezeigt, auch wenn Bitcoin Core sie noch nicht als P2P-Adresse meldet
@@ -84,7 +84,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.14.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.15.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard

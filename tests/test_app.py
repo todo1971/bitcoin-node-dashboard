@@ -67,7 +67,7 @@ class DashboardLayoutTests(unittest.TestCase):
             ("blocks", "version", "versionStatus", "uptime", "nodeIdentity", "nodeIdentityHint"),
             ("peers", "ipv4Peers", "ipv4Address", "ipv6Peers", "ipv6Address", "onionPeers", "peerQualityRows", "recv", "externalStatus"),
             ("cpu", "memory", "disk"),
-            ("mempoolTx", "fee2", "peerChart", "utxoCount", "hash"),
+            ("mempoolTx", "fee2", "peerChart", "utxoCount", "feeBucketRows", "hash"),
         )):
             for element_id in ids:
                 self.assertIn(f'id="{element_id}"', section)
@@ -76,6 +76,7 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertNotRegex(html, r"\b(rein|raus|Inbound|Outbound)\b")
         self.assertIn(" in · ", html)
         self.assertIn(" out", html)
+        self.assertIn("Im externen Verzeichnis nicht erfasst", html)
 
 
 class ServiceConfigurationTests(unittest.TestCase):
@@ -370,6 +371,26 @@ class MempoolAnalysisTests(unittest.TestCase):
         self.assertEqual(result["rbf_transactions"], 1)
         self.assertEqual(result["rbf_replaceable_transactions"], 1)
         self.assertEqual(result["standalone_transactions"], 1)
+        self.assertEqual(sum(bucket["transactions"] for bucket in result["fee_buckets"]), 3)
+        self.assertEqual(result["classified_vbytes"], 300)
+
+    def test_fee_buckets_are_non_overlapping_and_count_unknown_entries(self):
+        rates = [0.5, 1, 2, 5, 10, 20, 50]
+        entries = {
+            str(index): {"vsize": 100 + index, "fees": {"base": rate * (100 + index) / 100_000_000}}
+            for index, rate in enumerate(rates)
+        }
+        entries["unknown"] = {"vsize": 100, "fees": {}}
+        result = app.summarize_mempool(entries)
+        self.assertEqual([bucket["transactions"] for bucket in result["fee_buckets"]], [1] * 7)
+        self.assertEqual([bucket["vbytes"] for bucket in result["fee_buckets"]], list(range(100, 107)))
+        self.assertEqual(result["classified_vbytes"], sum(range(100, 107)))
+        self.assertEqual(result["unclassified_transactions"], 1)
+
+    def test_fee_buckets_unavailable_when_rpc_fails(self):
+        result = app.summarize_mempool(None)
+        self.assertFalse(result["available"])
+        self.assertEqual(len(result["fee_buckets"]), 7)
 
 
 class JsonRpcTests(unittest.TestCase):
@@ -409,6 +430,27 @@ class ExternalStatusTests(unittest.TestCase):
         self.assertFalse(result["available"])
         self.assertIsNone(result["reachable"])
         self.assertEqual(result["address"], app.PUBLIC_NODE_ADDRESS)
+
+    def test_node_missing_from_crawler_is_unknown_not_down(self):
+        payload = {"found": False, "status": "DOWN", "data": None}
+        with patch("urllib.request.urlopen", return_value=io.BytesIO(json.dumps(payload).encode())):
+            result = app.fetch_external_node_status()
+        self.assertTrue(result["available"])
+        self.assertFalse(result["found"])
+        self.assertIsNone(result["reachable"])
+        with patch.object(app, "set_alert_condition") as alert:
+            app.evaluate_alerts({"external_node": result})
+        external_call = next(call for call in alert.call_args_list if call.args[0] == "external_unreachable")
+        self.assertFalse(external_call.args[1])
+
+    def test_listed_node_can_be_up_or_down(self):
+        for status, expected in (("UP", True), ("DOWN", False), ("UNKNOWN", None)):
+            with self.subTest(status=status):
+                app._external_cache.update(expires=0.0, data=None)
+                payload = {"found": True, "status": status, "data": []}
+                with patch("urllib.request.urlopen", return_value=io.BytesIO(json.dumps(payload).encode())):
+                    result = app.fetch_external_node_status()
+                self.assertIs(result["reachable"], expected)
 
 
 class VersionTests(unittest.TestCase):

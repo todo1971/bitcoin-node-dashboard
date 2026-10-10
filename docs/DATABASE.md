@@ -50,10 +50,16 @@ Die Tabelle `utxo_samples` speichert höchstens einmal täglich die mit
 und Gesamtmenge. Der Modus `none` vermeidet die teure Berechnung eines
 UTXO-Set-Hashes. Das Intervall lässt sich mit `UTXO_SAMPLE_SECONDS` ändern.
 
-Die Mempool-Paketanalyse wird nicht dauerhaft gespeichert. Sie fasst die
+Die Mempool-Analyse wird nicht dauerhaft gespeichert. Sie fasst die
 aktuellen Eltern-/Kind-Beziehungen als Cluster zusammen, kennzeichnet
-RBF-fähige Transaktionen und CPFP-Kandidaten mit höherer Kind-Gebührenrate. Sie wird
-standardmäßig höchstens alle fünf Minuten erneuert (`MEMPOOL_ANALYSIS_SECONDS`).
+RBF-fähige Transaktionen und CPFP-Kandidaten mit höherer Kind-Gebührenrate.
+Aus demselben `getrawmempool true`-Abruf entsteht die Gebührenverteilung: die
+Einzeltransaktions-Gebührenrate `fees.base / vsize` wird in feste sat/vB-Bereiche
+eingeordnet; gezeigt werden Anzahl und Summe virtueller Bytes pro Bereich.
+Fehlende oder ungültige Angaben werden gesondert gezählt. Die Einordnung ist
+eine lokale Momentaufnahme und bildet effektive CPFP-Paketpreise nicht ab.
+Sie wird standardmäßig höchstens alle fünf Minuten erneuert
+(`MEMPOOL_ANALYSIS_SECONDS`); Transaktions-IDs werden nicht gespeichert.
 
 Die API liefert keine halbe Million Rohdatensätze an den Browser. Sie verdichtet
 die Daten abhängig vom ausgewählten Zeitraum in feste Zeitfenster:
