@@ -22,6 +22,7 @@ Das Dashboard kann Block- und Mempool-Ereignisse aus `zmqpubsequence` empfangen.
 ## Bedeutung und Grenzen
 
 - `block_connected` und `block_disconnected` zählen verbundene beziehungsweise getrennte Blöcke (Reorg möglich).
+- Die Chain-Tip-Ansicht ruft `getchaintips` höchstens einmal pro Minute ab. Alternative Tips können alte Zweige sein; sie sind kein Zähler neuer Reorganisationen. Der separate Zähler getrennter Blöcke beruht nur auf seit dem Dashboard-Betrieb beobachteten ZMQ-Ereignissen im gewählten Zeitraum. Bei Unterbrechungen ist er unvollständig.
 - `mempool_added` und `mempool_removed` zählen Ereignisse, nicht den aktuellen Mempool-Bestand. Entfernung wegen Blockaufnahme ist kein `R`-Ereignis.
 - Die Dashboard-Kacheln zeigen die aktuelle Minute, gespeichert in SQLite. Es werden keine Transaktions- oder Block-Hashes aus dem ZMQ-Stream gespeichert.
 - Die 4-Byte-Transportsequenz erkennt Lücken **während einer laufenden Subscriber-Verbindung**. Neustarts, Verbindungsabbrüche und die anfängliche Subscribe-Phase können Ereignisse verlieren, ohne dass eine Lücke sicher nachweisbar ist. Die Ereignis-Zeitleiste markiert erkannte Sequenzlücken, Verbindungsstörungen und Dashboard-Starts; vergangene Mempool-Ereigniszähler werden **nicht** rückwirkend rekonstruiert. Ausgelassene Blockstatistiken werden separat und begrenzt über RPC nachgetragen.

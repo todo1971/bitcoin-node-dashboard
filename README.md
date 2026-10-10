@@ -19,6 +19,7 @@ externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 - externer BTCNodes-Verzeichnisstatus mit fünf Minuten Cache; nicht gelistete Nodes gelten nicht als offline
 - SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
 - Ereignis-Zeitleiste und Hinweise auf bekannte Erfassungslücken; begrenzter RPC-Nachtrag fehlender Blockstatistiken
+- Chain-Tips aus `getchaintips` als Momentaufnahme und separat gezählte, lokal beobachtete Block-Trennungen im gewählten Zeitraum
 - optionale lokale ZMQ-Ereignisse für Blöcke und Mempool, Minutenzähler und Browser-Liveaktualisierung per SSE mit Abfrage-Fallback
 - tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
 - periodische Mempool-Paketanalyse für Cluster, RBF und CPFP sowie Gebührenbereiche nach Transaktionen und virtuellen Bytes
@@ -84,7 +85,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.15.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.16.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard

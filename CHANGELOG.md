@@ -2,6 +2,13 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.16.0 – 2026-10-10
+
+- aktive Chain-Spitze und bis zu zwölf weitere Chain-Tips mit Status, Höhe, Zweiglänge und Block-Hash aus `getchaintips` anzeigen
+- alle alternativen Tips nach Status zählen; RPC-Antwort 60 Sekunden zwischenspeichern
+- per ZMQ beobachtete Block-Trennungen im gewählten Zeitraum separat zählen und letzten Zeitpunkt anzeigen
+- Momentaufnahme und beobachtete Ereignisse ausdrücklich unterscheiden; fehlende Ereignisse bei Ausfällen nicht als Null-Reorg-Beweis darstellen
+
 ## 1.15.0 – 2026-10-10
 
 - BTCNodes-Status als externen Verzeichniseintrag kennzeichnen; `found=false` bedeutet unbekannt statt „Node offline“ und löst keinen Port-Alarm aus

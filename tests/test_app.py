@@ -77,6 +77,46 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertIn(" in · ", html)
         self.assertIn(" out", html)
         self.assertIn("Im externen Verzeichnis nicht erfasst", html)
+        for element_id in ("chainTipsStatus", "activeTipHeight", "otherTipCount", "disconnectedBlocks", "chainTipRows"):
+            self.assertIn(f'id="{element_id}"', html)
+
+
+class ChainTipsTests(unittest.TestCase):
+    def setUp(self):
+        self.cache = dict(app._chain_tips_cache)
+
+    def tearDown(self):
+        app._chain_tips_cache.clear()
+        app._chain_tips_cache.update(self.cache)
+
+    def test_snapshot_counts_all_tips_but_limits_display(self):
+        block_hash = "a" * 64
+        raw = [{"height": 100, "branchlen": 0, "status": "active", "hash": block_hash}]
+        raw += [{"height": height, "branchlen": 1, "status": "valid-fork", "hash": f"{height:064x}"} for height in range(80, 100)]
+        raw += [{"height": 99, "branchlen": 1, "status": "valid-headers", "hash": "b" * 64}]
+        raw += [{"height": 101, "branchlen": -1, "status": "invalid", "hash": "bad"}]
+        result = app.summarize_chain_tips(raw, 123)
+        self.assertEqual(result["active"]["height"], 100)
+        self.assertEqual(result["other_count"], 21)
+        self.assertEqual(result["status_counts"], {"valid-fork": 20, "valid-headers": 1})
+        self.assertEqual(len(result["other_tips"]), 12)
+        self.assertEqual(result["other_tips"][0]["height"], 99)
+        self.assertFalse(app.summarize_chain_tips(None, 123)["available"])
+        self.assertFalse(app.summarize_chain_tips(raw[1:], 123)["available"])
+
+    def test_disconnect_count_uses_selected_range_and_rpc_cache(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(app, "DATABASE_PATH", str(Path(directory) / "history.sqlite3")):
+            app.init_database()
+            app.record_event("block_disconnected", "Block getrennt", 9_000)
+            app.record_event("block_disconnected", "Block getrennt", 19_000)
+            raw = [{"height": 20, "branchlen": 0, "status": "active", "hash": "a" * 64}]
+            with patch.object(app, "safe_call", return_value=raw) as rpc, patch.object(app.time, "time", return_value=20_000):
+                hour = app.chain_tips_data("1h")
+                day = app.chain_tips_data("24h")
+            self.assertEqual(hour["disconnected_blocks"], 1)
+            self.assertEqual(day["disconnected_blocks"], 2)
+            self.assertEqual(day["last_disconnected_at"], 19_000)
+            rpc.assert_called_once_with("getchaintips")
 
 
 class ServiceConfigurationTests(unittest.TestCase):

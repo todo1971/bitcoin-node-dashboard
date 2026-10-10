@@ -34,7 +34,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.15.0"
+__version__ = "1.16.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -199,6 +199,8 @@ _external_cache_lock = threading.Lock()
 _external_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _version_cache_lock = threading.Lock()
 _version_cache: dict[str, Any] = {"expires": 0.0, "data": None}
+_chain_tips_cache_lock = threading.Lock()
+_chain_tips_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _dashboard_version_cache_lock = threading.Lock()
 _dashboard_version_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _cpu_lock = threading.Lock()
@@ -1307,6 +1309,59 @@ def timeline_data(range_name: str) -> dict[str, Any]:
     }
 
 
+def summarize_chain_tips(raw: Any, observed_at: int) -> dict[str, Any]:
+    """Keep the complete counts, but bound the public list of fork candidates."""
+    if not isinstance(raw, list):
+        return {"available": False, "observed_at": observed_at, "active": None,
+                "other_count": 0, "status_counts": {}, "other_tips": []}
+    tips = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        height, branchlen, status, block_hash = (
+            item.get("height"), item.get("branchlen"), item.get("status"), item.get("hash")
+        )
+        if (not isinstance(height, int) or isinstance(height, bool) or height < 0
+                or not isinstance(branchlen, int) or isinstance(branchlen, bool) or branchlen < 0
+                or not isinstance(status, str) or not re.fullmatch(r"[a-z-]{1,32}", status)
+                or not isinstance(block_hash, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", block_hash)):
+            continue
+        tips.append({"height": height, "branchlen": branchlen,
+                     "status": status, "hash": block_hash.lower()})
+    active = next((tip for tip in tips if tip["status"] == "active"), None)
+    if active is None:
+        return {"available": False, "observed_at": observed_at, "active": None,
+                "other_count": 0, "status_counts": {}, "other_tips": []}
+    others = [tip for tip in tips if tip["status"] != "active"]
+    others.sort(key=lambda tip: tip["height"], reverse=True)
+    return {"available": True, "observed_at": observed_at, "active": active,
+            "other_count": len(others), "status_counts": dict(Counter(tip["status"] for tip in others)),
+            "other_tips": others[:12]}
+
+
+def chain_tips_data(range_name: str) -> dict[str, Any]:
+    now = int(time.time())
+    with _chain_tips_cache_lock:
+        if _chain_tips_cache["data"] is None or time.monotonic() >= _chain_tips_cache["expires"]:
+            _chain_tips_cache.update(
+                data=summarize_chain_tips(safe_call("getchaintips"), now),
+                expires=time.monotonic() + 60,
+            )
+        tips = dict(_chain_tips_cache["data"])
+    duration, _ = HISTORY_RANGES.get(range_name, HISTORY_RANGES["24h"])
+    init_database()
+    with closing(database_connection()) as connection:
+        row = connection.execute(
+            """SELECT COUNT(*) AS count, MAX(occurred_at) AS latest
+               FROM dashboard_events WHERE kind = 'block_disconnected' AND occurred_at >= ?""",
+            (now - duration,),
+        ).fetchone()
+    tips["range"] = range_name if range_name in HISTORY_RANGES else "24h"
+    tips["disconnected_blocks"] = row["count"]
+    tips["last_disconnected_at"] = row["latest"]
+    return tips
+
+
 def _number(value: Any) -> int | float | None:
     return value if isinstance(value, (int, float)) else None
 
@@ -2411,6 +2466,15 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 print(f"Timeline request failed: {exc}", flush=True)
                 self.send_bytes(b'{"error":"Timeline unavailable"}', "application/json; charset=utf-8", 503)
+            return
+        if path == "/api/chain-tips":
+            range_name = parse_qs(parsed.query).get("range", ["24h"])[0]
+            try:
+                body = json.dumps(chain_tips_data(range_name), separators=(",", ":")).encode()
+                self.send_bytes(body, "application/json; charset=utf-8")
+            except Exception as exc:
+                print(f"Chain tips request failed: {exc}", flush=True)
+                self.send_bytes(b'{"error":"Chain tips unavailable"}', "application/json; charset=utf-8", 503)
             return
         if path == "/api/analytics":
             range_name = parse_qs(parsed.query).get("range", ["24h"])[0]

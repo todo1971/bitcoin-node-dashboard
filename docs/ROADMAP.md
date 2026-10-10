@@ -70,7 +70,7 @@
 - Service-Flags und weitere Peer-Eigenschaften aggregieren
 - beendete Peer-Verbindungen über Dashboard-Neustarts hinweg historisieren
 - Peer-Adressen in öffentlichen Ansichten maskieren
-- Chain-Tips und Reorganisationen mit `getchaintips` überwachen
+- Umgesetzt in 1.16: Chain-Tips per `getchaintips` und beobachtete Block-Trennungen per ZMQ getrennt darstellen
 - externe Erreichbarkeit über mehrere unabhängige Beobachter vergleichen
 
 ## Echtzeit
