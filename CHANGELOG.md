@@ -4,6 +4,13 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.18.3 – 2026-10-31
+
+- Dashboard- und All-in-one-Container bei jedem stabilen Release automatisch als GitHub Packages (GHCR) veröffentlichen.
+- Manuelles Nachbauen veröffentlichter Release-Tags ermöglichen; Quellversion und Tests vor dem Upload prüfen.
+- Feste Versionstags, Linux/AMD64, Repository-Verknüpfung und Prüfung der veröffentlichten Manifest-Digests ergänzen.
+- Package-Nutzung, Sichtbarkeit und Abgrenzung zu den weiter vorhandenen Release-Archiven zweisprachig dokumentieren.
+
 ## 1.18.2 – 2026-10-31
 
 - Tokenlose Versionsprüfung und Paketdownloads für öffentliche GitHub-Releases zusätzlich testen und in beiden Sprachen dokumentieren.

@@ -1,0 +1,89 @@
+name: Publish GitHub Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable release tag to build (for example v1.18.2)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: packages-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: bitcoin-node-dashboard
+            dockerfile: Dockerfile
+          - image: bitcoin-node-dashboard-all-in-one
+            dockerfile: Dockerfile.all-in-one
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Validate published stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '[.draft, .prerelease] | any')" = false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - name: Validate source and prepare image name
+        id: meta
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+        shell: bash
+        run: |
+          version=${RELEASE_TAG#v}
+          actual=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' app.py)
+          test "$version" = "$actual"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME"
+          printf 'version=%s\nimage=%s\nrevision=%s\n' "$version" "$image" "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          python3 -m py_compile app.py installer/web_installer.py
+          python3 -m unittest discover -s tests -q
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and publish versioned image
+        id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+          build-args: APP_VERSION=${{ steps.meta.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.revision }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+          provenance: mode=min
+      - name: Verify published manifest
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        shell: bash
+        run: |
+          docker buildx imagetools inspect "$IMAGE@$DIGEST"
+          printf '### %s\n\n`docker pull %s:%s`\n\nDigest: `%s`\n' "$RELEASE_TAG" "$IMAGE" "$VERSION" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"

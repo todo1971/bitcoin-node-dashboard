@@ -4,6 +4,13 @@
 
 All significant project changes are recorded here.
 
+## 1.18.3 – 2026-10-31
+
+- Automatically publish dashboard and all-in-one images to GitHub Packages (GHCR) for every stable release.
+- Allow manual backfills for published release tags; validate source version and tests before uploading.
+- Use fixed version tags, Linux/AMD64, repository association and published manifest digest verification.
+- Document package usage, visibility and the separate release archives in both languages.
+
 ## 1.18.2 – 2026-10-31
 
 - Add tests and bilingual documentation for anonymous version discovery and package downloads from public GitHub releases.

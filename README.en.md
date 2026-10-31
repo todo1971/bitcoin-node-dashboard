@@ -83,7 +83,7 @@ archive, rather than the checkout writable by `btc`:
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.18.2.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.18.3.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
@@ -142,6 +142,7 @@ There is no endpoint that accepts arbitrary Bitcoin Core RPC methods or argument
 - [Security](docs/en/SECURITY.md)
 - [Languages](docs/en/TRANSLATIONS.md)
 - [Test coverage and public updates](docs/en/TESTING.md)
+- [GitHub Packages / container images](docs/en/PACKAGES.md)
 - [Roadmap](docs/en/ROADMAP.md)
 - [Full changelog](CHANGELOG.en.md)
 
