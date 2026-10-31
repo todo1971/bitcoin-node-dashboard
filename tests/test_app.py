@@ -510,6 +510,11 @@ class VersionTests(unittest.TestCase):
         self.assertEqual(app.version_tuple("unknown"), ())
 
     def test_github_release_reports_dashboard_update(self):
+        for token in ('secret-token', ''):
+            with self.subTest(authenticated=bool(token)):
+                self.check_github_release(token)
+
+    def check_github_release(self, token):
         payload = json.dumps(
             {
                 "tag_name": "v9.8.7",
@@ -526,7 +531,7 @@ class VersionTests(unittest.TestCase):
 
         app._dashboard_version_cache.update(expires=0.0, data=None)
         with patch.object(app, "DASHBOARD_GITHUB_REPOSITORY", "example/project"):
-            with patch.object(app, "DASHBOARD_GITHUB_TOKEN", "secret-token"):
+            with patch.object(app, "DASHBOARD_GITHUB_TOKEN", token):
                 with patch("urllib.request.urlopen", return_value=Response(payload)) as open_url:
                     result = app.fetch_latest_dashboard_version()
 
@@ -534,7 +539,7 @@ class VersionTests(unittest.TestCase):
         self.assertTrue(result["update_available"])
         self.assertEqual(result["latest"], "9.8.7")
         request = open_url.call_args.args[0]
-        self.assertEqual(request.get_header("Authorization"), "Bearer secret-token")
+        self.assertEqual(request.get_header("Authorization"), f"Bearer {token}" if token else None)
 
     def test_invalid_github_repository_is_not_requested(self):
         app._dashboard_version_cache.update(expires=0.0, data=None)

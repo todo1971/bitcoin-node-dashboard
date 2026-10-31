@@ -14,7 +14,7 @@ verified release archive in the current directory:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.18.2.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -25,8 +25,8 @@ normal dashboard port. No second web process or port is used.
 
 ## Update the dashboard
 
-The dashboard queries the GitHub Releases API. Since the repository is private,
-it needs a fine-grained Personal Access Token with read-only `Contents`
+The dashboard queries the GitHub Releases API. Private repositories require
+a fine-grained Personal Access Token with read-only `Contents`
 permission on this repository only. Since 1.13, enter it at
 `/admin` → Dashboard configuration, or edit `.env` locally:
 
@@ -85,6 +85,54 @@ read these fixed log outputs.
 Since 1.11.8, a status above the output shows the latest run: green for successful
 systemd completion, red for failure, and “Running” while active.
 Without a definite result, it remains neutral.
+
+## Public repository without a token
+
+Public repositories do not require a GitHub token. Both version discovery and
+the root downloader already support this mode. It does not work while the
+repository is still private.
+
+After publication, edit the dashboard .env locally as root:
+
+```bash
+sudoedit /var/lib/bitcoin-dashboard/.env
+```
+
+```text
+DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard
+DASHBOARD_GITHUB_TOKEN=
+```
+
+Explicitly empty an existing token or remove its line. An empty token field at
+`/admin` instead means “keep the previous value”. Keep `ADMIN_TOKEN` configured:
+admin authentication is independent of GitHub.
+
+```bash
+sudo systemctl restart bitcoin-dashboard
+```
+
+Then use version discovery and “Update dashboard” at `/admin`. The downloader
+still fetches the two named release assets and verifies SHA-256; tests, backups
+and rollback remain enabled. GitHub's automatically generated source archives
+do not replace these release assets.
+
+GitHub currently allows 60 anonymous REST requests per hour per public IP.
+Version discovery is cached for six hours by default. Other traffic sharing
+the IP may exhaust this budget; retry later or optionally use a read-only token.
+See [GitHub documentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+
+Read-only live check from a complete checkout using a public repository:
+
+```bash
+python3 tools/check_public_release.py --repo cli/cli
+```
+
+This uses the existing downloader without a token, reads metadata and a small
+checksum file, and installs nothing. After publication, test
+`--repo todo1971/bitcoin-node-dashboard`. The test suite additionally covers the
+complete package-specific download with and without a token using controlled
+responses. A live end-to-end check of this repository's public access is possible
+only after its visibility changes.
 
 ## Update Bitcoin Core
 

@@ -14,7 +14,7 @@ geprüften Release-Paket eingerichtet. Das Archiv liegt dafür im aktuellen Verz
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.18.2.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -26,7 +26,7 @@ Webprozess oder Port wird nicht mehr verwendet.
 
 ## Dashboard aktualisieren
 
-Das Dashboard fragt die GitHub Releases API ab. Weil das Repository privat ist,
+Das Dashboard fragt die GitHub Releases API ab. Für private Repositorys
 wird ein Fine-grained Personal Access Token mit ausschließlich lesendem
 `Contents`-Zugriff auf dieses eine Repository benötigt. Ab Version 1.13 wird
 es unter `/admin` → Dashboard-Konfiguration eingetragen. Lokal geht es auch
@@ -89,6 +89,55 @@ Ab 1.11.8 steht über der Ausgabe ein Status für den letzten Lauf: grün bei
 erfolgreichem systemd-Abschluss, rot bei fehlgeschlagenem Abschluss und
 „Läuft …“ während des Auftrags. Ohne eindeutiges Ergebnis bleibt die Anzeige
 neutral.
+
+## Öffentliches Repository ohne Token
+
+Für öffentliche Repositorys ist kein GitHub-Token erforderlich. Versionsprüfung
+und Root-Downloader unterstützen diesen Modus bereits. Solange das Repository
+privat ist, funktioniert dieser Weg noch nicht.
+
+Nach der Veröffentlichung lokal als Root die Dashboard-`.env` bearbeiten:
+
+```bash
+sudoedit /var/lib/bitcoin-dashboard/.env
+```
+
+```text
+DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard
+DASHBOARD_GITHUB_TOKEN=
+```
+
+Ein vorhandener Token muss ausdrücklich geleert oder seine Zeile entfernt werden.
+Ein leeres Token-Feld unter `/admin` bedeutet dagegen „bisherigen Wert behalten“.
+`ADMIN_TOKEN` bleibt gesetzt: Die Admin-Anmeldung ist von GitHub unabhängig.
+
+```bash
+sudo systemctl restart bitcoin-dashboard
+```
+
+Danach unter `/admin` die Versionsprüfung und „Dashboard aktualisieren“ verwenden.
+Der Downloader lädt weiterhin die beiden benannten Release-Assets und prüft
+SHA-256; Tests, Backup und Rollback bleiben aktiv. Automatische Quellcodearchive
+von GitHub ersetzen diese Release-Assets nicht.
+
+GitHub erlaubt anonym derzeit 60 REST-Anfragen je Stunde und öffentlicher IP.
+Die Versionsprüfung wird standardmäßig sechs Stunden gecacht. Bei gemeinsam
+genutzter IP kann auch anderer Traffic das Limit ausschöpfen; dann später erneut
+versuchen oder optional ein nur lesendes Token verwenden.
+Siehe [GitHub-Dokumentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+
+Read-only-Livetest aus einem vollständigen Checkout mit einem öffentlichen Repository:
+
+```bash
+python3 tools/check_public_release.py --repo cli/cli
+```
+
+Dieser Test benutzt den vorhandenen Downloader ohne Token, liest Metadaten und
+eine kleine Prüfsummendatei und installiert nichts. Nach Veröffentlichung kann
+`--repo todo1971/bitcoin-node-dashboard` geprüft werden. Die Testsuite prüft
+zusätzlich den vollständigen paketbezogenen Download mit und ohne Token anhand
+kontrollierter Antworten. Der echte End-to-End-Test des eigenen öffentlichen
+Repositories ist erst nach der Sichtbarkeitsänderung möglich.
 
 ## Bitcoin Core aktualisieren
 

@@ -1,6 +1,7 @@
 import hashlib
 import importlib.machinery
 import importlib.util
+import io
 import json
 import tempfile
 import unittest
@@ -16,6 +17,18 @@ LOADER.exec_module(release_fetcher)
 
 
 class ReleaseFetcherTests(unittest.TestCase):
+    def test_anonymous_asset_request_has_no_authorization_header(self):
+        with patch.object(release_fetcher.urllib.request, 'urlopen', return_value=io.BytesIO(b'archive')) as request:
+            self.assertEqual(release_fetcher.request_bytes('https://api.github.com/repos/example/public/releases/assets/1', '', 'application/octet-stream', 100), b'archive')
+        headers = request.call_args.args[0].headers
+        self.assertNotIn('Authorization', headers)
+        self.assertEqual(headers['Accept'], 'application/octet-stream')
+
+    def test_private_asset_request_preserves_authorization(self):
+        with patch.object(release_fetcher.urllib.request, 'urlopen', return_value=io.BytesIO(b'archive')) as request:
+            release_fetcher.request_bytes('https://api.github.com/repos/example/private/releases/assets/1', 'test-token', 'application/octet-stream', 100)
+        self.assertEqual(request.call_args.args[0].get_header('Authorization'), 'Bearer test-token')
+
     def test_update_root_is_fixed_to_root_controlled_cache(self):
         self.assertTrue(
             release_fetcher.safe_update_root(
@@ -25,6 +38,11 @@ class ReleaseFetcherTests(unittest.TestCase):
         self.assertFalse(release_fetcher.safe_update_root(Path("/home/other/updates")))
 
     def test_downloads_only_versioned_assets_after_checksum_match(self):
+        for token in ('test-token', ''):
+            with self.subTest(authenticated=bool(token)):
+                self.check_versioned_download(token)
+
+    def check_versioned_download(self, token):
         archive = b"safe release archive"
         digest = hashlib.sha256(archive).hexdigest()
         metadata = json.dumps(
@@ -52,7 +70,7 @@ class ReleaseFetcherTests(unittest.TestCase):
             (target / "app.py").write_text('__version__ = "1.0.0"\n')
             env_file.write_text(
                 "DASHBOARD_GITHUB_REPOSITORY=example/project\n"
-                "DASHBOARD_GITHUB_TOKEN=test-token\n"
+                f"DASHBOARD_GITHUB_TOKEN={token}\n"
             )
             config_file.write_text(
                 f"UPDATE_ROOT={update_root}\nDASHBOARD_TARGET={target}\n"
@@ -67,8 +85,9 @@ class ReleaseFetcherTests(unittest.TestCase):
                                 release_fetcher,
                                 "request_bytes",
                                 side_effect=responses,
-                            ):
+                            ) as request_bytes:
                                 result = release_fetcher.main()
+                                self.assertEqual([call.args[1] for call in request_bytes.call_args_list], [token, token, token])
 
             self.assertEqual(result, 0)
             self.assertEqual(

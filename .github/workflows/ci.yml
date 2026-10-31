@@ -58,6 +58,18 @@ jobs:
           container_id=$(docker compose -f compose.all-in-one.yaml ps -q node)
           timeout 150 bash -c "until [ \"\$(docker inspect --format '{{.State.Health.Status}}' '$container_id')\" = healthy ]; do sleep 2; done"
           curl --fail --silent --show-error http://127.0.0.1:8787/healthz
+          curl --fail --silent --show-error http://127.0.0.1:8787/static/locales/en.json > /dev/null
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8787/admin)" = 401
+      - name: Smoke-test separate-container stack
+        env:
+          PUBLIC_NODE_ADDRESS: 127.0.0.1
+          ADMIN_TOKEN: 01234567890123456789012345678901
+        run: |
+          docker compose -f compose.all-in-one.yaml down
+          docker compose up -d --build --wait --wait-timeout 180
+          curl --fail --silent --show-error http://127.0.0.1:8787/healthz
+          curl --fail --silent --show-error http://127.0.0.1:8787/static/locales/en.json > /dev/null
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8787/admin)" = 401
       - name: Clean up all-in-one smoke test
         if: always()
         env:
@@ -66,3 +78,5 @@ jobs:
         run: |
           docker compose -f compose.all-in-one.yaml logs --tail 100 || true
           docker compose -f compose.all-in-one.yaml down -v
+          docker compose logs --tail 100 || true
+          docker compose down -v

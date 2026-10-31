@@ -4,6 +4,14 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.18.2 – 2026-10-31
+
+- Tokenlose Versionsprüfung und Paketdownloads für öffentliche GitHub-Releases zusätzlich testen und in beiden Sprachen dokumentieren.
+- Lesenden Livetest für öffentliche Release-Metadaten und kleine Prüfsummendateien ergänzen.
+- Veraltete Compose-Versionsangaben durch konsistente Image- und Build-Versionen ersetzen; lokale Vorschauen aus dem Docker-Buildkontext ausschließen.
+- CI um Laufzeittest des getrennten Container-Stacks sowie Sprachdatei- und Admin-Zugriffsprüfungen erweitern.
+- Grenzen des lokalen Tests ohne installierte Docker-Umgebung und Befunde der Veröffentlichungsprüfung festhalten.
+
 ## 1.18.1 – 2026-10-31
 
 - README, vollständigen historischen Changelog und alle 14 Dokumentationsseiten zusätzlich auf Englisch bereitstellen.

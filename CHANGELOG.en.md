@@ -4,6 +4,14 @@
 
 All significant project changes are recorded here.
 
+## 1.18.2 – 2026-10-31
+
+- Add tests and bilingual documentation for anonymous version discovery and package downloads from public GitHub releases.
+- Add a read-only live check for public release metadata and small checksum assets.
+- Replace outdated Compose versions with consistent image and build versions; exclude local previews from Docker build context.
+- Extend CI with separate-container runtime checks, language-asset checks and unauthenticated admin-access checks.
+- Record local testing limits without Docker installed and pre-publication findings.
+
 ## 1.18.1 – 2026-10-31
 
 - Add English editions of the README, the full historical changelog and all 14 documentation pages.

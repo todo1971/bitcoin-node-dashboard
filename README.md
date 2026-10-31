@@ -89,7 +89,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.18.2.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
@@ -151,6 +151,7 @@ an Bitcoin Core übergeben werden können.
 - [Roadmap](docs/ROADMAP.md)
 - [Änderungen](CHANGELOG.md)
 - [Sprachen und Übersetzungen](docs/TRANSLATIONS.md)
+- [Testumfang und öffentliche Updates](docs/TESTING.md)
 
 ## Entwicklung und Tests
 
