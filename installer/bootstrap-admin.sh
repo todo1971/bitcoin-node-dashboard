@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 set -eu
 
 test "$(id -u)" -eq 0 || { echo "Run as root" >&2; exit 1; }

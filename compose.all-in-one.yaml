@@ -9,8 +9,8 @@ services:
         BITCOIN_CORE_VERSION: ${BITCOIN_CORE_VERSION:-31.1}
         NODE_UID: ${BITCOIN_UID:-1010}
         NODE_GID: ${BITCOIN_GID:-1010}
-        APP_VERSION: "${DASHBOARD_VERSION:-1.18.3}"
-    image: bitcoin-node-dashboard-all-in-one:${DASHBOARD_VERSION:-1.18.3}
+        APP_VERSION: "${DASHBOARD_VERSION:-1.18.4}"
+    image: bitcoin-node-dashboard-all-in-one:${DASHBOARD_VERSION:-1.18.4}
     restart: unless-stopped
     init: true
     stop_grace_period: 3m

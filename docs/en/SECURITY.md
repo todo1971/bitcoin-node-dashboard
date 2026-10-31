@@ -75,5 +75,5 @@ Replace expired or potentially exposed tokens and revoke the old token at GitHub
 
 ## Reporting security issues
 
-Because the repository is private, report security problems privately to the
-repository owner first rather than opening a public issue.
+The repository is public. Report security problems privately to the repository
+owner first; do not put credentials or exploitable details in public issues.

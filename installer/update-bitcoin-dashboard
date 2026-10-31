@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 set -eu
 test "$#" -eq 0 || { echo "Arguments are not allowed" >&2; exit 1; }
 
@@ -96,7 +98,7 @@ for directory in static docs tests; do
     install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET/$directory"
     cp -a "$source_dir/$directory/." "$TARGET/$directory/"
 done
-for file in README.md README.en.md CHANGELOG.md CHANGELOG.en.md bitcoin-dashboard.env.example plesk-apache.conf plesk-nginx.conf; do
+for file in LICENSE NOTICE README.md README.en.md CHANGELOG.md CHANGELOG.en.md bitcoin-dashboard.env.example plesk-apache.conf plesk-nginx.conf; do
     test ! -f "$source_dir/$file" || install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0640 "$source_dir/$file" "$TARGET/$file"
 done
 chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"

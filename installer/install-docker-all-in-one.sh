@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 set -eu
 
 usage() {
@@ -84,7 +86,7 @@ for destination in \
 done
 
 install -d -o root -g root -m 0755 "$install_dir" "$install_dir/static" "$install_dir/docker"
-for file in app.py Dockerfile.all-in-one compose.all-in-one.yaml docker.env.example; do
+for file in app.py LICENSE NOTICE Dockerfile.all-in-one compose.all-in-one.yaml docker.env.example; do
     install -o root -g root -m 0644 "$project_dir/$file" "$install_dir/$file"
 done
 cp -a "$project_dir/static/." "$install_dir/static/"

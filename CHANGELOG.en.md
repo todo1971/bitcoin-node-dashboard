@@ -4,6 +4,12 @@
 
 All significant project changes are recorded here.
 
+## 1.18.4 – 2026-10-31
+
+- Publish the project under GPL-3.0-only with the full license text, copyright and SPDX notices.
+- Link license and source in the dashboard; include LICENSE and NOTICE in release archives, updater installations and containers.
+- Add OCI license metadata and align documentation with public use without a GitHub token.
+
 ## 1.18.3 – 2026-10-31
 
 - Automatically publish dashboard and all-in-one images to GitHub Packages (GHCR) for every stable release.

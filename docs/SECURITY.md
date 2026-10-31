@@ -78,6 +78,6 @@ vermuteter Offenlegung wird es ersetzt und das alte Token bei GitHub widerrufen.
 
 ## Sicherheitsmeldungen
 
-Da das Repository privat ist, sollten Sicherheitsprobleme zunächst als private
-Nachricht an den Repository-Eigentümer gemeldet werden und nicht als öffentliches
-Issue erscheinen.
+Das Repository ist öffentlich. Sicherheitsprobleme zuerst vertraulich an den
+Repository-Eigentümer melden; keine Zugangsdaten oder ausnutzbaren Details in
+öffentliche Issues schreiben.

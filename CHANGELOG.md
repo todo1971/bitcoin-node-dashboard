@@ -4,6 +4,12 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.18.4 – 2026-10-31
+
+- Projekt unter GPL-3.0-only mit vollständigem Lizenztext, Copyright- und SPDX-Hinweisen veröffentlichen.
+- Lizenz und Quellcode im Dashboard verlinken; LICENSE und NOTICE in Release-Archive, Updater und Container übernehmen.
+- OCI-Lizenzkennungen ergänzen und Dokumentation auf öffentliche Nutzung ohne GitHub-Token ausrichten.
+
 ## 1.18.3 – 2026-10-31
 
 - Dashboard- und All-in-one-Container bei jedem stabilen Release automatisch als GitHub Packages (GHCR) veröffentlichen.

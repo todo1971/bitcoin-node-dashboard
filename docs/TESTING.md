@@ -31,8 +31,8 @@ Compose-Images und Build-Metadaten verwenden denselben Versionsstandard;
 Anleitung und Grenzen: [Öffentliches Repository ohne Token](UPDATES.md#öffentliches-repository-ohne-token).
 Ein Livetest mit dem öffentlichen offiziellen GitHub-CLI-Repository hat anonym
 Metadaten und eine Prüfsummendatei mit dem vorhandenen Downloader geladen.
-Solange dieses Dashboard-Repository privat ist, ist dessen eigener anonymer
-End-to-End-Test nicht möglich.
+Nach Veröffentlichung lässt sich derselbe lesende Test mit
+`--repo todo1971/bitcoin-node-dashboard` direkt am Dashboard-Repository ausführen.
 
 ## Prüfung vor der Veröffentlichung
 
@@ -43,5 +43,5 @@ Das ist eine begrenzte Prüfung und kein Beweis, dass alle denkbaren Geheimnisse
 ausgeschlossen sind.
 
 Die bekannte Server-IP steht weiterhin in Beispielen und Standardeinstellungen.
-Git-Autoreninformationen gehören zur Historie. Eine Lizenz ist im README noch
-nicht festgelegt. Die Sichtbarkeit des Repositorys wurde nicht geändert.
+Git-Autoreninformationen gehören zur Historie. Seit 1.18.4 ist die Lizenz
+GPL-3.0-only festgelegt und das Repository für die öffentliche Nutzung vorgesehen.

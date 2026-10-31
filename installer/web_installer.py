@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 """One-time, localhost-only web installer for systemd Linux servers."""
 
 from __future__ import annotations
@@ -72,8 +74,12 @@ def copy_project(target: Path, uid: int, gid: int) -> None:
     target.mkdir(parents=True, exist_ok=True, mode=0o750)
     for filename in (
         "app.py",
+        "LICENSE",
+        "NOTICE",
         "README.md",
+        "README.en.md",
         "CHANGELOG.md",
+        "CHANGELOG.en.md",
         "bitcoin-dashboard.env.example",
         "plesk-apache.conf",
     ):

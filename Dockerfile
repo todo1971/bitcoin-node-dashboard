@@ -1,10 +1,13 @@
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 FROM python:3.11-slim-bookworm
 
 ARG DASHBOARD_UID=1010
 ARG DASHBOARD_GID=1010
-ARG APP_VERSION=1.18.3
+ARG APP_VERSION=1.18.4
 
-LABEL org.opencontainers.image.title="Bitcoin Node Dashboard" \
+LABEL org.opencontainers.image.licenses="GPL-3.0-only" \
+      org.opencontainers.image.title="Bitcoin Node Dashboard" \
       org.opencontainers.image.description="Read-only monitoring dashboard for Bitcoin Core" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.source="https://github.com/todo1971/bitcoin-node-dashboard"
@@ -16,6 +19,7 @@ RUN groupadd --gid "${DASHBOARD_GID}" dashboard \
 
 WORKDIR /app
 COPY --chown=dashboard:dashboard app.py ./
+COPY --chown=dashboard:dashboard LICENSE NOTICE ./
 COPY --chown=dashboard:dashboard static ./static
 
 USER dashboard:dashboard

@@ -10,8 +10,8 @@ sudo -u btc git clone https://github.com/todo1971/bitcoin-node-dashboard.git \
   /home/btc/bitcoin-dashboard
 ```
 
-The private repository requires a GitHub deploy key or another GitHub login.
-Alternatively, extract a release archive to `/home/btc/bitcoin-dashboard`.
+The repository is public and can be cloned without GitHub authentication.
+Private forks require appropriate authentication. Alternatively, extract a release archive to `/home/btc/bitcoin-dashboard`.
 
 ## 2. Configure the environment
 
@@ -74,7 +74,7 @@ place the archive in the current directory:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.18.3.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.18.4.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 import hashlib
 import importlib.machinery
 import importlib.util

@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- Copyright (C) 2026 Hardy (todo1971); SPDX-License-Identifier: GPL-3.0-only -->
 <html lang="de">
 <head>
   <meta charset="utf-8">
@@ -24,6 +25,7 @@
   <div class="log-controls"><button class="log-tab" data-log="dashboard" aria-pressed="true">Dashboard</button><button class="log-tab" data-log="bitcoin" aria-pressed="false">Bitcoin Core</button><span class="meta" id="logStatus">Aktualisierung alle 5 Sekunden</span></div>
   <div id="updateResult" class="result" role="status">Noch kein Ergebnis</div>
   <pre id="updateLog" class="log" aria-live="off">Protokoll wird geladen …</pre>
+<footer class="meta"><a href="https://github.com/todo1971/bitcoin-node-dashboard" target="_blank" rel="noopener noreferrer">Source code</a> · <a href="https://github.com/todo1971/bitcoin-node-dashboard/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">GPL-3.0-only</a></footer>
 </main>
 <script>
 const csrf='__CSRF_TOKEN__',output=document.getElementById('output'),coreButton=document.getElementById('coreUpdate'),dashboardButton=document.getElementById('dashboardUpdate'),uploadStatus=document.getElementById('uploadStatus'),progress=document.getElementById('uploadProgress'),fileInput=document.getElementById('coreFile'),dropZone=document.getElementById('dropZone'),adminNotice=document.getElementById('adminNotice');

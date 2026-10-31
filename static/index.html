@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- Copyright (C) 2026 Hardy (todo1971); SPDX-License-Identifier: GPL-3.0-only -->
 <html lang="de">
 <head>
   <meta charset="utf-8">
@@ -109,6 +110,7 @@
     <article class="card full"><div class="history-head"><div><div class="label">Zeitraum</div><div class="sub" id="historyInfo">Messwerte werden geladen …</div></div><div class="ranges"><button class="range" data-range="1h">1 h</button><button class="range" data-range="6h">6 h</button><button class="range" data-range="12h">12 h</button><button class="range active" data-range="24h">24 h</button><button class="range" data-range="7d">7 Tage</button><button class="range" data-range="30d">30 Tage</button><button class="range" data-range="1y">1 Jahr</button></div></div><div class="charts"><div class="chart-box"><div class="chart-title"><b>Verbindungen</b><span class="legend"><span style="color:#f7931a">● In</span> · <span style="color:#58a6ff">● Out</span></span></div><canvas id="peerChart"></canvas></div><div class="chart-box"><div class="chart-title"><b>Gebührenschätzung</b><span class="legend">2 / 6 / 12 Blöcke · sat/vB</span></div><canvas id="feeChart"></canvas></div><div class="chart-box"><div class="chart-title"><b>Systemauslastung</b><span class="legend"><span style="color:#f7931a">● CPU</span> · <span style="color:#58a6ff">● RAM</span> · %</span></div><canvas id="systemChart"></canvas></div><div class="chart-box"><div class="chart-title"><b>Belegter Speicher</b><span class="legend">Datadir · %</span></div><canvas id="diskChart"></canvas></div></div></article>
     <article class="card full"><div class="label">Ereignisse &amp; Datenqualität</div><p class="quality-note" id="timelineQuality">Ereignisse werden geladen …</p><ul class="timeline-list" id="timelineList"></ul><div class="sub">Zeitraum wie oben gewählt. Erfassung beginnt mit dieser Dashboard-Version; ältere Ereignisse sind nicht rekonstruierbar. ZMQ-Lücken können fehlende Mempool-Ereignisse enthalten.</div></article>
   </div></section>
+<footer class="sub"><a class="button" href="https://github.com/todo1971/bitcoin-node-dashboard" target="_blank" rel="noopener noreferrer">Source code</a> · <a class="button" href="https://github.com/todo1971/bitcoin-node-dashboard/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">GPL-3.0-only</a></footer>
 </main>
 <script>
 const $=id=>document.getElementById(id), nf=new Intl.NumberFormat(I18n.locale);

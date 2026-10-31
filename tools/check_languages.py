@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 """List static UI text without an English catalog entry (technical labels included)."""
 import json
 from html.parser import HTMLParser

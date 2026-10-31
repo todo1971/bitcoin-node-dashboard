@@ -29,8 +29,8 @@ Compose image tags and build metadata share the same version default.
 
 See [Public repository without a token](UPDATES.md#public-repository-without-a-token).
 A live test with the official public GitHub CLI repository anonymously downloaded
-metadata and a checksum file using the existing downloader. While this dashboard
-repository remains private, its own anonymous end-to-end test is not possible.
+metadata and a checksum file using the existing downloader. After publication,
+run the same read-only check with `--repo todo1971/bitcoin-node-dashboard`.
 
 ## Pre-publication checks
 
@@ -40,5 +40,5 @@ database password URLs, RPC auth hashes or typical sensitive filenames.
 This is a limited check, not proof that every possible secret has been excluded.
 
 The known server IP remains in examples and defaults. Git author information is
-part of history. The README has not yet selected a license.
-Repository visibility was not changed.
+part of history. Since 1.18.4 the license is GPL-3.0-only and the repository is
+intended for public use.

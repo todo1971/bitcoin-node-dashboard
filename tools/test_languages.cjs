@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Hardy (todo1971)
+// SPDX-License-Identifier: GPL-3.0-only
 // Optional browser QA: requires Playwright and an installed Chromium browser.
 const {chromium} = require('playwright');
 const fs = require('node:fs');

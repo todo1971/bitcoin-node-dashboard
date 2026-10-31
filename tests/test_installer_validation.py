@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 import importlib.util
 import unittest
 from pathlib import Path

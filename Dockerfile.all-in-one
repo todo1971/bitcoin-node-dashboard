@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Hardy (todo1971)
+# SPDX-License-Identifier: GPL-3.0-only
 ARG BITCOIN_CORE_VERSION=31.1
 FROM bitcoin/bitcoin:${BITCOIN_CORE_VERSION} AS bitcoin-core
 
@@ -6,9 +8,10 @@ FROM python:3.11-slim-bookworm
 ARG BITCOIN_CORE_VERSION=31.1
 ARG NODE_UID=1010
 ARG NODE_GID=1010
-ARG APP_VERSION=1.18.3
+ARG APP_VERSION=1.18.4
 
-LABEL org.opencontainers.image.title="Bitcoin Node Dashboard All-in-one" \
+LABEL org.opencontainers.image.licenses="GPL-3.0-only" \
+      org.opencontainers.image.title="Bitcoin Node Dashboard All-in-one" \
       org.opencontainers.image.description="Bitcoin Core and its read-only dashboard in one container" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.source="https://github.com/todo1971/bitcoin-node-dashboard"
@@ -34,6 +37,7 @@ RUN groupadd --gid "${NODE_GID}" node \
 
 COPY --from=bitcoin-core /opt/bitcoin-${BITCOIN_CORE_VERSION} /opt/bitcoin-${BITCOIN_CORE_VERSION}
 COPY --chown=node:node app.py /app/app.py
+COPY --chown=node:node LICENSE NOTICE /app/
 COPY --chown=node:node static /app/static
 COPY --chown=root:root docker/all-in-one-entrypoint.sh /usr/local/bin/all-in-one-entrypoint
 COPY --chown=root:root docker/all-in-one-healthcheck.py /usr/local/bin/all-in-one-healthcheck
