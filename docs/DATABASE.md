@@ -1,5 +1,7 @@
 # Datenbank und Datenmenge
 
+Deutsch | [English](en/DATABASE.md)
+
 ## Warum SQLite?
 
 Das Dashboard besitzt genau einen schreibenden Prozess und erzeugt bei einem

@@ -1,5 +1,7 @@
 # Echtzeit über Bitcoin Core ZMQ
 
+Deutsch | [English](en/REALTIME.md)
+
 Das Dashboard kann Block- und Mempool-Ereignisse aus `zmqpubsequence` empfangen. Der ZMQ-Endpunkt ist **nur lokal** erreichbar; der Browser verbindet sich ausschließlich mit dem Dashboard (`/api/events`, Server-Sent Events). Ohne ZMQ bleibt die bisherige periodische Abfrage aktiv.
 
 ## Aktivierung auf dem Host

@@ -1,5 +1,7 @@
 # All-in-one-Docker unter Plesk
 
+Deutsch | [English](en/PLESK_DOCKER.md)
+
 Diese Anleitung betrifft ausschließlich die optionale Containerinstallation.
 Eine vorhandene systemd-Installation wird nicht automatisch abgeschaltet oder
 migriert.
@@ -15,7 +17,7 @@ Archiv entpacken und zunächst nur vorbereiten:
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf bitcoin-node-dashboard-1.18.0.tar.gz -C "$tmpdir"
+tar -xzf bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/install-docker-all-in-one.sh" \
   --public-address 203.0.113.10 \
   --prepare-only

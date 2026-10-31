@@ -1,5 +1,7 @@
 # Sicherheitskonzept
 
+Deutsch | [English](en/SECURITY.md)
+
 ## Grundsätze
 
 - Der Webdienst bindet standardmäßig ausschließlich an `127.0.0.1`.
@@ -23,8 +25,8 @@ Wird der Dashboard-Prozess vollständig kompromittiert, kann ein Angreifer die
 festgelegten Update-Aufträge und einen Dashboard-Neustart anstoßen und die vom
 Dienstbenutzer beschreibbare `.env` verändern, aber weder Root-Befehlsargumente
 noch Paketpfade bestimmen. Dashboard-Pakete werden vor Installation getestet; Bitcoin-Core-
-Pakete benötigen zusätzlich eine passende SHA256-Prüfsumme und eine gültige
-Signatur aus dem root-kontrollierten Schlüsselbund. Diese Grenze hängt zwingend
+Pakete benötigen zusätzlich eine passende SHA256-Prüfsumme und die konfigurierte Anzahl gültiger
+Signaturen aus dem root-kontrollierten Schlüsselbund. Diese Grenze hängt zwingend
 davon ab, dass der root-eigene Update-Cache, Root-Helfer, Sudoers-Regel und Updater-Konfiguration
 nicht durch den Benutzer `btc` beschreibbar sind.
 
@@ -32,7 +34,7 @@ Ein kompromittierter Dashboard-Prozess kann ein Core-Archiv im Uploadordner
 ersetzen und den festen Updateauftrag starten. Das verschafft ihm dennoch keine
 Auswahl einer Prüfsumme oder Signatur: Beide Dateien werden vom Root-Helfer über
 eine fest vorgegebene HTTPS-Adresse bei `bitcoincore.org` geladen. Der Node wird
-erst gestoppt, nachdem eine Signatur aus dem root-kontrollierten Schlüsselbund
+erst gestoppt, nachdem die erforderlichen Signaturen aus dem root-kontrollierten Schlüsselbund
 und die SHA-256-Prüfsumme erfolgreich geprüft wurden.
 
 ## Öffentliche Informationen

@@ -1,6 +1,15 @@
 # Changelog
 
+Deutsch | [English](CHANGELOG.en.md)
+
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
+
+## 1.18.1 – 2026-10-31
+
+- README, vollständigen historischen Changelog und alle 14 Dokumentationsseiten zusätzlich auf Englisch bereitstellen.
+- Deutsche und englische Fassungen in beide Richtungen verlinken.
+- Englische README- und Changelog-Dateien bei Dashboard-Updates mitinstallieren, sofern der aktualisierte Root-Helfer eingerichtet ist.
+- Dokumentationsprüfung für Sprachpaare, Links, Changelog-Versionen und unveränderte Befehlsbeispiele ergänzen; veraltete Hinweise zu nginx, externem Status und Signaturanzahl angleichen.
 
 ## 1.18.0 – 2026-10-31
 

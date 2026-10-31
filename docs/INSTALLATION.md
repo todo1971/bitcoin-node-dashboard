@@ -1,5 +1,7 @@
 # Installation und Betrieb
 
+Deutsch | [English](en/INSTALLATION.md)
+
 ## 1. Repository installieren
 
 ```bash
@@ -73,7 +75,7 @@ Das Release-Archiv liegt für diesen einmaligen Schritt im aktuellen Verzeichnis
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.18.0.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -103,8 +105,8 @@ curl -fsS http://127.0.0.1:8787/api/dashboard | python3 -m json.tool
 4. Den Inhalt von `plesk-apache.conf` unter **Additional Apache directives**
    für HTTP und HTTPS eintragen.
 5. Den Inhalt von `plesk-nginx.conf` unter **Additional nginx directives**
-   eintragen. Dadurch sind Bitcoin-Core-Uploads bis 200 MB erlaubt.
-6. Plesk-Proxy-Modus aktiviert lassen.
+   eintragen, sofern nginx installiert ist. Dadurch sind Bitcoin-Core-Uploads bis 200 MB erlaubt.
+6. Bei nginx den Plesk-Proxy-Modus aktiviert lassen. Auf reinen Apache-Systemen nur Apache-Direktiven verwenden.
 
 Port 8787 bleibt ausschließlich an `127.0.0.1` gebunden. Weder Port 8787 noch
 Bitcoin-RPC-Port 8332 dürfen in der Firewall öffentlich freigegeben werden.

@@ -1,5 +1,7 @@
 # Roadmap
 
+Deutsch | [English](en/ROADMAP.md)
+
 ## Umgesetzt in 1.2
 
 - Messwerte regelmäßig in SQLite speichern

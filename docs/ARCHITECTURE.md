@@ -1,5 +1,7 @@
 # Architektur
 
+Deutsch | [English](en/ARCHITECTURE.md)
+
 ```text
 Browser
    │ HTTPS

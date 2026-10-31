@@ -24,6 +24,8 @@ jobs:
           bash -n docker/all-in-one-entrypoint.sh
       - name: Unit tests
         run: python -m unittest discover -s tests -v
+      - name: Check bilingual documentation
+        run: python tools/check_documentation.py
       - name: Validate Docker Compose files
         env:
           PUBLIC_NODE_ADDRESS: 127.0.0.1

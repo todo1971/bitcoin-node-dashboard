@@ -1,5 +1,7 @@
 # Alarme und Systemüberwachung
 
+Deutsch | [English](en/ALERTS.md)
+
 ## Überwachte Zustände
 
 Das Dashboard prüft bei jeder Messung:
@@ -9,13 +11,15 @@ Das Dashboard prüft bei jeder Messung:
 - Anzahl eingehender Peers
 - freien Platz auf dem Datenträger des Bitcoin-Datadirs
 - RAM-Auslastung des Hosts
-- externe Erreichbarkeit des öffentlichen P2P-Ports
+- vom externen Crawler gemeldete Erreichbarkeit des öffentlichen P2P-Endpunkts, sofern verfügbar
 - Verfügbarkeit einer neueren stabilen Bitcoin-Core-Version
 
 CPU, RAM, freier Speicher und bitcoind-Laufzeit werden zusätzlich in SQLite
 gespeichert. Das Dashboard zeigt die Datenträgerbelegung als belegten Anteil.
 Der Speicherplatzalarm wird standardmäßig ab 90 Prozent Belegung ausgelöst.
 Intern gespeicherte freie Werte bleiben für die historische Berechnung erhalten.
+Ein fehlender Verzeichniseintrag bedeutet unbekannt, nicht offline. Die externe
+Auskunft ist kein eigener Live-Porttest.
 
 ## Alarmverhalten
 

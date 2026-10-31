@@ -1,5 +1,7 @@
 # Bitcoin Node Dashboard
 
+Deutsch | [English](README.en.md)
+
 Ein leichtgewichtiges, nur lesendes Web-Dashboard für Bitcoin Core. Es zeigt
 Synchronisation, Peers, Mempool, Gebührenschätzungen, Netzwerkverkehr und den
 letzten Block. Hinzu kommen Host-Metriken, Alarmierung und die Prüfung auf neue
@@ -87,7 +89,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.18.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
@@ -148,12 +150,14 @@ an Bitcoin Core übergeben werden können.
 - [Sicherheitskonzept](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Änderungen](CHANGELOG.md)
+- [Sprachen und Übersetzungen](docs/TRANSLATIONS.md)
 
 ## Entwicklung und Tests
 
 ```bash
 python3 -m py_compile app.py
 python3 -m unittest discover -s tests -v
+python3 tools/check_documentation.py
 ```
 
 ## Lizenz

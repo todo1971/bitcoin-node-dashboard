@@ -1,5 +1,7 @@
 # Docker-Betrieb
 
+Deutsch | [English](en/DOCKER.md)
+
 Das Repository enthält drei getrennte Compose-Varianten. Sie dürfen nicht
 gleichzeitig gestartet werden.
 

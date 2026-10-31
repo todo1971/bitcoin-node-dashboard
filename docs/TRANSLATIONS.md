@@ -1,5 +1,7 @@
 # Sprachen
 
+Deutsch | [English](en/TRANSLATIONS.md)
+
 Seit 1.18.0 gibt es Deutsch und Englisch. Die Auswahl steht unter dem Seitenkopf
 des Dashboards und der Administration. Sie wird im Browser unter
 `dashboard-language` gespeichert; ohne Auswahl bleibt Deutsch der Standard.
@@ -31,3 +33,17 @@ Prüfung: `python -m unittest discover -s tests -v`. Der optionale Browsertest
 mit `QA_BROWSER=msedge` kann eine vorhandene Edge-Installation genutzt werden.
 Er prüft Sprachwechsel, Speicherung, Live-Texte, Wortgrenzen und unveränderte
 Protokolle und Formularwerte.
+
+## Dokumentationssprachen
+
+Seit 1.18.1 ergänzen [README.en.md](../README.en.md),
+[CHANGELOG.en.md](../CHANGELOG.en.md) und `docs/en/` die deutschen Fassungen.
+Jede Seite verlinkt ihr Gegenstück. Beide Changelogs enthalten sämtliche
+historischen Versionen. Änderungen an Anleitungen in beiden Sprachen pflegen;
+Befehle, Konfigurationsnamen, Pfade und historische Versionsdaten abgleichen.
+
+Der normale Updater übernimmt alle englischen Seiten unter `docs/en/`.
+Damit auch die beiden englischen Dateien im Projektwurzelverzeichnis lokal
+mitinstalliert werden, muss der Root-Helfer einmal über den Bootstrap aus dem
+geprüften 1.18.1-Release aktualisiert werden. Auf GitHub sind beide Dateien
+unabhängig davon direkt verfügbar.

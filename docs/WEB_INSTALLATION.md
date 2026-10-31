@@ -1,5 +1,7 @@
 # Web-Installation
 
+Deutsch | [English](en/WEB_INSTALLATION.md)
+
 ## Sicherheitsmodell
 
 Der Installer wird nicht über eine öffentliche Domain bereitgestellt. Er bindet
@@ -17,7 +19,7 @@ Release-Archiv aus dem aktuellen Verzeichnis in ein temporäres Verzeichnis entp
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.18.0.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 
@@ -69,6 +71,6 @@ Nach erfolgreicher Installation bleibt das Dashboard auf `127.0.0.1`. Für den
 HTTPS auf den lokalen Dashboard-Port weitergeleitet. Bitcoin-RPC-Port 8332 darf
 nicht öffentlich freigegeben werden.
 
-Für den Bitcoin-Core-Upload müssen bei Plesk zusätzlich die Direktiven aus
+Für den Bitcoin-Core-Upload müssen bei Plesk mit nginx zusätzlich die Direktiven aus
 `plesk-nginx.conf` eingetragen werden. Das Apache-Beispiel enthält bereits das
 längere Zeitlimit für große Archive.

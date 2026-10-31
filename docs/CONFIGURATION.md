@@ -1,5 +1,7 @@
 # Dashboard-Konfiguration
 
+Deutsch | [English](en/CONFIGURATION.md)
+
 Bei der systemd-Installation liest das Dashboard `/var/lib/bitcoin-dashboard/.env`. Unter `/home/btc/bitcoin-dashboard/.env` liegt ein symbolischer Link auf dieselbe Datei. Die echte Datei gehört dem Dienstbenutzer `btc` und hat Modus `0600`; das Programmverzeichnis bleibt für den laufenden Webdienst schreibgeschützt.
 
 Unter `/admin` → **Dashboard-Konfiguration** können Node-Adresse, ZMQ-Endpunkt, Messintervalle, Aufbewahrung, Alarmgrenzen und -ziele sowie GitHub-Repository und -Token geändert werden. Der Editor prüft erlaubte Feldnamen und Werte, schreibt atomar und startet ausschließlich den fest vorgegebenen Dashboard-Dienst nach kurzer Verzögerung neu. Fehlschlägt schon die Planung des Neustarts, wird die vorherige Datei wiederhergestellt. Eine gültige Admin-Anmeldung, Same-Origin-Prüfung und CSRF-Token sind erforderlich.

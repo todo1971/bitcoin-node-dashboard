@@ -1,5 +1,7 @@
 # All-in-one-Installation per Shell
 
+Deutsch | [English](en/SHELL_DOCKER.md)
+
 Das Installationsskript kopiert ausschließlich die für den All-in-one-Stack
 benötigten Dateien nach `/opt/bitcoin-node-dashboard`, erzeugt bei der ersten
 Installation ein zufälliges Admin-Token und validiert die Compose-Datei.
@@ -9,7 +11,7 @@ Vorhandene systemd-Dienste werden weder beendet noch verändert.
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf bitcoin-node-dashboard-1.18.0.tar.gz -C "$tmpdir"
+tar -xzf bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/install-docker-all-in-one.sh" \
   --public-address 203.0.113.10 \
   --prepare-only

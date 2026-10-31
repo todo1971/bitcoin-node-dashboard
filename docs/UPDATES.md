@@ -1,5 +1,7 @@
 # Sichere Updates
 
+Deutsch | [English](en/UPDATES.md)
+
 ## Integrierte Administration
 
 Die Wartungsoberfläche ist unter `/admin` in das Dashboard integriert. Sie
@@ -12,7 +14,7 @@ geprüften Release-Paket eingerichtet. Das Archiv liegt dafür im aktuellen Verz
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.18.0.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.18.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -128,8 +130,8 @@ werden; im normalen Betrieb ist der Upload über `/admin` vorgesehen.
 ### Reverse Proxy für den Upload
 
 Für Plesk muss `plesk-apache.conf` wegen der längeren Zeitbegrenzung erneut in
-die zusätzlichen Apache-Direktiven übernommen werden. Der Inhalt von
-`plesk-nginx.conf` gehört in **Additional nginx directives**. Er setzt das
+die zusätzlichen Apache-Direktiven übernommen werden. Sofern nginx installiert ist,
+gehört `plesk-nginx.conf` in **Additional nginx directives**, niemals in Apache-Direktiven. Es setzt das
 Uploadlimit auf 200 MB und deaktiviert die vollständige nginx-Zwischenpufferung.
 
 ### Vertrauenswürdige Signaturschlüssel
@@ -169,7 +171,7 @@ sudo chmod 0644 /usr/local/share/bitcoin-core/trustedkeys.gpg
 rm -rf -- "$keywork"
 ```
 
-Der Updater verlangt mindestens eine gültige Signatur aus diesem Keyring und
+Der Updater verlangt die konfigurierte Anzahl gültiger Signaturen aus diesem Keyring und
 eine exakt passende SHA256-Prüfsumme. Erst danach stoppt er den Node, sichert die
 vorhandenen Binärdateien, installiert das Release und startet den Dienst. Bei
 einem Startfehler werden die bisherigen Binärdateien wiederhergestellt.
