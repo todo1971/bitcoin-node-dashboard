@@ -29,7 +29,7 @@ jobs:
       - name: Validate Docker Compose files
         env:
           PUBLIC_NODE_ADDRESS: 127.0.0.1
-          ADMIN_TOKEN: 01234567890123456789012345678901
+          ADMIN_TOKEN: "01234567890123456789012345678901"
         run: |
           docker compose config --quiet
           docker compose -f compose.host-node.yaml config --quiet
@@ -39,7 +39,7 @@ jobs:
       - name: Build all-in-one container
         env:
           PUBLIC_NODE_ADDRESS: 127.0.0.1
-          ADMIN_TOKEN: 01234567890123456789012345678901
+          ADMIN_TOKEN: "01234567890123456789012345678901"
         run: docker compose -f compose.all-in-one.yaml build
       - name: Validate shell installer
         run: |
@@ -52,7 +52,7 @@ jobs:
       - name: Smoke-test all-in-one container
         env:
           PUBLIC_NODE_ADDRESS: 127.0.0.1
-          ADMIN_TOKEN: 01234567890123456789012345678901
+          ADMIN_TOKEN: "01234567890123456789012345678901"
         run: |
           docker compose -f compose.all-in-one.yaml up -d --no-build
           container_id=$(docker compose -f compose.all-in-one.yaml ps -q node)
@@ -63,7 +63,7 @@ jobs:
       - name: Smoke-test separate-container stack
         env:
           PUBLIC_NODE_ADDRESS: 127.0.0.1
-          ADMIN_TOKEN: 01234567890123456789012345678901
+          ADMIN_TOKEN: "01234567890123456789012345678901"
         run: |
           docker compose -f compose.all-in-one.yaml down
           docker compose up -d --build --wait --wait-timeout 180
@@ -74,7 +74,7 @@ jobs:
         if: always()
         env:
           PUBLIC_NODE_ADDRESS: 127.0.0.1
-          ADMIN_TOKEN: 01234567890123456789012345678901
+          ADMIN_TOKEN: "01234567890123456789012345678901"
         run: |
           docker compose -f compose.all-in-one.yaml logs --tail 100 || true
           docker compose -f compose.all-in-one.yaml down -v
