@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.18.0 – 2026-10-31
+
+- Deutsche und englische Sprachdateien unter `static/locales/` ergänzen.
+- Sprachauswahl im Dashboard und Adminbereich anbieten; Auswahl lokal im Browser speichern.
+- Statische Beschriftungen und bekannte dynamische Statusmeldungen übersetzen; Zahlen und Datum nach gewählter Sprache formatieren.
+- Originalprotokolle, technische Diagnosen und Eingabewerte unverändert lassen. Unbekannte Meldungen fallen auf Deutsch zurück.
+- Sprachdateien über eine feste öffentliche URL-Allowlist ausliefern; Admin-Authentifizierung bleibt erforderlich.
+
 ## 1.17.0 – 2026-10-10
 
 - Startseite auf Node-Status, Synchronisation, Verbindungen und Alarme reduzieren

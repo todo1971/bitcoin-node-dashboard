@@ -34,7 +34,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.17.0"
+__version__ = "1.18.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -2399,6 +2399,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
+        public_assets = {
+            "/static/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
+            "/static/locales/de.json": ("locales/de.json", "application/json; charset=utf-8"),
+            "/static/locales/en.json": ("locales/en.json", "application/json; charset=utf-8"),
+        }
+        if path in public_assets:
+            filename, content_type = public_assets[path]
+            self.send_bytes((STATIC_DIR / filename).read_bytes(), content_type)
+            return
         if path in ("/admin", "/admin/"):
             if not self.require_admin_auth():
                 return

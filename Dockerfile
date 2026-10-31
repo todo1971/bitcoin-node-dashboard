@@ -2,7 +2,7 @@ FROM python:3.11-slim-bookworm
 
 ARG DASHBOARD_UID=1010
 ARG DASHBOARD_GID=1010
-ARG APP_VERSION=1.17.0
+ARG APP_VERSION=1.18.0
 
 LABEL org.opencontainers.image.title="Bitcoin Node Dashboard" \
       org.opencontainers.image.description="Read-only monitoring dashboard for Bitcoin Core" \
