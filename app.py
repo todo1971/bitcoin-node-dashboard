@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 Hardy (todo1971)
+# Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 # SPDX-License-Identifier: GPL-3.0-only
 """Small, read-only Bitcoin Core dashboard with optional ZMQ support."""
 
@@ -36,7 +36,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.18.4"
+__version__ = "1.18.5"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")

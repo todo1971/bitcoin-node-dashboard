@@ -1,12 +1,13 @@
-# Copyright (C) 2026 Hardy (todo1971)
+# Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 # SPDX-License-Identifier: GPL-3.0-only
 FROM python:3.11-slim-bookworm
 
 ARG DASHBOARD_UID=1010
 ARG DASHBOARD_GID=1010
-ARG APP_VERSION=1.18.4
+ARG APP_VERSION=1.18.5
 
 LABEL org.opencontainers.image.licenses="GPL-3.0-only" \
+      org.opencontainers.image.authors="Hardy (todo1971) <hb@308-arms.de>" \
       org.opencontainers.image.title="Bitcoin Node Dashboard" \
       org.opencontainers.image.description="Read-only monitoring dashboard for Bitcoin Core" \
       org.opencontainers.image.version="${APP_VERSION}" \

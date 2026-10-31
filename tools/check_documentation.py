@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Hardy (todo1971)
+# Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 # SPDX-License-Identifier: GPL-3.0-only
 """Check bilingual coverage, local links, history and unchanged command examples."""
 import re

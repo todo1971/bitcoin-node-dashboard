@@ -4,6 +4,11 @@
 
 All significant project changes are recorded here.
 
+## 1.18.5 – 2026-10-31
+
+- Add Hardy's email address `hb@308-arms.de` to all project copyright notices and container author metadata.
+- Record the convention in `AGENTS.md` for future changes; preserve third-party notices and the GNU license text.
+
 ## 1.18.4 – 2026-10-31
 
 - Publish the project under GPL-3.0-only with the full license text, copyright and SPDX notices.

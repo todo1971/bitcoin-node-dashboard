@@ -89,7 +89,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.18.4.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.18.5.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
@@ -164,7 +164,7 @@ python3 tools/check_documentation.py
 
 ## Lizenz
 
-Copyright (C) 2026 Hardy (todo1971). Der eigene Projektcode und die Dokumentation
+Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>. Der eigene Projektcode und die Dokumentation
 stehen unter der **GNU General Public License, Version 3 ausschließlich**
 (`GPL-3.0-only`). Vollständiger Text: [LICENSE](LICENSE); Hinweise: [NOTICE](NOTICE).
 Das Programm wird ohne Gewährleistung bereitgestellt. Drittanbieterkomponenten

@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Hardy (todo1971)
+// Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 // SPDX-License-Identifier: GPL-3.0-only
 // Optional browser QA: requires Playwright and an installed Chromium browser.
 const {chromium} = require('playwright');

@@ -83,7 +83,7 @@ archive, rather than the checkout writable by `btc`:
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.18.4.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.18.5.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
@@ -156,7 +156,7 @@ python3 tools/check_documentation.py
 
 ## License
 
-Copyright (C) 2026 Hardy (todo1971). Original project code and documentation are
+Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>. Original project code and documentation are
 licensed under the **GNU General Public License, version 3 only**
 (`GPL-3.0-only`). Full text: [LICENSE](LICENSE); notices: [NOTICE](NOTICE).
 The program is provided without warranty. Third-party components, including

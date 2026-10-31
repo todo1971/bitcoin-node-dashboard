@@ -4,6 +4,11 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.18.5 – 2026-10-31
+
+- Hardys E-Mail-Adresse `hb@308-arms.de` in allen eigenen Copyright-Hinweisen und den Container-Autorenmetadaten ergänzen.
+- Die Copyright-Konvention für zukünftige Änderungen in `AGENTS.md` festhalten; fremde Copyright-Hinweise und den GNU-Lizenztext unverändert lassen.
+
 ## 1.18.4 – 2026-10-31
 
 - Projekt unter GPL-3.0-only mit vollständigem Lizenztext, Copyright- und SPDX-Hinweisen veröffentlichen.

@@ -18,7 +18,7 @@ Extract the release archive from the current directory into a temporary director
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.18.4.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.18.5.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 
