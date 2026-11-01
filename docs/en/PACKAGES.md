@@ -22,8 +22,8 @@ source version equality, compilation and unit tests. It uses GitHub's short-live
 Example:
 
 ```bash
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.1
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.1
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.2
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.2
 ```
 
 Images do not replace configuration, volumes or port bindings described in

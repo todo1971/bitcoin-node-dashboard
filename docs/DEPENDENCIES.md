@@ -169,3 +169,7 @@ werden die Paketliste, Berichte und Architekturtabelle erweitert. Ein ARM64-Runn
 ersetzt keinen Test auf einem physischen Raspberry Pi.
 
 [Zurück zur Übersicht](../README.md)
+
+## Zusätzlich lokal geprüft: Raspberry Pi OS / Debian 13
+
+Der QEMU-Lauf mit Raspberry Pi OS Lite ARM64 verwendete dieselben Host-Paketnamen. Python 3.13.5, Debian-`python3-zmq` 26.4.0 und libzmq 4.3.5 funktionierten ohne Compiler oder zusätzliche manuelle ARM64-Bibliotheken. Docker wurde separat im Debian-12-ARM64-Gast geprüft. [Umfang und Emulationsanpassungen](QEMU_TESTS.md).

@@ -4,6 +4,15 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.21.2 – 2026-11-01
+
+- Release 1.21.1 lokal unter Windows mit vollständiger ARM64-Systememulation prüfen: Debian 12 auf QEMU virt/Cortex-A72 und Raspberry Pi OS Lite/Debian 13 auf raspi3b/Cortex-A53.
+- Web-Installation, Admin-/CSRF-Schutz, Konfigurationsneustart, SSE/ZMQ, SQLite-Historie, Blockaufzeichnung und 86 Regressionstests in beiden Gästen nachweisen.
+- Alle drei Docker-Varianten, Shell-Installer, Portschutz, nicht privilegierte Container, privates RPC und Volume-Persistenz lokal in der Debian-ARM64-VM prüfen.
+- Vollständigen Neustart beider VMs mit automatischem Dienststart und Historienerhalt prüfen; Testgäste anschließend kontrolliert herunterfahren.
+- Testbericht, Eingabedatei-Prüfsummen, Pi-spezifische Emulationsanpassungen und Grenzen auf Deutsch und Englisch dokumentieren; bereinigte JSON-Nachweise veröffentlichen.
+- Dashboard-Laufzeitlogik unverändert lassen; Versionsangaben und Release-Pakete aktualisieren.
+
 ## 1.21.1 – 2026-11-01
 
 - Paketlisten nach Host-/Container-Betrieb, optionalen Funktionen sowie AMD64/ARM64 dokumentieren, einschließlich konkreter Debian-Installationsbefehle.

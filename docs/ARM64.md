@@ -69,3 +69,5 @@ und [GitHub ARM64-Runner](https://github.blog/changelog/2025-08-07-arm64-hosted-
 [Zurück zur Übersicht](../README.md)
 
 Geprüfte Paketlisten für AMD64 und ARM64: [Abhängigkeiten](DEPENDENCIES.md).
+
+Lokale Tests mit Debian ARM64 und einem Raspberry-Pi-3B-Boardmodell sind im [QEMU-Testbericht](QEMU_TESTS.md) dokumentiert. Es handelt sich um Emulation, nicht um physische Hardwaretests.

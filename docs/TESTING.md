@@ -64,3 +64,6 @@ ausgeschlossen sind.
 Die bekannte Server-IP steht weiterhin in Beispielen und Standardeinstellungen.
 Git-Autoreninformationen gehören zur Historie. Seit 1.18.4 ist die Lizenz
 GPL-3.0-only festgelegt und das Repository für die öffentliche Nutzung vorgesehen.
+
+
+Am 1. November 2026 wurden zusätzlich lokale ARM64- und Raspberry-Pi-Systemgäste mit QEMU auf Windows getestet, einschließlich Docker innerhalb des Debian-Gasts. [Testbericht, Matrix und Grenzen](QEMU_TESTS.md). Regressionstests dabei aus dem vollständigen Release ausführen; einige Tests lesen Docker-/Installer-Dateien, die eine schlanke Host-Installation nicht enthält.

@@ -69,3 +69,5 @@ and [GitHub ARM64 runners](https://github.blog/changelog/2025-08-07-arm64-hosted
 [Back to overview](../../README.en.md)
 
 Verified package lists for AMD64 and ARM64: [Dependencies](DEPENDENCIES.md).
+
+Local Debian ARM64 and Raspberry Pi 3B board-model tests are documented in the [QEMU report](QEMU_TESTS.md). These use emulation rather than physical hardware.

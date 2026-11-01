@@ -4,6 +4,15 @@
 
 All significant project changes are recorded here.
 
+## 1.21.2 – 2026-11-01
+
+- Test release 1.21.1 locally on Windows using full ARM64 system emulation: Debian 12 on QEMU virt/Cortex-A72 and Raspberry Pi OS Lite/Debian 13 on raspi3b/Cortex-A53.
+- Verify web installation, admin/CSRF protection, configuration restart, SSE/ZMQ, SQLite history, block recording, and 86 regression tests in both guests.
+- Check all three Docker variants, shell installer, occupied-port guard, non-root containers, private RPC, and volume persistence locally in the Debian ARM64 VM.
+- Verify full VM restarts with automatic service startup and retained history; subsequently shut down test guests cleanly.
+- Document the test report, input checksums, Pi-specific emulation adaptations, and limitations in German and English; publish sanitized JSON evidence.
+- Keep dashboard runtime logic unchanged; update version metadata and release packages.
+
 ## 1.21.1 – 2026-11-01
 
 - Document package requirements by host/container deployment, optional features, and AMD64/ARM64, including concrete Debian installation commands.
