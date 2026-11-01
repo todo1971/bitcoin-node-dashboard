@@ -4,6 +4,14 @@
 
 All significant project changes are recorded here.
 
+## 1.20.0 – 2026-11-01
+
+- Show aggregated peer software versions, advertised service flags, and connection types without publishing other peers' addresses or free-form client comments.
+- Add live traffic rates and SQLite traffic history with measured period/day/month totals and coverage; do not treat restarts or gaps as zero.
+- List the last 20 locally recorded blocks with time, transactions, size, and fees without additional RPC queries.
+- Fit new displays into existing tabs and translate them into all six languages; document data quality and limitations in German and English.
+- Record independent development without third-party dashboard code; add counter, privacy, time-boundary, and browser regression tests.
+
 ## 1.19.0 – 2026-11-01
 
 - Add Spanish, Brazilian Portuguese, Simplified Chinese and Russian alongside German and English.

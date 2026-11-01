@@ -28,7 +28,7 @@ class LanguageAssetsTests(unittest.TestCase):
         thread.start()
         base = f'http://127.0.0.1:{server.server_port}'
         try:
-            for path in ('/static/i18n.js', *(f'/static/locales/{lang}.json' for lang in self.languages)):
+            for path in ('/static/i18n.js', '/static/node-insights.js', *(f'/static/locales/{lang}.json' for lang in self.languages)):
                 with urllib.request.urlopen(base + path) as response:
                     self.assertEqual(response.status, 200)
                     self.assertTrue(response.read())

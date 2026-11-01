@@ -9,6 +9,7 @@ import json
 import os
 import re
 import base64
+import calendar
 import hashlib
 import hmac
 import ipaddress
@@ -36,7 +37,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.19.0"
+__version__ = "1.20.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -217,6 +218,10 @@ _mempool_analysis_cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _utxo_last_attempt = 0
 _block_interval_lock = threading.Lock()
 _block_interval_cache: dict[str, Any] = {"height": None, "seconds": None}
+_traffic_live_lock = threading.Lock()
+_traffic_live_previous: dict[str, Any] | None = None
+_traffic_history_lock = threading.Lock()
+_traffic_history_cache: dict[str, Any] = {"path": None, "entries": {}}
 _peer_observation_lock = threading.Lock()
 _peer_observation: dict[str, Any] = {
     "active": None,
@@ -967,6 +972,83 @@ def peer_quality_summary(
     return result
 
 
+def peer_distributions(peers: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate existing RPC results; never return peer addresses or comments."""
+    clients: Counter[str] = Counter()
+    services: Counter[str] = Counter()
+    types: Counter[str] = Counter()
+    service_bits = {"NETWORK": 1, "BLOOM": 4, "WITNESS": 8,
+                    "COMPACT_FILTERS": 64, "NETWORK_LIMITED": 1024, "P2P_V2": 2048}
+    known_mask = sum(service_bits.values())
+    service_unknown = 0
+    allowed_types = {"inbound", "outbound-full-relay", "block-relay-only",
+                     "manual", "feeler", "addr-fetch"}
+    for peer in peers:
+        agent = peer.get("subver")
+        # Only client/version components, never arbitrary user-agent comments.
+        parts = re.findall(r"/([A-Za-z][A-Za-z0-9_.-]{0,31}):([0-9][A-Za-z0-9.+_-]{0,31})(?=[/(])",
+                           agent[:512] if isinstance(agent, str) else "")[:2]
+        clients[" / ".join(f"{name} {version}" for name, version in parts) or "unknown"] += 1
+        names = peer.get("servicesnames")
+        flags = None
+        if isinstance(names, list) and len(names) <= 64 and all(isinstance(name, str) for name in names):
+            reported = {name.removeprefix("NODE_") for name in names}
+            flags = reported & service_bits.keys()
+            if reported - service_bits.keys():
+                flags = set(flags) | {"OTHER"}
+        elif isinstance(peer.get("services"), str) and re.fullmatch(r"[0-9a-fA-F]{1,16}", peer["services"]):
+            mask = int(peer["services"], 16)
+            flags = {name for name, bit in service_bits.items() if mask & bit}
+            if mask & ~known_mask:
+                flags.add("OTHER")
+        if flags is None:
+            service_unknown += 1
+        else:
+            services.update(flags)
+        kind = peer.get("connection_type")
+        if not isinstance(kind, str) or kind not in allowed_types:
+            # Do not expose names of privacy-sensitive or future RPC types.
+            kind = "inbound" if peer.get("inbound") is True else "other"
+        types[kind] += 1
+    client_rows = sorted(clients.items(), key=lambda item: (-item[1], item[0]))
+    return {
+        "total": len(peers),
+        "clients": [{"name": name, "count": count} for name, count in client_rows[:12]],
+        "other_clients": sum(count for _, count in client_rows[12:]),
+        "services": [{"name": name, "count": count} for name, count in sorted(services.items())],
+        "services_unknown": service_unknown,
+        "connection_types": [{"name": name, "count": count} for name, count in sorted(types.items())],
+    }
+
+
+def traffic_delta(previous: dict[str, Any] | None, current: dict[str, Any], maximum_gap: int) -> dict[str, Any]:
+    """Accept only complete intervals with continuous Core counters/uptime."""
+    unavailable = {"available": False, "received_bytes_per_second": None,
+                   "sent_bytes_per_second": None, "interval_seconds": None}
+    if previous is None:
+        return unavailable
+    keys = ("timestamp", "received", "sent", "uptime")
+    if any(not isinstance(row.get(key), (int, float)) or isinstance(row[key], bool) or _finite_number(row[key]) is None for row in (previous, current) for key in keys):
+        return unavailable
+    elapsed = current["timestamp"] - previous["timestamp"]
+    received, sent = current["received"] - previous["received"], current["sent"] - previous["sent"]
+    uptime_delta = current["uptime"] - previous["uptime"]
+    if not 0 < elapsed <= maximum_gap or received < 0 or sent < 0 or uptime_delta < 0 or abs(uptime_delta - elapsed) > 5:
+        return unavailable
+    return {"available": True, "received_bytes_per_second": received / elapsed,
+            "sent_bytes_per_second": sent / elapsed, "interval_seconds": elapsed}
+
+
+def live_traffic(timestamp: int, totals: dict[str, Any], uptime: Any) -> dict[str, Any]:
+    global _traffic_live_previous
+    current = {"timestamp": timestamp, "received": totals.get("totalbytesrecv"),
+               "sent": totals.get("totalbytessent"), "uptime": uptime}
+    with _traffic_live_lock:
+        result = traffic_delta(_traffic_live_previous, current, max(120, SAMPLE_INTERVAL_SECONDS * 3, CACHE_SECONDS * 3))
+        _traffic_live_previous = current
+    return result
+
+
 def build_snapshot() -> dict[str, Any]:
     chain = bitcoin_cli("getblockchaininfo")
     network = bitcoin_cli("getnetworkinfo")
@@ -1064,6 +1146,8 @@ def build_snapshot() -> dict[str, Any]:
             "networks": peer_networks,
             "network_directions": peer_directions,
             "peer_quality": peer_quality_summary(peer_rows, generated_at, departures),
+            "peer_analysis": peer_distributions(peer_rows),
+            "traffic": live_traffic(generated_at, net_totals, bitcoind_uptime),
             "local_addresses": local_addresses,
             "host_ipv6_addresses": host_global_ipv6_addresses(),
             "configured_public_address": configured_public_address,
@@ -1579,6 +1663,85 @@ def history_data(range_name: str) -> dict[str, Any]:
         "generated_at": now,
         "points": [dict(row) for row in rows],
     }
+
+
+def traffic_history(range_name: str) -> dict[str, Any]:
+    """Measured counter deltas only; never bridge restarts or long sampling gaps."""
+    range_name = range_name if range_name in HISTORY_RANGES else "24h"
+    now = int(time.time())
+    with _traffic_history_lock:
+        path = str(DATABASE_PATH)
+        if _traffic_history_cache["path"] != path:
+            _traffic_history_cache.update(path=path, entries={})
+        cached = _traffic_history_cache["entries"].get(range_name)
+        if cached and now < cached[0]:
+            return cached[1]
+        duration, bucket = HISTORY_RANGES[range_name]
+        utc = time.gmtime(now)
+        day = calendar.timegm((utc.tm_year, utc.tm_mon, utc.tm_mday, 0, 0, 0))
+        month = calendar.timegm((utc.tm_year, utc.tm_mon, 1, 0, 0, 0))
+        starts = {"selected": now - duration, "today": day, "month": month}
+        lower = min(starts.values())
+        init_database()
+        with closing(database_connection()) as connection:
+            # Include one predecessor to measure the first interval without scanning
+            # older history. Window functions keep yearly histories out of Python.
+            connection.execute("DROP TABLE IF EXISTS temp.traffic_intervals")
+            connection.execute("""
+                CREATE TEMP TABLE traffic_intervals AS
+                WITH samples AS (
+                    SELECT sampled_at, bytes_received, bytes_sent, bitcoind_uptime
+                    FROM node_samples WHERE sampled_at BETWEEN
+                      COALESCE((SELECT MAX(sampled_at) FROM node_samples WHERE sampled_at < ?), ?) AND ?
+                ), deltas AS (
+                    SELECT sampled_at AS ending,
+                      LAG(sampled_at) OVER w AS beginning,
+                      sampled_at - LAG(sampled_at) OVER w AS seconds,
+                      bytes_received - LAG(bytes_received) OVER w AS received,
+                      bytes_sent - LAG(bytes_sent) OVER w AS sent,
+                      bitcoind_uptime - LAG(bitcoind_uptime) OVER w AS uptime_delta,
+                      bytes_received, bytes_sent, bitcoind_uptime
+                    FROM samples WINDOW w AS (ORDER BY sampled_at)
+                ) SELECT *, CASE WHEN seconds > 0 AND seconds <= ?
+                    AND received >= 0 AND sent >= 0
+                    AND received <= bytes_received AND sent <= bytes_sent
+                    AND bytes_received >= 0 AND bytes_sent >= 0 AND bitcoind_uptime >= 0
+                    AND uptime_delta >= 0 AND uptime_delta <= bitcoind_uptime AND ABS(uptime_delta - seconds) <= 5
+                    THEN 1 ELSE 0 END AS valid FROM deltas
+            """, (lower, lower, now, max(120, SAMPLE_INTERVAL_SECONDS * 3)))
+            summaries = {}
+            for name, start in starts.items():
+                row = connection.execute("""
+                    SELECT SUM(CASE WHEN valid AND beginning >= ? THEN received END) received_bytes,
+                      SUM(CASE WHEN valid AND beginning >= ? THEN sent END) sent_bytes,
+                      COALESCE(SUM(CASE WHEN valid AND beginning >= ? THEN seconds ELSE 0 END), 0) measured_seconds,
+                      SUM(CASE WHEN NOT valid THEN 1 ELSE 0 END) gaps
+                    FROM traffic_intervals WHERE ending > ?
+                """, (start, start, start, start)).fetchone()
+                summaries[name] = dict(row) | {"start": start, "window_seconds": now - start}
+            rows = connection.execute("""
+                SELECT CAST(ending / ? AS INTEGER) * ? AS timestamp,
+                  CASE WHEN MIN(valid) = 1 THEN 1.0 * SUM(received) / SUM(seconds) END AS received_bytes_per_second,
+                  CASE WHEN MIN(valid) = 1 THEN 1.0 * SUM(sent) / SUM(seconds) END AS sent_bytes_per_second
+                FROM traffic_intervals WHERE ending > ? AND beginning >= ?
+                GROUP BY timestamp ORDER BY timestamp
+            """, (bucket, bucket, starts["selected"], starts["selected"])).fetchall()
+        result = {"range": range_name, "generated_at": now, "bucket_seconds": bucket,
+                  "points": [dict(row) for row in rows], "periods": summaries}
+        _traffic_history_cache["entries"][range_name] = (now + 30, result)
+        return result
+
+
+def recent_blocks_data() -> dict[str, Any]:
+    """Bounded local observations, not an explorer or an immutable chain archive."""
+    init_database()
+    with closing(database_connection()) as connection:
+        rows = connection.execute("""
+            SELECT height, observed_at, block_time, transactions, total_size,
+                   total_fee_btc, source FROM block_observations
+            ORDER BY height DESC LIMIT 20
+        """).fetchall()
+    return {"generated_at": int(time.time()), "blocks": [dict(row) for row in rows]}
 
 
 def store_daily_utxo_sample(now: int | None = None) -> bool:
@@ -2402,6 +2565,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         public_assets = {
+            "/static/node-insights.js": ("node-insights.js", "text/javascript; charset=utf-8"),
             "/static/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
             "/static/locales/de.json": ("locales/de.json", "application/json; charset=utf-8"),
             "/static/locales/en.json": ("locales/en.json", "application/json; charset=utf-8"),
@@ -2490,6 +2654,15 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 print(f"Chain tips request failed: {exc}", flush=True)
                 self.send_bytes(b'{"error":"Chain tips unavailable"}', "application/json; charset=utf-8", 503)
+            return
+        if path in ("/api/traffic", "/api/recent-blocks"):
+            try:
+                data = (traffic_history(parse_qs(parsed.query).get("range", ["24h"])[0])
+                        if path == "/api/traffic" else recent_blocks_data())
+                self.send_bytes(json.dumps(data, separators=(",", ":")).encode(), "application/json; charset=utf-8")
+            except Exception as exc:
+                print(f"Node insights unavailable: {exc}", flush=True)
+                self.send_bytes(b'{"error":"Node insights unavailable"}', "application/json; charset=utf-8", 503)
             return
         if path == "/api/analytics":
             range_name = parse_qs(parsed.query).get("range", ["24h"])[0]

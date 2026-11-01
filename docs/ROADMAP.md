@@ -2,6 +2,12 @@
 
 Deutsch | [English](en/ROADMAP.md)
 
+## Umgesetzt in 1.20
+
+- Peer-Softwareversionen, Service-Flags und Verbindungsarten aggregieren
+- Verkehrsraten und gemessene Zeitraum-/Tages-/Monatssummen mit Messabdeckung
+- Letzte 20 lokal erfasste Blöcke
+
 ## Umgesetzt in 1.2
 
 - Messwerte regelmäßig in SQLite speichern
@@ -69,7 +75,6 @@ Deutsch | [English](en/ROADMAP.md)
 
 ## Netzwerkdiagnose
 
-- Service-Flags und weitere Peer-Eigenschaften aggregieren
 - beendete Peer-Verbindungen über Dashboard-Neustarts hinweg historisieren
 - Peer-Adressen in öffentlichen Ansichten maskieren
 - Umgesetzt in 1.16: Chain-Tips per `getchaintips` und beobachtete Block-Trennungen per ZMQ getrennt darstellen

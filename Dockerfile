@@ -4,7 +4,7 @@ FROM python:3.11-slim-bookworm
 
 ARG DASHBOARD_UID=1010
 ARG DASHBOARD_GID=1010
-ARG APP_VERSION=1.19.0
+ARG APP_VERSION=1.20.0
 
 LABEL org.opencontainers.image.licenses="GPL-3.0-only" \
       org.opencontainers.image.authors="Hardy (todo1971) <hb@308-arms.de>" \

@@ -15,9 +15,9 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
     await page.route('http://dashboard.test/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
       if (route.request().method() !== 'GET') { posts++; return route.fulfill({status:403,json:{error:'Unexpected mutation'}}); }
-      if (pathname === '/api/admin/status') return route.fulfill({json:{dashboard:{available:true,current:'1.19.0',latest:'1.19.0'},bitcoin:'Bitcoin Core',updates_enabled:true,bitcoin_keyring_ready:true,bitcoin_upload:{filename:'bitcoin-31.1-x86_64-linux-gnu.tar.gz',size:100,sha256:'0'.repeat(64)}}});
+      if (pathname === '/api/admin/status') return route.fulfill({json:{dashboard:{available:true,current:'1.20.0',latest:'1.20.0'},bitcoin:'Bitcoin Core',updates_enabled:true,bitcoin_keyring_ready:true,bitcoin_upload:{filename:'bitcoin-31.1-x86_64-linux-gnu.tar.gz',size:100,sha256:'0'.repeat(64)}}});
       if (pathname === '/api/admin/config') return route.fulfill({json:{fields:[{key:'DASHBOARD_GITHUB_TOKEN',label:'GitHub-Token (leer lassen = unverändert)',section:'Updates',kind:'secret',value:'',configured:false}]}});
-      const files = {'/':'index.html','/admin':'admin.html','/static/i18n.js':'i18n.js',...Object.fromEntries(languages.map(lang => ['/static/locales/' + lang + '.json','locales/' + lang + '.json']))};
+      const files = {'/':'index.html','/admin':'admin.html','/static/i18n.js':'i18n.js','/static/node-insights.js':'node-insights.js',...Object.fromEntries(languages.map(lang => ['/static/locales/' + lang + '.json','locales/' + lang + '.json']))};
       if (files[pathname] && !(languageFailure && pathname.endsWith('/ru.json'))) {
         const file = files[pathname];
         return route.fulfill({body:fs.readFileSync(path.join(__dirname,'../static',file)),contentType:file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':'application/json'});

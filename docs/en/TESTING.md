@@ -25,6 +25,23 @@ long-term data.
 Compose image tags and build metadata share the same version default.
 `DASHBOARD_VERSION` can override it when deliberately building another version.
 
+## Peer and traffic checks since 1.20.0
+
+Python tests cover bounded peer aggregates without addresses or free-form client
+comments, decreasing counters and uptime restarts, sampling gaps, UTC boundaries,
+unknown values, the 20-block limit, and the new read-only HTTP endpoints.
+Optional Playwright tests require Playwright and a Chromium browser
+(`QA_BROWSER=msedge` for Edge). They cover all six languages, safe text rendering,
+zero versus unknown rates, tabs, and mobile widths. Browser data is mocked;
+no production node is changed.
+
+```sh
+python -m unittest discover -s tests -q
+python tools/check_documentation.py
+node tools/test_languages.cjs
+node tools/test_node_insights.cjs
+```
+
 ## Tokenless updates
 
 See [Public repository without a token](UPDATES.md#public-repository-without-a-token).

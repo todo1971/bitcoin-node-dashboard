@@ -12,6 +12,7 @@ provides a separately identified external directory status, not our own live por
 
 ## Features
 
+- Peer software, service flags, connection types, traffic rates with coverage, and last 20 recorded blocks ([details](docs/en/NODE_INSIGHTS.md))
 - German, English, Spanish, Brazilian Portuguese, Simplified Chinese and Russian UI with a dashboard and admin language selector ([translations](docs/en/TRANSLATIONS.md)).
 - No external Python packages for basic operation; real-time ZMQ optionally needs `python3-zmq`.
 - Fixed, read-only RPC queries through `bitcoin-cli`; no general RPC forwarding to the browser.
@@ -83,7 +84,7 @@ archive, rather than the checkout writable by `btc`:
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.19.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.20.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard

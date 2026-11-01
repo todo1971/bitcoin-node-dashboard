@@ -4,6 +4,14 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.20.0 – 2026-11-01
+
+- Peer-Softwareversionen, angebotene Service-Flags und Verbindungsarten zusammengefasst anzeigen; keine fremden Peer-Adressen oder freien Clientkommentare veröffentlichen.
+- Live-Verkehrsraten und SQLite-Verkehrshistorie ergänzen, mit gemessenen Summen für Zeitraum, Tag und Monat sowie Messabdeckung; Neustarts und Lücken nicht als null werten.
+- Letzte 20 lokal erfasste Blöcke mit Zeit, Transaktionen, Größe und Gebühren anzeigen, ohne zusätzliche RPC-Abfragen.
+- Neue Anzeigen in die bestehenden Reiter einordnen und in alle sechs Sprachen übersetzen; Datenqualität und Grenzen auf Deutsch und Englisch dokumentieren.
+- Eigenständige Entwicklung ohne fremden Dashboard-Code festhalten; Regressionstests für Zähler, Datenschutz, Zeitgrenzen und Browser ergänzen.
+
 ## 1.19.0 – 2026-11-01
 
 - Spanisch, Portugiesisch (Brasilien), vereinfachtes Chinesisch und Russisch ergänzen; Deutsch und Englisch bleiben verfügbar.

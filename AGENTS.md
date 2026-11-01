@@ -1,5 +1,7 @@
 # Projektregeln
 
+- Funktionen eigenständig entwickeln; keinen Code anderer Dashboards übernehmen.
+
 - Eigene Copyright-Hinweise immer mit Hardys E-Mail-Adresse ergänzen:
   `Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>`.
 - Bei neuen Jahren das zutreffende Jahr bzw. den Zeitraum verwenden; Name und

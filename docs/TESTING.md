@@ -26,6 +26,23 @@ keinen Produktivbetrieb mit echten Wallets oder Langzeitdaten.
 Compose-Images und Build-Metadaten verwenden denselben Versionsstandard;
 `DASHBOARD_VERSION` kann ihn beim bewussten Bau einer anderen Version überschreiben.
 
+## Peer- und Verkehrsprüfung ab 1.20.0
+
+Die Python-Tests prüfen begrenzte Peer-Aggregate ohne Adressen oder freie
+Clientkommentare, Zählerrückgänge und Laufzeit-Neustarts, Messlücken, UTC-Grenzen,
+unbekannte Werte, die 20-Block-Grenze und die neuen lesenden HTTP-Endpunkte.
+Die optionalen Playwright-Tests benötigen Playwright und einen Chromium-Browser
+(`QA_BROWSER=msedge` für Edge). Sie prüfen alle sechs Sprachen, sichere Textausgabe,
+Null gegenüber unbekannten Raten, Reiter und mobile Breiten. Die Browserdaten
+sind Testdaten; dabei wird kein produktiver Node verändert.
+
+```sh
+python -m unittest discover -s tests -q
+python tools/check_documentation.py
+node tools/test_languages.cjs
+node tools/test_node_insights.cjs
+```
+
 ## Tokenlose Updates
 
 Anleitung und Grenzen: [Öffentliches Repository ohne Token](UPDATES.md#öffentliches-repository-ohne-token).

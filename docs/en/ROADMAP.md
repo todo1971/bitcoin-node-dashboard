@@ -2,6 +2,12 @@
 
 [Deutsch](../ROADMAP.md) | [English documentation](../../README.en.md#documentation)
 
+## Implemented in 1.20
+
+- Aggregate peer software versions, service flags, and connection types.
+- Traffic rates and measured period/day/month totals with coverage.
+- Last 20 locally recorded blocks.
+
 ## Implemented in 1.2
 
 - Regular SQLite sampling.
@@ -68,7 +74,6 @@
 
 ## Network diagnosis
 
-- Aggregate service flags and additional peer properties.
 - Preserve ended-connection history across dashboard restarts.
 - Mask peer addresses in public views.
 - Implemented in 1.16: separately show `getchaintips` snapshots and ZMQ-observed block disconnections.
