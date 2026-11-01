@@ -146,3 +146,5 @@ separately. `docker compose down` without `-v` preserves them.
 
 For all-in-one, back up the single `node-data` volume instead.
 Do not use `down -v` during normal operation there either.
+
+Host, container, and optional packages: [Dependencies](DEPENDENCIES.md).

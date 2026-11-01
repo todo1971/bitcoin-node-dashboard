@@ -67,3 +67,5 @@ Grundlagen: [Docker Multi-Plattform-Builds](https://docs.docker.com/build/buildi
 und [GitHub ARM64-Runner](https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/).
 
 [Zurück zur Übersicht](../README.md)
+
+Geprüfte Paketlisten für AMD64 und ARM64: [Abhängigkeiten](DEPENDENCIES.md).

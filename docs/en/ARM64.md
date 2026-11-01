@@ -67,3 +67,5 @@ Background: [Docker multi-platform builds](https://docs.docker.com/build/buildin
 and [GitHub ARM64 runners](https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/).
 
 [Back to overview](../../README.en.md)
+
+Verified package lists for AMD64 and ARM64: [Dependencies](DEPENDENCIES.md).

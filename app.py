@@ -37,7 +37,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.21.0"
+__version__ = "1.21.1"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")

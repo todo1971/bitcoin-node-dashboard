@@ -43,3 +43,5 @@ Behind Plesk/Apache, also test the public HTTPS `/api/events` path with
 - ZMQ publishers do not authenticate subscribers. **Never** bind them to `0.0.0.0` or a public address.
 
 Telegram remains a future extension on the roadmap.
+
+Container bindings and interpreter differences: [Dependencies](DEPENDENCIES.md#optional-container-zmq-bindings).

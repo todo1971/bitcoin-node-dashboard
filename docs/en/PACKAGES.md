@@ -22,8 +22,8 @@ source version equality, compilation and unit tests. It uses GitHub's short-live
 Example:
 
 ```bash
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.0
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.0
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.1
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.1
 ```
 
 Images do not replace configuration, volumes or port bindings described in
@@ -42,3 +42,5 @@ The release `tar.gz` and `tar.gz.sha256` assets remain available for the systemd
 dashboard updater, which does not download container images.
 
 ARM64 requirements and build tools: [Raspberry Pi / ARM64](ARM64.md).
+
+Complete runtime and package requirements: [Dependencies](DEPENDENCIES.md).

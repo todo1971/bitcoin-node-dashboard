@@ -4,6 +4,14 @@
 
 All significant project changes are recorded here.
 
+## 1.21.1 – 2026-11-01
+
+- Document package requirements by host/container deployment, optional features, and AMD64/ARM64, including concrete Debian installation commands.
+- Audit both images for Python, SQLite, SSL, trusted CAs, dynamic libraries, and installed Debian packages; retain JSON evidence per architecture.
+- Check optional PyZMQ wheels natively and resolve documented Debian package lists using APT simulation.
+- Explain missing optional ZMQ/mail programs in standard images and Debian versus container Python; clarify shell installer requirements.
+- Upgrade the pinned QEMU action to version 4 and require dependency checks for future architectures.
+
 ## 1.21.0 – 2026-11-01
 
 - Publish both GHCR images as Linux/AMD64 and Linux/ARM64 multi-platform packages; support Raspberry Pi with a 64-bit system.

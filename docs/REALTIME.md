@@ -32,3 +32,5 @@ Das Dashboard kann Block- und Mempool-Ereignisse aus `zmqpubsequence` empfangen.
 - Ein ZMQ-Publisher authentifiziert seine Abonnenten nicht. Deshalb **niemals** an `0.0.0.0` oder eine öffentliche Adresse binden.
 
 Telegram ist als spätere Erweiterung in der Roadmap notiert.
+
+Container-Bindings und Interpreter-Unterschiede: [Abhängigkeiten](DEPENDENCIES.md#optionale-zmq-bindings-im-container).

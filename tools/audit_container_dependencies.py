@@ -6,14 +6,12 @@ import _sqlite3
 import _ssl
 import importlib.util
 import json
-import os
 import platform
 import shutil
 import sqlite3
 import ssl
 import subprocess
 import sys
-from pathlib import Path
 
 
 def audit():

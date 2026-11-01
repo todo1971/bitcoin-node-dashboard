@@ -4,6 +4,14 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.21.1 – 2026-11-01
+
+- Paketlisten nach Host-/Container-Betrieb, optionalen Funktionen sowie AMD64/ARM64 dokumentieren, einschließlich konkreter Debian-Installationsbefehle.
+- Laufzeit-Audit beider Images für Python, SQLite, SSL, CA-Zertifikate, dynamische Bibliotheken und installierte Debian-Pakete ergänzen; JSON-Nachweise je Architektur speichern.
+- Optionale PyZMQ-Wheels nativ prüfen und dokumentierte Debian-Paketlisten per APT-Simulation auflösen.
+- Fehlende optionale ZMQ-/Mailprogramme in Standardimages und den Unterschied zwischen Debian- und Container-Python erklären; Voraussetzungen des Shell-Installers präzisieren.
+- QEMU-Action auf die festgelegte Version 4 aktualisieren und Abhängigkeitsprüfungen als Regel für weitere Architekturen festhalten.
+
 ## 1.21.0 – 2026-11-01
 
 - Beide GHCR-Images als Multi-Plattform-Pakete für Linux/AMD64 und Linux/ARM64 veröffentlichen; Raspberry Pi mit 64-Bit-System unterstützen.

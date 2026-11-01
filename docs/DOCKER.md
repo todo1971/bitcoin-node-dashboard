@@ -152,3 +152,5 @@ normalen Updateablauf.
 
 In der All-in-one-Variante ist stattdessen das einzelne Volume `node-data` zu
 sichern. Auch dort darf `down -v` nicht im normalen Betrieb verwendet werden.
+
+Host-, Container- und optionale Pakete: [Abhängigkeiten](DEPENDENCIES.md).

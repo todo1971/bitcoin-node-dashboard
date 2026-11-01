@@ -1,6 +1,7 @@
 # Projektregeln
 
 - Funktionen eigenständig entwickeln; keinen Code anderer Dashboards übernehmen.
+- Bei neuen Architekturen die Basisimages, Laufzeitpakete, optionalen Abhängigkeiten und nativen Starttests prüfen; Paketlisten und Nachweise auf Deutsch und Englisch dokumentieren.
 
 - Eigene Copyright-Hinweise immer mit Hardys E-Mail-Adresse ergänzen:
   `Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>`.

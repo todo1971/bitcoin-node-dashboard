@@ -11,6 +11,8 @@ externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab)
 ![Bitcoin Core](https://img.shields.io/badge/Bitcoin%20Core-31.x-f7931a)
 
+[Benötigte Pakete für Host, Docker, AMD64 und ARM64](docs/DEPENDENCIES.md)
+
 ## Eigenschaften
 
 - Multi-Plattform-Container für AMD64 und ARM64 / Raspberry Pi mit 64-Bit-Linux ([Voraussetzungen und Build](docs/ARM64.md))
@@ -91,7 +93,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.21.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.21.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard

@@ -10,6 +10,8 @@ provides a separately identified external directory status, not our own live por
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab)
 ![Bitcoin Core](https://img.shields.io/badge/Bitcoin%20Core-31.x-f7931a)
 
+[Required packages for host, Docker, AMD64 and ARM64](docs/en/DEPENDENCIES.md)
+
 ## Features
 
 - Multi-platform containers for AMD64 and ARM64 / Raspberry Pi with 64-bit Linux ([requirements and builds](docs/en/ARM64.md))
@@ -85,7 +87,7 @@ archive, rather than the checkout writable by `btc`:
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.21.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.21.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard

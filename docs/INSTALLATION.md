@@ -75,7 +75,7 @@ Das Release-Archiv liegt für diesen einmaligen Schritt im aktuellen Verzeichnis
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.21.0.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.21.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```
@@ -162,3 +162,5 @@ Die Datenbank kann separat geprüft werden:
 sudo -u btc sqlite3 /var/lib/bitcoin-dashboard/history.sqlite3 \
   'SELECT COUNT(*), MIN(sampled_at), MAX(sampled_at) FROM node_samples;'
 ```
+
+Paketvoraussetzungen vor der Installation: [Abhängigkeiten](DEPENDENCIES.md).

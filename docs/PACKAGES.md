@@ -23,8 +23,8 @@ Registry-Token muss nicht als Repository-Secret eingerichtet werden.
 Beispiel:
 
 ```bash
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.0
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.0
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.1
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.1
 ```
 
 Images ersetzen nicht die Konfiguration, Volumes und Portbindungen der
@@ -44,3 +44,5 @@ Release-Assets `tar.gz` und `tar.gz.sha256` bleiben zusätzlich für den
 systemd-Dashboard-Updater erhalten; dieser lädt keine Container-Images.
 
 ARM64-Voraussetzungen und Build-Werkzeuge: [Raspberry Pi / ARM64](ARM64.md).
+
+Vollständige Laufzeit- und Paketvoraussetzungen: [Abhängigkeiten](DEPENDENCIES.md).

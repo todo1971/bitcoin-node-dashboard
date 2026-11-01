@@ -66,6 +66,12 @@ jobs:
           version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' app.py)
           docker run --rm -i --entrypoint python3 bitcoin-node-dashboard:ci < tools/audit_container_dependencies.py > "dependency-audit/dashboard-$ARCHITECTURE.json"
           docker run --rm -i --entrypoint python3 "bitcoin-node-dashboard-all-in-one:$version" < tools/audit_container_dependencies.py > "dependency-audit/all-in-one-$ARCHITECTURE.json"
+      - name: Check optional PyZMQ wheel on native architecture
+        run: |
+          docker run --rm --user 0 --entrypoint sh bitcoin-node-dashboard:ci -c 'python3 -m pip install --no-cache-dir --only-binary=:all: pyzmq==27.2.0 && python3 -c "import zmq; print(zmq.__version__, zmq.zmq_version()); context=zmq.Context(); socket=context.socket(zmq.SUB); socket.close(); context.term()"'
+      - name: Resolve documented Debian host packages
+        run: |
+          docker run --rm --user 0 --entrypoint sh bitcoin-node-dashboard:ci -c 'apt-get update -qq && apt-get --simulate install --no-install-recommends python3 ca-certificates systemd sudo util-linux coreutils findutils grep sed mawk tar gzip passwd curl gnupg python3-zmq git iproute2 sqlite3 qemu-user-static binfmt-support apache2 tor'
       - name: Save dependency evidence
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
