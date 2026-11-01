@@ -11,11 +11,16 @@ import app
 
 
 class LanguageAssetsTests(unittest.TestCase):
+    languages = ('de', 'en', 'es', 'pt-BR', 'zh-Hans', 'ru')
+
     def test_catalog_keys_match_and_german_is_identity(self):
-        catalogs = {lang: json.loads((app.STATIC_DIR / 'locales' / f'{lang}.json').read_text(encoding='utf-8')) for lang in ('de', 'en')}
-        self.assertEqual(set(catalogs['de']), set(catalogs['en']))
+        catalogs = {lang: json.loads((app.STATIC_DIR / 'locales' / f'{lang}.json').read_text(encoding='utf-8')) for lang in self.languages}
+        self.assertEqual(set(path.stem for path in (app.STATIC_DIR / 'locales').glob('*.json')), set(self.languages))
+        for language, catalog in catalogs.items():
+            with self.subTest(language=language):
+                self.assertEqual(set(catalogs['de']), set(catalog))
+                self.assertTrue(all(isinstance(v, str) and v for v in catalog.values()))
         self.assertTrue(all(k == v for k, v in catalogs['de'].items()))
-        self.assertTrue(all(isinstance(v, str) and v for v in catalogs['en'].values()))
 
     def test_assets_are_public_without_exposing_other_files(self):
         server = ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
@@ -23,11 +28,11 @@ class LanguageAssetsTests(unittest.TestCase):
         thread.start()
         base = f'http://127.0.0.1:{server.server_port}'
         try:
-            for path in ('/static/i18n.js', '/static/locales/de.json', '/static/locales/en.json'):
+            for path in ('/static/i18n.js', *(f'/static/locales/{lang}.json' for lang in self.languages)):
                 with urllib.request.urlopen(base + path) as response:
                     self.assertEqual(response.status, 200)
                     self.assertTrue(response.read())
-            for path in ('/static/../app.py', '/static/locales/../../.env', '/static/locales/fr.json'):
+            for path in ('/static/../app.py', '/static/locales/../../.env', '/static/locales/fr.json', '/static/locales/ja.json', '/static/locales/zh-Hant.json'):
                 with self.assertRaises(urllib.error.HTTPError) as error:
                     urllib.request.urlopen(base + path)
                 self.assertEqual(error.exception.code, 404)

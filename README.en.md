@@ -12,7 +12,7 @@ provides a separately identified external directory status, not our own live por
 
 ## Features
 
-- German and English UI with a language selector in the dashboard and admin area ([translations](docs/en/TRANSLATIONS.md)).
+- German, English, Spanish, Brazilian Portuguese, Simplified Chinese and Russian UI with a dashboard and admin language selector ([translations](docs/en/TRANSLATIONS.md)).
 - No external Python packages for basic operation; real-time ZMQ optionally needs `python3-zmq`.
 - Fixed, read-only RPC queries through `bitcoin-cli`; no general RPC forwarding to the browser.
 - Local listener on `127.0.0.1:8787`; Bitcoin RPC and its authentication cookie stay on the server.
@@ -83,7 +83,7 @@ archive, rather than the checkout writable by `btc`:
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.18.5.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.19.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard

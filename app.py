@@ -36,7 +36,7 @@ from urllib.parse import parse_qs, urlparse
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.18.5"
+__version__ = "1.19.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -2405,6 +2405,10 @@ class Handler(BaseHTTPRequestHandler):
             "/static/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
             "/static/locales/de.json": ("locales/de.json", "application/json; charset=utf-8"),
             "/static/locales/en.json": ("locales/en.json", "application/json; charset=utf-8"),
+            "/static/locales/es.json": ("locales/es.json", "application/json; charset=utf-8"),
+            "/static/locales/pt-BR.json": ("locales/pt-BR.json", "application/json; charset=utf-8"),
+            "/static/locales/zh-Hans.json": ("locales/zh-Hans.json", "application/json; charset=utf-8"),
+            "/static/locales/ru.json": ("locales/ru.json", "application/json; charset=utf-8"),
         }
         if path in public_assets:
             filename, content_type = public_assets[path]

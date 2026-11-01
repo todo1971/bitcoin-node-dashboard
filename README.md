@@ -13,7 +13,7 @@ externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 
 ## Eigenschaften
 
-- Deutsch / Englisch mit Sprachauswahl im Dashboard und Adminbereich (Details: [Übersetzungen](docs/TRANSLATIONS.md))
+- Deutsch, Englisch, Spanisch, Portugiesisch (Brasilien), vereinfachtes Chinesisch und Russisch im Dashboard und Adminbereich (Details: [Übersetzungen](docs/TRANSLATIONS.md))
 
 - keine externen Python-Pakete für den Grundbetrieb; Echtzeit-ZMQ benötigt optional `python3-zmq`
 - feste, ausschließlich lesende RPC-Abfragen über `bitcoin-cli`
@@ -89,7 +89,7 @@ Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.18.5.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.19.0.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
