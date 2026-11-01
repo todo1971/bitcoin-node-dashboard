@@ -7,7 +7,7 @@ All significant project changes are recorded here.
 ## 1.19.0 – 2026-11-01
 
 - Add Spanish, Brazilian Portuguese, Simplified Chinese and Russian alongside German and English.
-- Align all six catalogs to the same complete set of 298 entries, including glossary, admin notices and update confirmations.
+- Align all six catalogs to the same complete set of 300 entries, including glossary, admin notices and update confirmations.
 - Use native language names and matching number/date locales; retain browser-persisted selection.
 - Avoid retranslating the translator's own DOM mutations and translate confirmation dialogs as complete sentences.
 - Extend browser checks across all languages, desktop/mobile tabs, live text, protected fields and invalid language preferences.

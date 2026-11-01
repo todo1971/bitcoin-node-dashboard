@@ -296,5 +296,7 @@
   "sat/vB · 12 Blöcke": "sat/vB · 12 blocos",
   "2 / 6 / 12 Blöcke · sat/vB": "2 / 6 / 12 blocos · sat/vB",
   "Node": "Nó",
-  "Load": "Carga"
+  "Load": "Carga",
+  "Pruned Node": "Nó podado",
+  "Bitcoin Node": "Nó Bitcoin"
 }

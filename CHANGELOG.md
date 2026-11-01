@@ -7,7 +7,7 @@ Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 ## 1.19.0 – 2026-11-01
 
 - Spanisch, Portugiesisch (Brasilien), vereinfachtes Chinesisch und Russisch ergänzen; Deutsch und Englisch bleiben verfügbar.
-- Alle sechs Sprachkataloge auf denselben vollständigen Satz von 298 Einträgen bringen, einschließlich Glossar, Admin-Hinweisen und Update-Bestätigungen.
+- Alle sechs Sprachkataloge auf denselben vollständigen Satz von 300 Einträgen bringen, einschließlich Glossar, Admin-Hinweisen und Update-Bestätigungen.
 - Sprachnamen in Eigenform und passende Zahlen-/Datumsformate verwenden; Auswahl weiterhin im Browser speichern.
 - Wiederholtes Übersetzen eigener DOM-Änderungen vermeiden und Bestätigungsdialoge als ganze Sätze übersetzen.
 - Browserprüfungen für alle Sprachen, Desktop-/Mobil-Reiter, Live-Texte, geschützte Felder und fehlerhafte Spracheinstellungen ergänzen.

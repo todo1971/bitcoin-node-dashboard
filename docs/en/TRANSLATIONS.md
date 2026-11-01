@@ -18,7 +18,7 @@ page and preserves the selected tab.
 | Русский | `ru.json` | `ru-RU` |
 
 The UTF-8 files under `static/locales/` each contain the same complete set of
-298 German source strings as keys. Translated values cover complete text or
+300 German source strings as keys. Translated values cover complete text or
 known parts of dynamic messages. The longest matching phrase wins; word
 boundaries protect identifiers. Only local language files are loaded.
 

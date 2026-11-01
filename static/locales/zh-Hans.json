@@ -296,5 +296,7 @@
   "sat/vB · 12 Blöcke": "sat/vB · 12 个区块",
   "2 / 6 / 12 Blöcke · sat/vB": "2 / 6 / 12 个区块 · sat/vB",
   "Node": "节点",
-  "Load": "负载"
+  "Load": "负载",
+  "Pruned Node": "裁剪节点",
+  "Bitcoin Node": "比特币节点"
 }

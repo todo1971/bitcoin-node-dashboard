@@ -296,5 +296,7 @@
   "sat/vB · 12 Blöcke": "sat/vB · 12 блоков",
   "2 / 6 / 12 Blöcke · sat/vB": "2 / 6 / 12 блоков · sat/vB",
   "Node": "Узел",
-  "Load": "Нагрузка"
+  "Load": "Нагрузка",
+  "Pruned Node": "Узел с обрезкой",
+  "Bitcoin Node": "Узел Bitcoin"
 }

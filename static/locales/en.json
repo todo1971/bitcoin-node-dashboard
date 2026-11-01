@@ -296,5 +296,7 @@
   "sat/vB · 12 Blöcke": "sat/vB · 12 blocks",
   "2 / 6 / 12 Blöcke · sat/vB": "2 / 6 / 12 blocks · sat/vB",
   "Node": "Node",
-  "Load": "Load"
+  "Load": "Load",
+  "Pruned Node": "Pruned Node",
+  "Bitcoin Node": "Bitcoin Node"
 }

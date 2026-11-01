@@ -36,9 +36,11 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
       assert.equal(new URL(page.url()).hash, '#network');
       await page.evaluate(() => {
         document.getElementById('syncText').textContent = '99.9 % synchronisiert';
+        document.getElementById('mode').textContent = 'Pruned Node';
         const note = document.createElement('p'); note.id = 'qa-note'; note.textContent = 'UTFXO_Netzwerk'; document.body.append(note);
       });
       await page.waitForFunction(expected => document.querySelector('#syncText').textContent === expected, '99.9 % ' + t('synchronisiert'));
+      await page.waitForFunction(expected => document.querySelector('#mode').textContent === expected, t('Pruned Node'));
       assert.equal(await page.locator('#qa-note').textContent(), 'UTFXO_Netzwerk');
       const before = await page.locator('#tab-network').textContent();
       await page.waitForTimeout(60);

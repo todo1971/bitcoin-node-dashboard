@@ -18,7 +18,7 @@ Ein Sprachwechsel lädt die Seite neu und erhält den aktiven Reiter.
 | Русский | `ru.json` | `ru-RU` |
 
 Die UTF-8-Dateien unter `static/locales/` enthalten jeweils denselben vollständigen
-Satz von 298 deutschen Ausgangstexten als Schlüssel. Die übersetzten Werte
+Satz von 300 deutschen Ausgangstexten als Schlüssel. Die übersetzten Werte
 übersetzen ganze Texte oder bekannte Satzbestandteile dynamischer Meldungen.
 Die längste passende Formulierung gewinnt; Wortgrenzen schützen Kennungen.
 Es werden ausschließlich lokale Sprachdateien geladen.
