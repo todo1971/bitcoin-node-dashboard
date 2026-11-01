@@ -10,6 +10,8 @@ environment was installed and no test was moved to the production server.
 
 ## Container checks in GitHub Actions
 
+Since 1.21.0 these checks run natively on AMD64 and ARM64. Before builds, both base image platforms are checked and the Bitcoin binary for the current architecture is executed. This is not a physical Raspberry Pi test; see [ARM64](ARM64.md).
+
 CI validates all three Compose files and builds the dashboard and all-in-one
 images. It starts the all-in-one container with Bitcoin Core and checks health,
 the English language file and admin access denial without authentication.

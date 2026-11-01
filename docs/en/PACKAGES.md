@@ -3,7 +3,7 @@
 [Deutsch](../PACKAGES.md) | [English documentation](../../README.en.md#documentation)
 
 For every published stable release, `Publish GitHub Packages` automatically
-builds two Linux/AMD64 images from the exact release tag and publishes them to
+builds two multi-platform images for Linux/AMD64 and Linux/ARM64 from the exact release tag and publishes them to
 the GitHub Container Registry:
 
 - `ghcr.io/todo1971/bitcoin-node-dashboard:VERSION`
@@ -22,8 +22,8 @@ source version equality, compilation and unit tests. It uses GitHub's short-live
 Example:
 
 ```bash
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.18.3
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.18.3
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.0
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.0
 ```
 
 Images do not replace configuration, volumes or port bindings described in
@@ -40,3 +40,5 @@ check the visibility of both packages separately in their package settings.
 Successful uploads and manifest digests appear in the Actions run.
 The release `tar.gz` and `tar.gz.sha256` assets remain available for the systemd
 dashboard updater, which does not download container images.
+
+ARM64 requirements and build tools: [Raspberry Pi / ARM64](ARM64.md).

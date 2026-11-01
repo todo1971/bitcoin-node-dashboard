@@ -4,6 +4,14 @@
 
 All significant project changes are recorded here.
 
+## 1.21.0 – 2026-11-01
+
+- Publish both GHCR images as Linux/AMD64 and Linux/ARM64 multi-platform packages; support Raspberry Pi with a 64-bit system.
+- Check Bitcoin and Python base images for both architectures before builds; add a reusable registry inspection tool.
+- Add native ARM64 CI alongside AMD64: execute the base image Bitcoin binary and start both all-in-one and separate stacks.
+- Set up QEMU and Buildx in the release workflow and verify both architectures in published manifests.
+- Document prerequisites, build-tool downloads, and Raspberry Pi testing limitations in German and English.
+
 ## 1.20.0 – 2026-11-01
 
 - Show aggregated peer software versions, advertised service flags, and connection types without publishing other peers' addresses or free-form client comments.

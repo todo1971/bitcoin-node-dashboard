@@ -3,7 +3,7 @@
 Deutsch | [English](en/PACKAGES.md)
 
 Zu jedem veröffentlichten stabilen Release baut der Workflow
-`Publish GitHub Packages` automatisch zwei Linux/AMD64-Images aus dem exakten
+`Publish GitHub Packages` automatisch zwei Multi-Plattform-Images für Linux/AMD64 und Linux/ARM64 aus dem exakten
 Release-Tag und veröffentlicht sie in der GitHub Container Registry:
 
 - `ghcr.io/todo1971/bitcoin-node-dashboard:VERSION`
@@ -23,8 +23,8 @@ Registry-Token muss nicht als Repository-Secret eingerichtet werden.
 Beispiel:
 
 ```bash
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.18.3
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.18.3
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.21.0
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.21.0
 ```
 
 Images ersetzen nicht die Konfiguration, Volumes und Portbindungen der
@@ -42,3 +42,5 @@ beider Pakete separat in deren Package-Einstellungen prüfen.
 Der erfolgreiche Upload und die Manifest-Digests stehen im Actions-Lauf. Die
 Release-Assets `tar.gz` und `tar.gz.sha256` bleiben zusätzlich für den
 systemd-Dashboard-Updater erhalten; dieser lädt keine Container-Images.
+
+ARM64-Voraussetzungen und Build-Werkzeuge: [Raspberry Pi / ARM64](ARM64.md).

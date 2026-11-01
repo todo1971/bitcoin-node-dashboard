@@ -9,7 +9,15 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: amd64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -34,6 +42,15 @@ jobs:
           docker compose config --quiet
           docker compose -f compose.host-node.yaml config --quiet
           docker compose -f compose.all-in-one.yaml config --quiet
+      - name: Check multi-platform bases and run native Bitcoin binary
+        env:
+          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          python tools/check_container_platforms.py
+          core_version=$(sed -n 's/^ARG BITCOIN_CORE_VERSION=\(.*\)/\1/p' Dockerfile.all-in-one | head -n 1)
+          docker pull "bitcoin/bitcoin:$core_version"
+          test "$(docker image inspect --format '{{.Architecture}}' "bitcoin/bitcoin:$core_version")" = "$EXPECTED_ARCHITECTURE"
+          docker run --rm --entrypoint "/opt/bitcoin-$core_version/bin/bitcoind" "bitcoin/bitcoin:$core_version" --version
       - name: Build dashboard container
         run: docker build --build-arg APP_VERSION=ci -t bitcoin-node-dashboard:ci .
       - name: Build all-in-one container

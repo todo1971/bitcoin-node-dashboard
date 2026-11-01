@@ -11,6 +11,8 @@ auf den produktiven Server verlagert.
 
 ## Containerprüfung in GitHub Actions
 
+Seit 1.21.0 laufen diese Prüfungen nativ auf AMD64 und ARM64. Vor dem Build werden die Registry-Plattformen beider Basisimages geprüft und die Bitcoin-Binärdatei der jeweiligen Architektur ausgeführt. Das ist kein Test auf einem physischen Raspberry Pi; Details unter [ARM64](ARM64.md).
+
 Die CI validiert alle drei Compose-Dateien und baut das Dashboard- sowie das
 All-in-one-Image. Sie startet den All-in-one-Container mit Bitcoin Core und prüft
 Healthcheck, englische Sprachdatei und die gesperrte Adminseite ohne Anmeldung.
