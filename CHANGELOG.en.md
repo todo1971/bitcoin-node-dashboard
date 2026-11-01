@@ -11,6 +11,7 @@ All significant project changes are recorded here.
 - Check optional PyZMQ wheels natively and resolve documented Debian package lists using APT simulation.
 - Explain missing optional ZMQ/mail programs in standard images and Debian versus container Python; clarify shell installer requirements.
 - Upgrade the pinned QEMU action to version 4 and require dependency checks for future architectures.
+- Copy diagnostic tools during host installation and updates so documented checks and installed tests remain available.
 
 ## 1.21.0 – 2026-11-01
 

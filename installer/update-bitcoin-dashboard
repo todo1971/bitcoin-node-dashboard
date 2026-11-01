@@ -94,7 +94,7 @@ fi
 
 install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET"
 install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$source_dir/app.py" "$TARGET/app.py"
-for directory in static docs tests; do
+for directory in static docs tests tools; do
     install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET/$directory"
     cp -a "$source_dir/$directory/." "$TARGET/$directory/"
 done

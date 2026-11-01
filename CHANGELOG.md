@@ -11,6 +11,7 @@ Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 - Optionale PyZMQ-Wheels nativ prüfen und dokumentierte Debian-Paketlisten per APT-Simulation auflösen.
 - Fehlende optionale ZMQ-/Mailprogramme in Standardimages und den Unterschied zwischen Debian- und Container-Python erklären; Voraussetzungen des Shell-Installers präzisieren.
 - QEMU-Action auf die festgelegte Version 4 aktualisieren und Abhängigkeitsprüfungen als Regel für weitere Architekturen festhalten.
+- Prüfwerkzeuge bei Host-Installation und Updates mitkopieren, damit dokumentierte Diagnosebefehle und installierte Tests verfügbar bleiben.
 
 ## 1.21.0 – 2026-11-01
 

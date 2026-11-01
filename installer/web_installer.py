@@ -86,7 +86,7 @@ def copy_project(target: Path, uid: int, gid: int) -> None:
         source = PROJECT_DIR / filename
         if source.exists():
             shutil.copy2(source, target / filename)
-    for dirname in ("static", "docs", "tests"):
+    for dirname in ("static", "docs", "tests", "tools"):
         destination = target / dirname
         if destination.exists():
             shutil.rmtree(destination)
