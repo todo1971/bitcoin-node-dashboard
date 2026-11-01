@@ -58,6 +58,20 @@ jobs:
           PUBLIC_NODE_ADDRESS: 127.0.0.1
           ADMIN_TOKEN: "01234567890123456789012345678901"
         run: docker compose -f compose.all-in-one.yaml build
+      - name: Audit image runtime dependencies
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          mkdir -p dependency-audit
+          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' app.py)
+          docker run --rm -i --entrypoint python3 bitcoin-node-dashboard:ci < tools/audit_container_dependencies.py > "dependency-audit/dashboard-$ARCHITECTURE.json"
+          docker run --rm -i --entrypoint python3 "bitcoin-node-dashboard-all-in-one:$version" < tools/audit_container_dependencies.py > "dependency-audit/all-in-one-$ARCHITECTURE.json"
+      - name: Save dependency evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: dependency-audit-${{ matrix.architecture }}
+          path: dependency-audit/*.json
+          retention-days: 30
       - name: Validate shell installer
         run: |
           sudo sh installer/install-docker-all-in-one.sh \
