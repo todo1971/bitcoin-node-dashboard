@@ -4,6 +4,11 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.21.3 – 2026-11-02
+
+- Beschädigte Umlaute, Sonderzeichen und Trennpunkte im deutschen und englischen QEMU-Testbericht korrigieren.
+- Dokumentationsprüfung um typische UTF-8-/Windows-1252-Verwechslungen und Ersatzzeichen erweitern; Regressionstest für den konkreten Fehler ergänzen.
+
 ## 1.21.2 – 2026-11-01
 
 - Release 1.21.1 lokal unter Windows mit vollständiger ARM64-Systememulation prüfen: Debian 12 auf QEMU virt/Cortex-A72 und Raspberry Pi OS Lite/Debian 13 auf raspi3b/Cortex-A53.

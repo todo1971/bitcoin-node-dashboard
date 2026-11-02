@@ -6,6 +6,14 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
+MOJIBAKE_MARKERS = tuple(
+    character.encode('utf-8').decode('cp1252', errors='replace')
+    for character in '\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df\u00b7\u2013\u2014\u2018\u2019\u201c\u201d\u2022'
+) + ('\ufffd',)
+
+
+def has_encoding_damage(text):
+    return any(marker in text for marker in MOJIBAKE_MARKERS)
 
 
 def check():
@@ -19,6 +27,8 @@ def check():
             continue
         de, en = german.read_text(encoding='utf-8'), english.read_text(encoding='utf-8')
         for source, text, counterpart in ((german, de, english), (english, en, german)):
+            if has_encoding_damage(text):
+                errors.append(f'Corrupted UTF-8 text: {source.relative_to(ROOT)}')
             links = re.findall(r'(?<!!)\[[^\]]*\]\(([^\s)]+)\)', text)
             resolved = []
             for link in links:

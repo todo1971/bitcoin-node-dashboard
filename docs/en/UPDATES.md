@@ -14,7 +14,7 @@ verified release archive in the current directory:
 
 ```bash
 tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.21.2.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.21.3.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 sudo rm -rf -- "$tmpdir"
 ```

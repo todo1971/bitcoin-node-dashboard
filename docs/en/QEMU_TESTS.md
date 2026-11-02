@@ -117,6 +117,6 @@ only part of the peripherals; QEMU recommends the
 [virt platform](https://www.qemu.org/docs/master/system/target-arm.html) for general
 ARM Linux testing.
 
-[Package requirements](DEPENDENCIES.md) Â· [ARM64 builds](ARM64.md) Â· [Back to overview](../../README.en.md)
+[Package requirements](DEPENDENCIES.md) · [ARM64 builds](ARM64.md) · [Back to overview](../../README.en.md)
 
 Recorded repository results: [Debian host](../test-results/qemu-2026-11-01/qemu-debian12-arm64.json), [Docker variants](../test-results/qemu-2026-11-01/qemu-docker-arm64.json), [Raspberry Pi OS](../test-results/qemu-2026-11-01/qemu-raspios-arm64.json).

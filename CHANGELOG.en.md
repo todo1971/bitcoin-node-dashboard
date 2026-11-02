@@ -4,6 +4,11 @@
 
 All significant project changes are recorded here.
 
+## 1.21.3 – 2026-11-02
+
+- Fix corrupted umlauts, punctuation, and separators in the German and English QEMU test reports.
+- Detect typical UTF-8/Windows-1252 encoding damage and replacement characters during documentation checks; add regression coverage for this failure.
+
 ## 1.21.2 – 2026-11-01
 
 - Test release 1.21.1 locally on Windows using full ARM64 system emulation: Debian 12 on QEMU virt/Cortex-A72 and Raspberry Pi OS Lite/Debian 13 on raspi3b/Cortex-A53.
