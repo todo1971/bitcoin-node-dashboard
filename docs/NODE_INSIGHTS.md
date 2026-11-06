@@ -4,7 +4,7 @@ Deutsch | [English](en/NODE_INSIGHTS.md)
 
 Ab Version 1.20.0 enthält der Reiter **Netzwerk** Verkehrsraten und die
 eingeklappte Tabelle **Peer-Software und Fähigkeiten**. **Historie** zeigt
-Verkehrsraten und gemessene Summen. Unter **Analyse** stehen die letzten
+den Bitcoin-Core-Traffic nach Kalendertagen. Unter **Analyse** stehen die letzten
 20 lokal erfassten Blöcke. Es werden keine zusätzlichen RPC-Methoden benötigt.
 
 ## Peers
@@ -38,18 +38,15 @@ Verkehr. Die bestehenden Gesamtzähler gelten seit dem letzten Core-Start.
 Die Historie nutzt vorhandene SQLite-Messungen. Nur Intervalle bis maximal
 `max(120, 3 × SAMPLE_INTERVAL_SECONDS)` Sekunden mit kontinuierlich steigender
 Core-Laufzeit und nicht fallenden Zählern zählen. Die Laufzeit darf höchstens
-fünf Sekunden vom Messintervall abweichen. Enthält ein Diagrammabschnitt ein
-ungültiges Intervall, bleiben die Durchschnittsraten unbekannt. Die violette
-Spitzenlinie zeigt je Abschnitt die höchste gültige Uploadrate zwischen zwei
-Messpunkten. Die Durchschnittsraten gewichten die gemessene Zeit.
+fünf Sekunden vom Messintervall abweichen. Die violette Spitzenlinie zeigt
+für jeden Tag die höchste gültige Uploadrate zwischen zwei Messpunkten.
 
-Summen für den gewählten Zeitraum, heute und den laufenden Monat enthalten nur
-vollständig innerhalb der jeweiligen Grenzen gemessene Intervalle. Die
-Tages- und Monatsgrenzen folgen der Zeitzone des Browsers. Die Anzeige nennt die
-verwendete Zeitzone. Grenzintervalle werden ausgelassen.
-Der aufklappbare **Tagesvergleich** zeigt für jeden Kalendertag im gewählten
-Zeitraum Download, Upload, zeitgewichtete Verbindungszahl, Uploadspitze und
-Messabdeckung. Bei Sommer- und Winterzeit kann ein Tag 23 oder 25 Stunden dauern.
+Unter **Bitcoin-Core-Traffic nach Tagen** stehen Download, Upload,
+zeitgewichtete Verbindungszahl, Uploadspitze und Messabdeckung pro Kalendertag.
+Die Tabelle folgt dem gewählten Zeitraum und der angezeigten Browserzeitzone.
+Angefangene Tage zeigen den innerhalb des gewählten Zeitraums liegenden Anteil.
+Grenzintervalle werden ausgelassen. Bei einer Zeitumstellung kann ein Tag 23
+oder 25 Stunden dauern.
 Messabdeckung bedeutet gültige gemessene Sekunden geteilt durch die Dauer des
 Zeitraums bis jetzt. Fehlende Messungen, Aufbewahrungsgrenzen und ausgeschaltete
 Nodes können zu niedriger Abdeckung führen. Die Summen sind keine Abrechnung und
@@ -59,7 +56,9 @@ und Laufzeit nicht in jedem theoretischen Fall erkennbar.
 `GET /api/traffic?range=24h` verwendet dieselben sieben erlaubten Zeiträume wie
 die Historie. Unbekannte Werte fallen auf 24h zurück. Der optionale Parameter
 `timezone` akzeptiert eine IANA-Zeitzone wie `Europe/Berlin`. Ohne gültige
-Zeitzone verwendet die API UTC. SQLite berechnet Differenzen und Zeitabschnitte.
+Zeitzone verwendet die API UTC. Bestehende Zeitraum-, Tages- und Monatssummen
+sowie die feineren Raten bleiben über die API verfügbar.
+SQLite berechnet Differenzen und Zeitabschnitte.
 Pro Zeitraum wird das letzte Ergebnis 30 Sekunden gecacht.
 Die API liest keine individuellen Peer-Adressen und erlaubt keine RPC-Aufrufe.
 

@@ -4,6 +4,10 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.22.1 – 2026-11-06
+
+- Bitcoin-Core-Traffic in der Historie direkt nach Kalendertagen anzeigen. Das Diagramm zeigt die Uploadspitze je Tag.
+
 ## 1.22.0 – 2026-11-06
 
 - Unter Historie einen Tagesvergleich mit Download, Upload, durchschnittlicher Peer-Zahl, Uploadspitze und Messabdeckung ergänzen.

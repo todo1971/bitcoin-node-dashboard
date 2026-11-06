@@ -45,17 +45,17 @@ const assert = require('node:assert/strict');
       await page.evaluate(() => window.dispatchEvent(new Event('node-offline')));
       assert.equal(await page.locator('#receiveRate').textContent(), '–');
       await page.click('#tab-history');
-      await page.waitForFunction(() => document.querySelector('#trafficRows').textContent.includes('MiB'));
-      assert.match(await page.locator('#trafficRows').textContent(), /–/);
-      await page.locator('#trafficDaily summary').click();
-      assert.equal(await page.locator('#trafficDaily summary').textContent(), catalog['Tagesvergleich']);
+      await page.waitForFunction(() => document.querySelector('#trafficDailyRows').textContent.includes('MiB'));
+      assert.equal(await page.locator('#trafficRows').count(), 0);
+      assert.equal(await page.locator('#trafficDailyTitle').textContent(), catalog['Bitcoin-Core-Traffic nach Tagen']);
       const dailyCells = await page.locator('#trafficDailyRows td').allTextContents();
       assert.deepEqual(dailyCells.slice(1), ['1 MiB', '2 MiB', '98', '8', '50 %']);
       assert.equal(await page.locator('#trafficTimezone').textContent(), 'Europe/Berlin');
-      assert(await page.locator('#trafficChart').evaluate(canvas => {
+      await page.waitForFunction(() => {
+        const canvas = document.querySelector('#trafficChart');
         const rgba = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
         return rgba.some((red, i) => i % 4 === 0 && red === 210 && rgba[i+1] === 168 && rgba[i+2] === 255);
-      }), 'The peak is drawn even when adjacent chart buckets are missing');
+      });
       await page.click('[data-range="1h"]');
       await page.click('#tab-analysis');
       await page.waitForFunction(() => document.querySelector('#recentBlockRows').textContent.includes('42'));

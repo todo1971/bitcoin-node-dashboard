@@ -3,8 +3,8 @@
 [Deutsch](../NODE_INSIGHTS.md) | English
 
 Since version 1.20.0, **Network** contains traffic rates and the collapsed
-**Peer software and capabilities** tables. **History** shows traffic rates and
-measured totals. **Analysis** lists the last 20 locally recorded blocks.
+**Peer software and capabilities** tables. **History** shows Bitcoin Core
+traffic by calendar day. **Analysis** lists the last 20 locally recorded blocks.
 No additional RPC methods are required.
 
 ## Peers
@@ -37,16 +37,14 @@ counters cover the time since Core last started.
 History uses existing SQLite samples. Only intervals up to
 `max(120, 3 × SAMPLE_INTERVAL_SECONDS)` seconds with continuous Core uptime and
 nondecreasing counters count. The uptime change may differ from the sample interval
-by at most five seconds. Average rates are unknown in chart buckets containing
-an invalid interval. The purple peak line shows the highest valid upload rate
-between two samples in each bucket. Average rates are weighted by measured duration.
+by at most five seconds. The purple peak line shows the highest valid upload
+rate between two samples for each day.
 
-Totals for the selected period, today, and the current month include only measured
-intervals wholly within each period. Day and month boundaries follow the browser
-time zone, which the dashboard displays. Intervals crossing boundaries are omitted.
-Expand **Daily comparison** to see download, upload, time-weighted connection
-count, peak upload and coverage per calendar day in the selected period.
-Daylight saving transitions can make a day 23 or 25 hours long. Measurement coverage is
+**Bitcoin Core traffic by day** shows download, upload, time-weighted connection
+count, peak upload and coverage per calendar day. The table follows the selected
+range and the displayed browser time zone. Partial days show the portion within
+the selected range. Intervals crossing boundaries are omitted. Daylight saving
+transitions can make a day 23 or 25 hours long. Measurement coverage is
 valid measured seconds divided by the elapsed period duration. Missing samples,
 retention limits, and offline nodes can reduce coverage. Totals are not billing
 records or a substitute for provider traffic data. Counters and uptime alone
@@ -55,6 +53,7 @@ cannot detect every theoretically possible restart.
 `GET /api/traffic?range=24h` accepts the same seven ranges as history. Unknown
 values fall back to 24h. The optional `timezone` parameter accepts an IANA time
 zone such as `Europe/Berlin`. The API uses UTC if the zone is absent or invalid.
+Existing range, day and month totals and finer rates remain available via the API.
 SQLite calculates differences and buckets. The latest result per range is cached
 for 30 seconds. The API does not read individual peer
 addresses or allow caller-selected RPC methods.

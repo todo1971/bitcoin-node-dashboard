@@ -309,7 +309,7 @@
   "NETWORK: vollständige Blockhistorie · NETWORK_LIMITED: letzte Blöcke · WITNESS: SegWit · BLOOM: Bloom-Filter · COMPACT_FILTERS: kompakte Blockfilter · P2P_V2: verschlüsselter Transport unterstützt.": "NETWORK: полная история блоков · NETWORK_LIMITED: последние блоки · WITNESS: SegWit · BLOOM: фильтры Блума · COMPACT_FILTERS: компактные фильтры · P2P_V2: поддержка шифрованного транспорта.",
   "Netzwerkverkehr im Zeitraum": "Сетевой трафик за период",
   "Empfangen / Gesendet · KiB/s": "Получено / отправлено · КиБ/с",
-  "Tagesvergleich": "Сравнение по дням",
+  "Bitcoin-Core-Traffic nach Tagen": "Трафик Bitcoin Core по дням",
   "Ø Verbindungen": "Среднее число соединений",
   "Uploadspitze": "Пик отправки",
   "Uploadspitze (KiB/s)": "Пик отправки (КиБ/с)",
