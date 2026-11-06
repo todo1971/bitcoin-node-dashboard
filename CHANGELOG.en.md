@@ -4,6 +4,12 @@
 
 All significant project changes are recorded here.
 
+## 1.22.0 – 2026-11-06
+
+- Add a daily traffic comparison in History with download, upload, average peers, peak upload and measurement coverage.
+- Plot the highest valid upload rate in each chart bucket as a purple line, keeping short bursts visible in longer ranges.
+- Use the browser's time zone for day and month boundaries, including daylight saving transitions.
+
 ## 1.21.3 – 2026-11-02
 
 - Fix corrupted umlauts, punctuation, and separators in the German and English QEMU test reports.

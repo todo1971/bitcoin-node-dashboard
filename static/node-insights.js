@@ -13,7 +13,26 @@
   }
   card('networkPanel', `<div class="label">Verkehrsraten</div><dl><dt>Empfangen</dt><dd id="receiveRate">–</dd><dt>Gesendet</dt><dd id="sendRate">–</dd></dl><div class="sub">KiB/s · Mittelwert zwischen zwei Abfragen; bei Neustart oder Messlücke unbekannt.</div>`);
   card('networkPanel', `<details><summary>Peer-Software und Fähigkeiten</summary><p class="sub">Gemeldete Service-Flags sind Fähigkeiten, kein Nachweis ihrer Nutzung. Clientangaben sind Selbstauskünfte.</p><div class="table-scroll"><table class="data-table"><thead><tr><th>Client / Version</th><th>Peers</th></tr></thead><tbody id="clientRows"></tbody></table></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Service-Flag</th><th>Peers</th></tr></thead><tbody id="serviceRows"></tbody></table></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Verbindungsart</th><th>Peers</th></tr></thead><tbody id="connectionRows"></tbody></table></div><p class="sub">NETWORK: vollständige Blockhistorie · NETWORK_LIMITED: letzte Blöcke · WITNESS: SegWit · BLOOM: Bloom-Filter · COMPACT_FILTERS: kompakte Blockfilter · P2P_V2: verschlüsselter Transport unterstützt.</p></details>`);
-  card('historyPanel', `<div class="label">Netzwerkverkehr im Zeitraum</div><div class="chart-box"><div class="legend">Empfangen / Gesendet · KiB/s</div><canvas id="trafficChart"></canvas></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Zeitraum</th><th>Empfangen</th><th>Gesendet</th><th>Messabdeckung</th></tr></thead><tbody id="trafficRows"></tbody></table></div><div class="sub" id="trafficState">Messwerte werden geladen …</div><p class="sub">Nur gemessene Intervalle: Neustarts und Lücken fehlen in Summen. Tages- und Monatsgrenzen sind UTC; angebrochene Grenzintervalle werden ausgelassen.</p>`);
+  card('historyPanel', `
+    <div class="label">Netzwerkverkehr im Zeitraum</div>
+    <div class="chart-box">
+      <div class="legend"><span style="color:#f7931a">● Empfangen</span> · <span style="color:#58a6ff">● Gesendet</span> · <span style="color:#d2a8ff">● Uploadspitze</span> · KiB/s</div>
+      <canvas id="trafficChart"></canvas>
+    </div>
+    <div class="table-scroll"><table class="data-table">
+      <thead><tr><th>Zeitraum</th><th>Empfangen</th><th>Gesendet</th><th>Messabdeckung</th></tr></thead>
+      <tbody id="trafficRows"></tbody>
+    </table></div>
+    <div class="sub" id="trafficState">Messwerte werden geladen …</div>
+    <p class="sub">Zeitzone: <span id="trafficTimezone" data-no-i18n>–</span> · Uploadspitze: höchste Rate zwischen zwei Messpunkten.</p>
+    <details id="trafficDaily">
+      <summary>Tagesvergleich</summary>
+      <div class="table-scroll"><table class="data-table">
+        <thead><tr><th>Datum</th><th>Empfangen</th><th>Gesendet</th><th>Ø Verbindungen</th><th>Uploadspitze (KiB/s)</th><th>Messabdeckung</th></tr></thead>
+        <tbody id="trafficDailyRows"></tbody>
+      </table></div>
+      <p class="sub">Die Tageswerte beziehen sich auf den gewählten Zeitraum. Messlücken, Neustarts und angebrochene Grenzintervalle fehlen in den Summen.</p>
+    </details>`);
   card('analysisPanel', `<div class="label">Letzte 20 erfasste Blöcke</div><div class="table-scroll"><table class="data-table"><thead><tr><th>Höhe</th><th>Blockzeit</th><th>Transaktionen</th><th>Größe</th><th>Gebühren</th></tr></thead><tbody id="recentBlockRows"></tbody></table></div><p class="sub">Lokal gespeicherte Blockstatistiken; keine vollständige oder unveränderliche Reorg-Chronik. Fehlende Blöcke können nachgetragen werden.</p>`);
   function rows(id, values, columns) {
     const body = el(id);
@@ -47,11 +66,27 @@
     rows('connectionRows', (data?.connection_types || []).map(item => [label(typeNames[item.name] || 'Weitere'), number(item.count)]), 2);
   }
   function renderTraffic() {
-    const names = {selected:'Gewählter Zeitraum', today:'Heute (UTC)', month:'Dieser Monat (UTC)'};
-    rows('trafficRows', Object.entries(traffic?.periods || {}).map(([key, value]) => [label(names[key]), size(value.received_bytes), size(value.sent_bytes), value.window_seconds > 0 ? `${number(100 * value.measured_seconds / value.window_seconds)} %` : '–']), 4);
+    const names = {selected:'Gewählter Zeitraum', today:'Heute', month:'Dieser Monat'};
+    const timezone = traffic?.timezone || 'UTC';
+    const coverage = value => value.window_seconds > 0 ? `${number(100 * value.measured_seconds / value.window_seconds)} %` : '–';
+    const date = new Intl.DateTimeFormat(I18n.locale, {dateStyle:'medium', timeZone:timezone});
+    el('trafficTimezone').textContent = traffic?.timezone || '–';
+    rows('trafficRows', Object.entries(traffic?.periods || {}).map(([key, value]) => [label(names[key]), size(value.received_bytes), size(value.sent_bytes), coverage(value)]), 4);
+    rows('trafficDailyRows', (traffic?.daily || []).map(value => [
+      date.format(value.day_start * 1000), size(value.received_bytes), size(value.sent_bytes),
+      number(value.mean_connections), number(value.peak_sent_bytes_per_second == null ? null : value.peak_sent_bytes_per_second / 1024),
+      coverage(value),
+    ]), 6);
     if (!el('historyPanel').hidden) {
-      const points = (traffic?.points || []).map(point => ({...point, received:point.received_bytes_per_second == null ? null : point.received_bytes_per_second / 1024, sent:point.sent_bytes_per_second == null ? null : point.sent_bytes_per_second / 1024}));
-      drawChart(el('trafficChart'), points, [{key:'received',color:'#f7931a'},{key:'sent',color:'#58a6ff'}], traffic?.bucket_seconds || 300);
+      const kib = value => value == null ? null : value / 1024;
+      const points = (traffic?.points || []).map(point => ({
+        timestamp:point.timestamp, received:kib(point.received_bytes_per_second),
+        sent:kib(point.sent_bytes_per_second), peak:kib(point.peak_sent_bytes_per_second),
+      }));
+      drawChart(el('trafficChart'), points, [
+        {key:'received',color:'#f7931a'}, {key:'sent',color:'#58a6ff'},
+        {key:'peak',color:'#d2a8ff',dash:[4,4],markers:true},
+      ], traffic?.bucket_seconds || 300, timezone);
     }
   }
   function renderBlocks() {
@@ -60,7 +95,9 @@
   async function loadTraffic() {
     const range = selectedRange;
     try {
-      const response = await fetch(`/api/traffic?range=${encodeURIComponent(range)}`, {cache:'no-store'});
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const query = new URLSearchParams({range, timezone});
+      const response = await fetch(`/api/traffic?${query}`, {cache:'no-store'});
       if (!response.ok) throw Error();
       const data = await response.json();
       if (range !== selectedRange) return;

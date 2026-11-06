@@ -7,13 +7,26 @@ const assert = require('node:assert/strict');
 (async () => {
   const browser = await chromium.launch({headless:true, channel:process.env.QA_BROWSER || undefined});
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({timezoneId:'Europe/Berlin'});
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const now = Math.floor(Date.now()/1000);
     await page.route('http://dashboard.test/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
-      if (pathname === '/api/traffic') return route.fulfill({json:{periods:{selected:{received_bytes:1048576,sent_bytes:null,measured_seconds:600,window_seconds:3600}},points:[{timestamp:now-120,received_bytes_per_second:2048,sent_bytes_per_second:1024},{timestamp:now-60,received_bytes_per_second:null,sent_bytes_per_second:null},{timestamp:now,received_bytes_per_second:1024,sent_bytes_per_second:0}]}});
+      if (pathname === '/api/traffic') {
+        assert.equal(new URL(route.request().url()).searchParams.get('timezone'), 'Europe/Berlin');
+        return route.fulfill({json:{
+          timezone:'Europe/Berlin', bucket_seconds:60,
+          periods:{selected:{received_bytes:1048576,sent_bytes:null,measured_seconds:600,window_seconds:3600}},
+          daily:[{day_start:now-3600,received_bytes:1048576,sent_bytes:2097152,mean_connections:98,
+            peak_sent_bytes_per_second:8192,measured_seconds:1800,window_seconds:3600}],
+          points:[
+            {timestamp:now-120,received_bytes_per_second:2048,sent_bytes_per_second:1024,peak_sent_bytes_per_second:8192},
+            {timestamp:now-60,received_bytes_per_second:null,sent_bytes_per_second:null,peak_sent_bytes_per_second:null},
+            {timestamp:now,received_bytes_per_second:1024,sent_bytes_per_second:0,peak_sent_bytes_per_second:0},
+          ],
+        }});
+      }
       if (pathname === '/api/recent-blocks') return route.fulfill({json:{blocks:[{height:900001,block_time:now,transactions:42,total_size:1048576,total_fee_btc:0.001}]}});
       const file = pathname === '/' ? 'index.html' : pathname.startsWith('/static/') ? pathname.slice(8) : null;
       if (file && fs.existsSync(path.join(__dirname,'../static',file))) return route.fulfill({body:fs.readFileSync(path.join(__dirname,'../static',file)),contentType:file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':'application/json'});
@@ -34,6 +47,15 @@ const assert = require('node:assert/strict');
       await page.click('#tab-history');
       await page.waitForFunction(() => document.querySelector('#trafficRows').textContent.includes('MiB'));
       assert.match(await page.locator('#trafficRows').textContent(), /–/);
+      await page.locator('#trafficDaily summary').click();
+      assert.equal(await page.locator('#trafficDaily summary').textContent(), catalog['Tagesvergleich']);
+      const dailyCells = await page.locator('#trafficDailyRows td').allTextContents();
+      assert.deepEqual(dailyCells.slice(1), ['1 MiB', '2 MiB', '98', '8', '50 %']);
+      assert.equal(await page.locator('#trafficTimezone').textContent(), 'Europe/Berlin');
+      assert(await page.locator('#trafficChart').evaluate(canvas => {
+        const rgba = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+        return rgba.some((red, i) => i % 4 === 0 && red === 210 && rgba[i+1] === 168 && rgba[i+2] === 255);
+      }), 'The peak is drawn even when adjacent chart buckets are missing');
       await page.click('[data-range="1h"]');
       await page.click('#tab-analysis');
       await page.waitForFunction(() => document.querySelector('#recentBlockRows').textContent.includes('42'));
@@ -45,7 +67,7 @@ const assert = require('node:assert/strict');
       await page.setViewportSize({width:1280,height:800});
       if (language === 'en' && process.env.QA_SCREENSHOT) {
         await page.click('#tab-network');
-        await page.locator('summary').click();
+        await page.locator('#networkPanel summary').click();
         await page.screenshot({path:process.env.QA_SCREENSHOT,fullPage:true});
       }
     }

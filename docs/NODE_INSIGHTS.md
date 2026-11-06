@@ -38,13 +38,18 @@ Verkehr. Die bestehenden Gesamtzähler gelten seit dem letzten Core-Start.
 Die Historie nutzt vorhandene SQLite-Messungen. Nur Intervalle bis maximal
 `max(120, 3 × SAMPLE_INTERVAL_SECONDS)` Sekunden mit kontinuierlich steigender
 Core-Laufzeit und nicht fallenden Zählern zählen. Die Laufzeit darf höchstens
-fünf Sekunden vom Messintervall abweichen. In einem Diagramm-Zeitabschnitt mit
-ungültigem Intervall bleibt die Rate unbekannt. Gültige Raten werden nach der
-gemessenen Zeit gewichtet.
+fünf Sekunden vom Messintervall abweichen. Enthält ein Diagrammabschnitt ein
+ungültiges Intervall, bleiben die Durchschnittsraten unbekannt. Die violette
+Spitzenlinie zeigt je Abschnitt die höchste gültige Uploadrate zwischen zwei
+Messpunkten. Die Durchschnittsraten gewichten die gemessene Zeit.
 
 Summen für den gewählten Zeitraum, heute und den laufenden Monat enthalten nur
-vollständig innerhalb der jeweiligen Grenzen gemessene Intervalle. Tag und Monat
-beginnen um 00:00 UTC; Grenzintervalle werden ausgelassen, nicht geschätzt.
+vollständig innerhalb der jeweiligen Grenzen gemessene Intervalle. Die
+Tages- und Monatsgrenzen folgen der Zeitzone des Browsers. Die Anzeige nennt die
+verwendete Zeitzone. Grenzintervalle werden ausgelassen.
+Der aufklappbare **Tagesvergleich** zeigt für jeden Kalendertag im gewählten
+Zeitraum Download, Upload, zeitgewichtete Verbindungszahl, Uploadspitze und
+Messabdeckung. Bei Sommer- und Winterzeit kann ein Tag 23 oder 25 Stunden dauern.
 Messabdeckung bedeutet gültige gemessene Sekunden geteilt durch die Dauer des
 Zeitraums bis jetzt. Fehlende Messungen, Aufbewahrungsgrenzen und ausgeschaltete
 Nodes können zu niedriger Abdeckung führen. Die Summen sind keine Abrechnung und
@@ -52,8 +57,10 @@ kein Ersatz für Provider-Trafficdaten. Ein Neustart ist allein anhand von Zähl
 und Laufzeit nicht in jedem theoretischen Fall erkennbar.
 
 `GET /api/traffic?range=24h` verwendet dieselben sieben erlaubten Zeiträume wie
-die Historie; unbekannte Werte fallen auf 24h zurück. SQLite berechnet Differenzen
-und Zeitabschnitte; maximal sieben Ergebnisse werden jeweils 30 Sekunden gecacht.
+die Historie. Unbekannte Werte fallen auf 24h zurück. Der optionale Parameter
+`timezone` akzeptiert eine IANA-Zeitzone wie `Europe/Berlin`. Ohne gültige
+Zeitzone verwendet die API UTC. SQLite berechnet Differenzen und Zeitabschnitte.
+Pro Zeitraum wird das letzte Ergebnis 30 Sekunden gecacht.
 Die API liest keine individuellen Peer-Adressen und erlaubt keine RPC-Aufrufe.
 
 ## Erfasste Blöcke

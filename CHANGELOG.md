@@ -4,6 +4,12 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.22.0 – 2026-11-06
+
+- Unter Historie einen Tagesvergleich mit Download, Upload, durchschnittlicher Peer-Zahl, Uploadspitze und Messabdeckung ergänzen.
+- Die höchste gültige Uploadrate je Diagrammabschnitt als violette Linie anzeigen, auch wenn längere Zeiträume die Durchschnittswerte glätten.
+- Tages- und Monatsgrenzen an die Zeitzone des Browsers anpassen und Sommer- und Winterzeit berücksichtigen.
+
 ## 1.21.3 – 2026-11-02
 
 - Beschädigte Umlaute, Sonderzeichen und Trennpunkte im deutschen und englischen QEMU-Testbericht korrigieren.

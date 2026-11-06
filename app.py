@@ -9,7 +9,6 @@ import json
 import os
 import re
 import base64
-import calendar
 import hashlib
 import hmac
 import ipaddress
@@ -28,16 +27,18 @@ import urllib.error
 import urllib.request
 from collections import Counter, deque
 from contextlib import closing
+from datetime import datetime, time as datetime_time, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from statistics import median
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.21.3"
+__version__ = "1.22.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -1665,21 +1666,26 @@ def history_data(range_name: str) -> dict[str, Any]:
     }
 
 
-def traffic_history(range_name: str) -> dict[str, Any]:
+def traffic_history(range_name: str, timezone_name: str = "UTC") -> dict[str, Any]:
     """Measured counter deltas only; never bridge restarts or long sampling gaps."""
     range_name = range_name if range_name in HISTORY_RANGES else "24h"
     now = int(time.time())
+    try:
+        zone = ZoneInfo(timezone_name)
+        zone_name = zone.key
+    except (ZoneInfoNotFoundError, ValueError):
+        zone, zone_name = timezone.utc, "UTC"
     with _traffic_history_lock:
         path = str(DATABASE_PATH)
         if _traffic_history_cache["path"] != path:
             _traffic_history_cache.update(path=path, entries={})
         cached = _traffic_history_cache["entries"].get(range_name)
-        if cached and now < cached[0]:
+        if cached and now < cached[0] and cached[1]["timezone"] == zone_name:
             return cached[1]
         duration, bucket = HISTORY_RANGES[range_name]
-        utc = time.gmtime(now)
-        day = calendar.timegm((utc.tm_year, utc.tm_mon, utc.tm_mday, 0, 0, 0))
-        month = calendar.timegm((utc.tm_year, utc.tm_mon, 1, 0, 0, 0))
+        local_now = datetime.fromtimestamp(now, zone)
+        day = int(datetime.combine(local_now.date(), datetime_time.min, zone).timestamp())
+        month = int(datetime.combine(local_now.date().replace(day=1), datetime_time.min, zone).timestamp())
         starts = {"selected": now - duration, "today": day, "month": month}
         lower = min(starts.values())
         init_database()
@@ -1690,7 +1696,7 @@ def traffic_history(range_name: str) -> dict[str, Any]:
             connection.execute("""
                 CREATE TEMP TABLE traffic_intervals AS
                 WITH samples AS (
-                    SELECT sampled_at, bytes_received, bytes_sent, bitcoind_uptime
+                    SELECT sampled_at, bytes_received, bytes_sent, bitcoind_uptime, connections
                     FROM node_samples WHERE sampled_at BETWEEN
                       COALESCE((SELECT MAX(sampled_at) FROM node_samples WHERE sampled_at < ?), ?) AND ?
                 ), deltas AS (
@@ -1700,6 +1706,7 @@ def traffic_history(range_name: str) -> dict[str, Any]:
                       bytes_received - LAG(bytes_received) OVER w AS received,
                       bytes_sent - LAG(bytes_sent) OVER w AS sent,
                       bitcoind_uptime - LAG(bitcoind_uptime) OVER w AS uptime_delta,
+                      (connections + LAG(connections) OVER w) / 2.0 AS mean_connections,
                       bytes_received, bytes_sent, bitcoind_uptime
                     FROM samples WINDOW w AS (ORDER BY sampled_at)
                 ) SELECT *, CASE WHEN seconds > 0 AND seconds <= ?
@@ -1722,12 +1729,35 @@ def traffic_history(range_name: str) -> dict[str, Any]:
             rows = connection.execute("""
                 SELECT CAST(ending / ? AS INTEGER) * ? AS timestamp,
                   CASE WHEN MIN(valid) = 1 THEN 1.0 * SUM(received) / SUM(seconds) END AS received_bytes_per_second,
-                  CASE WHEN MIN(valid) = 1 THEN 1.0 * SUM(sent) / SUM(seconds) END AS sent_bytes_per_second
+                  CASE WHEN MIN(valid) = 1 THEN 1.0 * SUM(sent) / SUM(seconds) END AS sent_bytes_per_second,
+                  MAX(CASE WHEN valid THEN 1.0 * sent / seconds END) AS peak_sent_bytes_per_second
                 FROM traffic_intervals WHERE ending > ? AND beginning >= ?
                 GROUP BY timestamp ORDER BY timestamp
             """, (bucket, bucket, starts["selected"], starts["selected"])).fetchall()
+            connection.execute("CREATE INDEX temp.traffic_interval_beginning ON traffic_intervals(beginning)")
+            daily = []
+            selected_start = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=starts["selected"])
+            date = selected_start.astimezone(zone).date()
+            while date <= local_now.date():
+                day_start = int(datetime.combine(date, datetime_time.min, zone).timestamp())
+                date += timedelta(days=1)
+                day_end = int(datetime.combine(date, datetime_time.min, zone).timestamp())
+                start, end = max(day_start, starts["selected"]), min(day_end, now)
+                if end <= start:
+                    continue
+                row = connection.execute("""
+                    SELECT SUM(received) AS received_bytes, SUM(sent) AS sent_bytes,
+                      SUM(mean_connections * seconds) /
+                        SUM(CASE WHEN mean_connections IS NOT NULL THEN seconds END) AS mean_connections,
+                      MAX(1.0 * sent / seconds) AS peak_sent_bytes_per_second,
+                      COALESCE(SUM(seconds), 0) AS measured_seconds
+                    FROM traffic_intervals
+                    WHERE valid AND beginning >= ? AND beginning < ? AND ending <= ?
+                """, (start, end, end)).fetchone()
+                daily.append(dict(row) | {"day_start": day_start, "window_seconds": end - start})
         result = {"range": range_name, "generated_at": now, "bucket_seconds": bucket,
-                  "points": [dict(row) for row in rows], "periods": summaries}
+                  "points": [dict(row) for row in rows], "periods": summaries,
+                  "daily": daily[::-1], "timezone": zone_name}
         _traffic_history_cache["entries"][range_name] = (now + 30, result)
         return result
 
@@ -2657,7 +2687,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in ("/api/traffic", "/api/recent-blocks"):
             try:
-                data = (traffic_history(parse_qs(parsed.query).get("range", ["24h"])[0])
+                params = parse_qs(parsed.query)
+                data = (traffic_history(params.get("range", ["24h"])[0], params.get("timezone", ["UTC"])[0][:128])
                         if path == "/api/traffic" else recent_blocks_data())
                 self.send_bytes(json.dumps(data, separators=(",", ":")).encode(), "application/json; charset=utf-8")
             except Exception as exc:

@@ -37,20 +37,26 @@ counters cover the time since Core last started.
 History uses existing SQLite samples. Only intervals up to
 `max(120, 3 × SAMPLE_INTERVAL_SECONDS)` seconds with continuous Core uptime and
 nondecreasing counters count. The uptime change may differ from the sample interval
-by at most five seconds. A chart bucket containing an invalid interval has an
-unknown rate. Valid rates are weighted by measured duration.
+by at most five seconds. Average rates are unknown in chart buckets containing
+an invalid interval. The purple peak line shows the highest valid upload rate
+between two samples in each bucket. Average rates are weighted by measured duration.
 
 Totals for the selected period, today, and the current month include only measured
-intervals wholly within each period. Days and months start at 00:00 UTC; intervals
-crossing boundaries are omitted rather than estimated. Measurement coverage is
+intervals wholly within each period. Day and month boundaries follow the browser
+time zone, which the dashboard displays. Intervals crossing boundaries are omitted.
+Expand **Daily comparison** to see download, upload, time-weighted connection
+count, peak upload and coverage per calendar day in the selected period.
+Daylight saving transitions can make a day 23 or 25 hours long. Measurement coverage is
 valid measured seconds divided by the elapsed period duration. Missing samples,
 retention limits, and offline nodes can reduce coverage. Totals are not billing
 records or a substitute for provider traffic data. Counters and uptime alone
 cannot detect every theoretically possible restart.
 
-`GET /api/traffic?range=24h` accepts the same seven ranges as history; unknown
-values fall back to 24h. SQLite calculates differences and buckets; at most seven
-results are cached for 30 seconds each. The API does not read individual peer
+`GET /api/traffic?range=24h` accepts the same seven ranges as history. Unknown
+values fall back to 24h. The optional `timezone` parameter accepts an IANA time
+zone such as `Europe/Berlin`. The API uses UTC if the zone is absent or invalid.
+SQLite calculates differences and buckets. The latest result per range is cached
+for 30 seconds. The API does not read individual peer
 addresses or allow caller-selected RPC methods.
 
 ## Recorded blocks

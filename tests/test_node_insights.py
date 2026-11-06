@@ -7,6 +7,7 @@ import unittest
 import urllib.error
 import urllib.request
 from contextlib import closing
+from datetime import datetime
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
@@ -84,6 +85,31 @@ class TrafficTests(unittest.TestCase):
         data = app.traffic_history('1h')
         self.assertIsNone(data['periods']['selected']['received_bytes'])
         self.assertEqual(data['points'], [])
+
+    def test_daily_totals_and_peaks_use_valid_intervals_in_local_days(self):
+        # Berlin clocks fell back on October 25, making this a 25-hour day.
+        start = int(datetime.fromisoformat('2026-10-25T00:00:00+02:00').timestamp())
+        self.samples([(start-30,0,0,70), (start+30,60,60,130),
+                      (start+60,90,3060,160), (start+150,180,3960,250),
+                      (start+210,10,10,15), (start+270,70,70,75)])
+        with closing(app.database_connection()) as connection, connection:
+            connection.execute('UPDATE node_samples SET connections = CASE WHEN sampled_at <= ? THEN 70 ELSE 110 END',
+                               (start + 60,))
+        with patch.object(app.time, 'time', return_value=start+26*3600):
+            result = app.traffic_history('7d', 'Europe/Berlin')
+            utc = app.traffic_history('7d')
+        today, previous_day = result['daily'][:2]
+        self.assertEqual(today['window_seconds'], 3600)
+        self.assertIsNone(today['sent_bytes'])
+        self.assertEqual(previous_day['day_start'], start)
+        self.assertEqual(previous_day['window_seconds'], 25*3600)
+        self.assertEqual(previous_day['measured_seconds'], 180)
+        self.assertEqual(previous_day['sent_bytes'], 3960)
+        self.assertAlmostEqual(previous_day['mean_connections'], 280/3)
+        self.assertEqual(previous_day['peak_sent_bytes_per_second'], 100)
+        self.assertEqual(result['points'][-1]['peak_sent_bytes_per_second'], 100)
+        self.assertIsNone(result['points'][-1]['sent_bytes_per_second'])
+        self.assertNotEqual(utc['daily'][1]['day_start'], start)
 
     def test_live_rates_accept_normal_background_sample_interval(self):
         with patch.object(app, '_traffic_live_previous', None):
