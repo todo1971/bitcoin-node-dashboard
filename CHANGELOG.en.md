@@ -4,6 +4,10 @@
 
 All significant project changes are recorded here.
 
+## 1.22.2 – 2026-11-07
+
+- Format data sizes in the traffic table, overview and admin area with decimal units. Values of 1,000 MB or more use GB.
+
 ## 1.22.1 – 2026-11-06
 
 - Show Bitcoin Core traffic directly by calendar day in History and plot the peak upload rate for each day.

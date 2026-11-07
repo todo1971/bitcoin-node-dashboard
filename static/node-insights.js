@@ -4,7 +4,7 @@
   'use strict';
   const el = id => document.getElementById(id);
   const number = value => value == null ? '–' : new Intl.NumberFormat(I18n.locale, {maximumFractionDigits: 2}).format(value);
-  const size = value => value == null ? '–' : `${number(value / 1048576)} MiB`;
+  const size = value => I18n.formatBytes(value);
   function card(panel, html) {
     const article = document.createElement('article');
     article.className = 'card full';

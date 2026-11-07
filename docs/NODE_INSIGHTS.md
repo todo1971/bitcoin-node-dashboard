@@ -43,6 +43,7 @@ für jeden Tag die höchste gültige Uploadrate zwischen zwei Messpunkten.
 
 Unter **Bitcoin-Core-Traffic nach Tagen** stehen Download, Upload,
 zeitgewichtete Verbindungszahl, Uploadspitze und Messabdeckung pro Kalendertag.
+Die Datenmengen verwenden dezimale Einheiten mit 1 GB = 1.000 MB.
 Die Tabelle folgt dem gewählten Zeitraum und der angezeigten Browserzeitzone.
 Angefangene Tage zeigen den innerhalb des gewählten Zeitraums liegenden Anteil.
 Grenzintervalle werden ausgelassen. Bei einer Zeitumstellung kann ein Tag 23

@@ -4,6 +4,10 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.22.2 – 2026-11-07
+
+- Datengrößen in Traffic-Tabelle, Übersicht und Adminbereich dezimal formatieren. Ab 1.000 MB erscheint GB.
+
 ## 1.22.1 – 2026-11-06
 
 - Bitcoin-Core-Traffic in der Historie direkt nach Kalendertagen anzeigen. Das Diagramm zeigt die Uploadspitze je Tag.

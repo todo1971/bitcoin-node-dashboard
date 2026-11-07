@@ -18,7 +18,7 @@ const assert = require('node:assert/strict');
         return route.fulfill({json:{
           timezone:'Europe/Berlin', bucket_seconds:60,
           periods:{selected:{received_bytes:1048576,sent_bytes:null,measured_seconds:600,window_seconds:3600}},
-          daily:[{day_start:now-3600,received_bytes:1048576,sent_bytes:2097152,mean_connections:98,
+          daily:[{day_start:now-3600,received_bytes:999000000,sent_bytes:1000000000,mean_connections:98,
             peak_sent_bytes_per_second:8192,measured_seconds:1800,window_seconds:3600}],
           points:[
             {timestamp:now-120,received_bytes_per_second:2048,sent_bytes_per_second:1024,peak_sent_bytes_per_second:8192},
@@ -45,11 +45,14 @@ const assert = require('node:assert/strict');
       await page.evaluate(() => window.dispatchEvent(new Event('node-offline')));
       assert.equal(await page.locator('#receiveRate').textContent(), '–');
       await page.click('#tab-history');
-      await page.waitForFunction(() => document.querySelector('#trafficDailyRows').textContent.includes('MiB'));
+      await page.waitForFunction(() => document.querySelector('#trafficDailyRows').textContent.includes('GB'));
       assert.equal(await page.locator('#trafficRows').count(), 0);
       assert.equal(await page.locator('#trafficDailyTitle').textContent(), catalog['Bitcoin-Core-Traffic nach Tagen']);
       const dailyCells = await page.locator('#trafficDailyRows td').allTextContents();
-      assert.deepEqual(dailyCells.slice(1), ['1 MiB', '2 MiB', '98', '8', '50 %']);
+      assert.deepEqual(dailyCells.slice(1), ['999 MB', '1 GB', '98', '8', '50 %']);
+      assert.deepEqual(await page.evaluate(() => [0, null, 999999999, 2500000000].map(I18n.formatBytes)), [
+        '0 B', '–', '1 GB', await page.evaluate(() => `${new Intl.NumberFormat(I18n.locale).format(2.5)} GB`),
+      ]);
       assert.equal(await page.locator('#trafficTimezone').textContent(), 'Europe/Berlin');
       await page.waitForFunction(() => {
         const canvas = document.querySelector('#trafficChart');

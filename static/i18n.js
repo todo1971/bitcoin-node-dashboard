@@ -21,7 +21,17 @@
     if (Object.hasOwn(catalog, value)) return catalog[value];
     return value.replace(pattern, match => catalog[match]);
   }
-  window.I18n = {language, locale, text};
+  function formatBytes(value) {
+    if (value == null) return '–';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    let size = Number(value), unit = 0;
+    while (Math.round(size * 100) / 100 >= 1000 && unit < units.length - 1) {
+      size /= 1000;
+      unit++;
+    }
+    return `${new Intl.NumberFormat(locale, {maximumFractionDigits:2}).format(size)} ${units[unit]}`;
+  }
+  window.I18n = {language, locale, text, formatBytes};
   document.documentElement.lang = language;
   const skip = 'script,style,pre,code,textarea,select,[data-no-i18n]';
   const rendered = new WeakMap();

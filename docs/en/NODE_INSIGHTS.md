@@ -41,7 +41,8 @@ by at most five seconds. The purple peak line shows the highest valid upload
 rate between two samples for each day.
 
 **Bitcoin Core traffic by day** shows download, upload, time-weighted connection
-count, peak upload and coverage per calendar day. The table follows the selected
+count, peak upload and coverage per calendar day. Volumes use decimal units
+with 1 GB = 1,000 MB. The table follows the selected
 range and the displayed browser time zone. Partial days show the portion within
 the selected range. Intervals crossing boundaries are omitted. Daylight saving
 transitions can make a day 23 or 25 hours long. Measurement coverage is

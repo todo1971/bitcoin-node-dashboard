@@ -114,7 +114,7 @@
 </main>
 <script>
 const $=id=>document.getElementById(id), nf=new Intl.NumberFormat(I18n.locale);
-const bytes=n=>n==null?'–':n<1024?`${n} B`:n<1048576?`${(n/1024).toFixed(1)} KiB`:n<1073741824?`${(n/1048576).toFixed(1)} MiB`:`${(n/1073741824).toFixed(2)} GiB`;
+const bytes=n=>I18n.formatBytes(n);
 const fee=v=>v==null?'–':nf.format(v);
 const percent=v=>v==null?'–':`${Number(v).toFixed(1)} %`;
 function duration(seconds){if(seconds==null)return '–';let s=Math.max(0,Math.floor(seconds)),d=Math.floor(s/86400);s%=86400;let h=Math.floor(s/3600);s%=3600;let m=Math.floor(s/60);return d?`${d} T ${h} Std`:h?`${h} Std ${m} Min`:`${m} Min`}
