@@ -19,7 +19,21 @@ const assert = require('node:assert/strict');
           timezone:'Europe/Berlin', bucket_seconds:60,
           periods:{selected:{received_bytes:1048576,sent_bytes:null,measured_seconds:600,window_seconds:3600}},
           daily:[{day_start:now-3600,received_bytes:999000000,sent_bytes:1000000000,mean_connections:98,
-            peak_sent_bytes_per_second:8192,measured_seconds:1800,window_seconds:3600}],
+            peak_sent_bytes_per_second:8192,measured_seconds:1800,window_seconds:3600,
+            start_local:'2026-11-07T10:00:00+01:00',end_local:'2026-11-07T11:00:00+01:00',
+            networks:{ipv4_in:70,ipv4_out:2,ipv6_in:20,ipv6_out:3,onion_in:0,onion_out:3},
+            blocks:{recorded_blocks:2,transactions:300,mean_block_size:1500000,total_fee_btc:null}}],
+          weekly:{
+            current:{start:now-7*86400,end:now,received_bytes:1000000000,sent_bytes:2000000000,
+              mean_daily_sent_bytes:2000000000/7,measured_seconds:604800,window_seconds:604800},
+            previous:{start:now-14*86400,end:now-7*86400,received_bytes:1000000000,sent_bytes:1000000000,
+              mean_daily_sent_bytes:1000000000/7,measured_seconds:604800,window_seconds:604800},
+            upload_change_percent:100,
+          },
+          network_points:[
+            {timestamp:now-60,ipv4_in:70,ipv4_out:2,ipv6_in:20,ipv6_out:3,onion_in:0,onion_out:3},
+            {timestamp:now,ipv4_in:71,ipv4_out:2,ipv6_in:20,ipv6_out:3,onion_in:0,onion_out:3},
+          ],
           points:[
             {timestamp:now-120,received_bytes_per_second:2048,sent_bytes_per_second:1024,peak_sent_bytes_per_second:8192},
             {timestamp:now-60,received_bytes_per_second:null,sent_bytes_per_second:null,peak_sent_bytes_per_second:null},
@@ -54,6 +68,22 @@ const assert = require('node:assert/strict');
         '0 B', '–', '1 GB', await page.evaluate(() => `${new Intl.NumberFormat(I18n.locale).format(2.5)} GB`),
       ]);
       assert.equal(await page.locator('#trafficTimezone').textContent(), 'Europe/Berlin');
+      assert.equal(await page.locator('#weeklyTrafficChange').textContent(), '+100 %');
+      const downloadPromise = page.waitForEvent('download');
+      await page.locator('#exportDailyReport').click();
+      const download = await downloadPromise;
+      assert.equal(download.suggestedFilename(), 'bitcoin-core-24h.csv');
+      const csv = fs.readFileSync(await download.path(), 'utf8');
+      assert(csv.startsWith('\ufeff"local_date","timezone","start_local","end_local"'));
+      assert(csv.includes('"2026-11-07T10:00:00+01:00"'));
+      assert(csv.includes('"999000000","1000000000","98","8192"'));
+      assert(csv.trimEnd().endsWith('"2","300","1500000",""'));
+      await page.locator('#networkHistory summary').click();
+      await page.waitForFunction(() => {
+        const canvas = document.querySelector('#ipv4HistoryChart');
+        const rgba = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+        return rgba.some((red, i) => i % 4 === 0 && red === 247 && rgba[i+1] === 147 && rgba[i+2] === 26);
+      });
       await page.waitForFunction(() => {
         const canvas = document.querySelector('#trafficChart');
         const rgba = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
@@ -62,6 +92,9 @@ const assert = require('node:assert/strict');
       await page.click('[data-range="1h"]');
       await page.click('#tab-analysis');
       await page.waitForFunction(() => document.querySelector('#recentBlockRows').textContent.includes('42'));
+      await page.locator('#dailyBlockStats summary').click();
+      assert.match(await page.locator('#dailyBlockRows').textContent(), /300/);
+      assert.match(await page.locator('#dailyBlockRows').textContent(), /–/);
       await page.setViewportSize({width:390,height:844});
       for (const tab of ['network','history','analysis']) {
         await page.click('#tab-'+tab);

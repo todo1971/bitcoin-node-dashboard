@@ -2,6 +2,15 @@
 
 [Deutsch](../ROADMAP.md) | [English documentation](../../README.en.md#documentation)
 
+## Implemented in 1.23
+
+- Weekly traffic comparison and CSV report for the selected range
+- Persistent IPv4/IPv6/Tor history and daily block statistics
+
+## Optional addition
+
+- Node map with a data source and aggregated display to be determined
+
 ## Implemented in 1.20
 
 - Aggregate peer software versions, service flags, and connection types.

@@ -118,6 +118,67 @@ class TrafficTests(unittest.TestCase):
         self.assertTrue(rate['available'])
         self.assertEqual(rate['received_bytes_per_second'], 2)
 
+    def test_week_comparison_uses_complete_local_days_and_requires_coverage(self):
+        day = int(datetime.fromisoformat('2026-11-07T00:00:00+01:00').timestamp())
+        beginning, boundary = day - 14*86400, day - 7*86400
+        samples, sent = [], 0
+        for timestamp in range(beginning, day + 3601, 3600):
+            if timestamp > beginning:
+                sent += 3600 if timestamp <= boundary else 7200
+            samples.append((timestamp, timestamp-beginning, sent, timestamp-beginning+100))
+        self.samples(samples)
+        with patch.object(app, 'SAMPLE_INTERVAL_SECONDS', 3600), patch.object(app.time, 'time', return_value=day+3600):
+            result = app.traffic_history('24h', 'Europe/Berlin')['weekly']
+        self.assertEqual(result['current']['sent_bytes'], 2*7*86400)
+        self.assertEqual(result['previous']['sent_bytes'], 7*86400)
+        self.assertEqual(result['current']['mean_daily_sent_bytes'], 2*86400)
+        self.assertEqual(result['upload_change_percent'], 100)
+        with closing(app.database_connection()) as connection, connection:
+            connection.execute('DELETE FROM node_samples WHERE sampled_at > ? AND sampled_at < ?',
+                               (boundary+86400, boundary+3*86400))
+        with patch.object(app, 'SAMPLE_INTERVAL_SECONDS', 3600), patch.object(app.time, 'time', return_value=day+3631):
+            self.assertIsNone(app.traffic_history('24h', 'Europe/Berlin')['weekly']['upload_change_percent'])
+
+    def test_network_history_preserves_unknown_legacy_samples_and_stores_directions(self):
+        self.samples([(1000,1,2,10)])
+        app.store_snapshot({'generated_at':1060, 'chain':{'blocks':1},
+                            'network':{'network_directions':{'ipv4':{'inbound':3,'outbound':2},
+                                                           'ipv6':{'inbound':0,'outbound':1},
+                                                           'onion':{'inbound':4,'outbound':0}}}})
+        with patch.object(app.time, 'time', return_value=1120):
+            points = app.traffic_history('1h')['network_points']
+        self.assertIsNone(points[0]['ipv4_in'])
+        self.assertEqual([points[-1][key] for key in ('ipv4_in','ipv4_out','ipv6_in','ipv6_out','onion_in','onion_out')],
+                         [3,2,0,1,4,0])
+        self.assertNotIn('addr', json.dumps(points))
+
+    def test_network_column_migration_preserves_existing_history(self):
+        self.samples([(1000,10,20,100)])
+        with closing(app.database_connection()) as connection, connection:
+            for network in ('ipv4', 'ipv6', 'onion'):
+                for direction in ('in', 'out'):
+                    connection.execute(f'ALTER TABLE node_samples DROP COLUMN {network}_{direction}')
+        app.init_database()
+        app.init_database()
+        with closing(app.database_connection()) as connection:
+            row = connection.execute('SELECT bytes_sent, ipv4_in, onion_out FROM node_samples').fetchone()
+        self.assertEqual(tuple(row), (20,None,None))
+
+    def test_daily_blocks_are_unique_and_incomplete_metrics_stay_unknown(self):
+        start = int(datetime.fromisoformat('2026-11-07T00:00:00+01:00').timestamp())
+        with closing(app.database_connection()) as connection, connection:
+            connection.executemany("""INSERT INTO block_observations
+                (height,observed_at,block_time,transactions,total_size,total_fee_btc,source)
+                VALUES (?, ?, ?, ?, ?, ?, 'test')""", [
+                    (1,start,start,100,1000000,0.1), (2,start,start+30,200,2000000,None),
+                    (3,start,start-1,300,3000000,0.3), (4,start,start+4000,500,4000000,0.5)])
+        with patch.object(app.time, 'time', return_value=start+3600):
+            day = app.traffic_history('1h', 'Europe/Berlin')['daily'][0]
+        self.assertEqual(day['blocks']['recorded_blocks'], 2)
+        self.assertEqual(day['blocks']['transactions'], 300)
+        self.assertEqual(day['blocks']['mean_block_size'], 1500000)
+        self.assertIsNone(day['blocks']['total_fee_btc'])
+
     def test_recent_blocks_are_bounded_and_do_not_make_rpc_calls(self):
         with closing(app.database_connection()) as connection, connection:
             connection.executemany('INSERT INTO block_observations (height,observed_at,source) VALUES (?,1000,?)', [(height,'sample') for height in range(30)])

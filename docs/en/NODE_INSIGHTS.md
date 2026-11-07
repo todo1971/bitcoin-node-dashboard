@@ -51,6 +51,36 @@ retention limits, and offline nodes can reduce coverage. Totals are not billing
 records or a substitute for provider traffic data. Counters and uptime alone
 cannot detect every theoretically possible restart.
 
+### Weekly comparison and CSV report
+
+The expandable weekly comparison covers the last seven completed calendar days
+and the preceding seven days. It excludes today. Each period shows measured
+download and upload, upload per day (measured upload divided by seven), the
+highest measured upload day and time coverage. The upload percentage change
+requires at least 90% coverage in both periods and a positive comparison value.
+Missing data can reduce the measured volumes.
+
+**Download CSV report** exports the days in the selected history range.
+The UTF-8 download includes byte volumes, peak bytes per second, peer counts,
+measurement duration, IPv4/IPv6/Tor averages and recorded block statistics.
+Column names are language-independent English. Numbers use a decimal point
+and unknown values remain empty. Time boundaries are local ISO timestamps
+including UTC offset and time zone name. The export uses the data already loaded.
+
+### Network history and daily block statistics
+
+In History, **Network history** provides one chart each for IPv4, IPv6 and Tor
+with In and Out. Values are average counts of saved snapshots per chart bucket.
+Six additional nullable SQLite columns record these counts from version 1.23.0.
+Earlier samples retain unknown network values. Known gaps break the lines.
+
+**Daily block statistics** is available in Analysis. Each stored block height
+counts once. The table groups by block time in the browser's time zone and shows
+recorded blocks, transaction totals, average block size and total fees.
+A missing individual value makes the corresponding daily metric unknown.
+The table covers locally stored observations in the selected period.
+Backfill limits and reorganizations constrain completeness.
+
 `GET /api/traffic?range=24h` accepts the same seven ranges as history. Unknown
 values fall back to 24h. The optional `timezone` parameter accepts an IANA time
 zone such as `Europe/Berlin`. The API uses UTC if the zone is absent or invalid.

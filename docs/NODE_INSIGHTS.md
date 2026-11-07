@@ -54,6 +54,40 @@ Nodes können zu niedriger Abdeckung führen. Die Summen sind keine Abrechnung u
 kein Ersatz für Provider-Trafficdaten. Ein Neustart ist allein anhand von Zählern
 und Laufzeit nicht in jedem theoretischen Fall erkennbar.
 
+### Wochenvergleich und CSV-Bericht
+
+Der aufklappbare Wochenvergleich umfasst die letzten sieben abgeschlossenen
+Kalendertage und die sieben Tage davor. Der heutige Tag bleibt dabei außen vor.
+Die Tabelle nennt je Zeitraum gemessenen Download und Upload, Upload pro Tag
+(gemessene Uploadsumme geteilt durch sieben), den stärksten gemessenen Uploadtag
+und die zeitliche Messabdeckung. Eine prozentuale Uploadänderung erscheint ab
+90 % Abdeckung in beiden Zeiträumen und bei einem positiven Vergleichswert.
+Fehlende Daten können die gemessenen Mengen verringern.
+
+**CSV-Bericht herunterladen** exportiert die Tage im gewählten Historienzeitraum.
+Der UTF-8-Download enthält Byte-Mengen, Spitzenrate in Bytes pro Sekunde,
+Peer-Zahlen, Messdauer, IPv4-/IPv6-/Tor-Mittelwerte und erfasste Blockstatistiken.
+Die Spaltennamen sind sprachunabhängig auf Englisch. Zahlen verwenden einen
+Dezimalpunkt, unbekannte Werte bleiben leer. Zeitgrenzen sind lokale ISO-Zeitwerte
+einschließlich UTC-Offset und Zeitzonenname. Die Berechnung nutzt die bereits
+geladenen Daten.
+
+### Netzwerkverlauf und tägliche Blockstatistik
+
+**Netzwerkverlauf** zeigt unter Historie je ein Diagramm für IPv4, IPv6 und Tor
+mit In und Out. Die Werte sind mittlere Anzahlen der gespeicherten Momentaufnahmen
+je Diagrammabschnitt. Sechs zusätzliche nullable SQLite-Spalten erfassen die
+Anzahlen ab Version 1.23.0. Ältere Messpunkte behalten unbekannte Netzwerkwerte.
+Bekannte Lücken im Verlauf unterbrechen die Linien.
+
+Unter Analyse steht die **Tägliche Blockstatistik**. Ein Eintrag pro gespeicherter
+Blockhöhe zählt einmal. Die Tabelle gruppiert anhand der Blockzeit in der
+Browserzeitzone und zeigt erfasste Blöcke, Transaktionssumme, durchschnittliche
+Blockgröße und Gebührensumme. Fehlt ein Einzelwert, bleibt die entsprechende
+Tageskennzahl unbekannt. Die Tabelle umfasst die lokal gespeicherten Beobachtungen
+im gewählten Zeitraum. Nachtragsgrenzen und Reorganisationen begrenzen ihre
+Vollständigkeit.
+
 `GET /api/traffic?range=24h` verwendet dieselben sieben erlaubten Zeiträume wie
 die Historie. Unbekannte Werte fallen auf 24h zurück. Der optionale Parameter
 `timezone` akzeptiert eine IANA-Zeitzone wie `Europe/Berlin`. Ohne gültige

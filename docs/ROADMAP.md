@@ -2,6 +2,15 @@
 
 Deutsch | [English](en/ROADMAP.md)
 
+## Umgesetzt in 1.23
+
+- Traffic-Wochenvergleich und CSV-Bericht für den gewählten Zeitraum
+- Persistenter IPv4-/IPv6-/Tor-Verlauf und tägliche Blockstatistik
+
+## Optionale Ergänzung
+
+- Node-Karte mit noch festzulegender Datenquelle und aggregierter Darstellung
+
 ## Umgesetzt in 1.20
 
 - Peer-Softwareversionen, Service-Flags und Verbindungsarten aggregieren

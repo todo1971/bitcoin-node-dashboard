@@ -38,7 +38,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.22.2"
+__version__ = "1.23.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -1246,6 +1246,12 @@ def init_database() -> None:
                 "bitcoind_uptime": "INTEGER",
                 "block_size_bytes": "INTEGER",
                 "block_transaction_rate": "REAL",
+                "ipv4_in": "INTEGER",
+                "ipv4_out": "INTEGER",
+                "ipv6_in": "INTEGER",
+                "ipv6_out": "INTEGER",
+                "onion_in": "INTEGER",
+                "onion_out": "INTEGER",
             }
             for column, data_type in migrations.items():
                 if column not in existing_columns:
@@ -1308,6 +1314,9 @@ def init_database() -> None:
                     transaction_rate REAL,
                     source TEXT NOT NULL
                 )"""
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS block_observations_time ON block_observations(block_time)"
             )
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS dashboard_meta (
@@ -1496,6 +1505,12 @@ def store_snapshot(data: dict[str, Any]) -> None:
         _number(disk.get("free")),
         _number(network.get("bitcoind_uptime")),
     )
+    directions = network.get("network_directions") or {}
+    values += tuple(
+        _number(directions.get(name, {}).get(direction))
+        for name in ("ipv4", "ipv6", "onion")
+        for direction in ("inbound", "outbound")
+    )
 
     cutoff = sampled_at - HISTORY_RETENTION_DAYS * 24 * 60 * 60
     previous = None
@@ -1516,8 +1531,8 @@ def store_snapshot(data: dict[str, Any]) -> None:
                     block_transactions, block_total_fee_btc, block_size_bytes,
                     block_transaction_rate, cpu_percent,
                     memory_used_percent, disk_free_percent, disk_free_bytes,
-                    bitcoind_uptime
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    bitcoind_uptime, ipv4_in, ipv4_out, ipv6_in, ipv6_out, onion_in, onion_out
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -1666,6 +1681,60 @@ def history_data(range_name: str) -> dict[str, Any]:
     }
 
 
+def daily_node_statistics(connection: sqlite3.Connection, start: int, end: int, zone) -> list[dict[str, Any]]:
+    """Aggregate only recorded data within local calendar boundaries."""
+    days = []
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    selected_start = epoch + timedelta(seconds=start)
+    date = selected_start.astimezone(zone).date()
+    while True:
+        day_start = int(datetime.combine(date, datetime_time.min, zone).timestamp())
+        if day_start >= end:
+            break
+        date += timedelta(days=1)
+        day_end = int(datetime.combine(date, datetime_time.min, zone).timestamp())
+        beginning, ending = max(day_start, start), min(day_end, end)
+        traffic = connection.execute("""
+            SELECT SUM(received) AS received_bytes, SUM(sent) AS sent_bytes,
+              SUM(mean_connections * seconds) /
+                SUM(CASE WHEN mean_connections IS NOT NULL THEN seconds END) AS mean_connections,
+              MAX(1.0 * sent / seconds) AS peak_sent_bytes_per_second,
+              COALESCE(SUM(seconds), 0) AS measured_seconds
+            FROM traffic_intervals
+            WHERE valid AND beginning >= ? AND beginning < ? AND ending <= ?
+        """, (beginning, ending, ending)).fetchone()
+        networks = connection.execute("""
+            SELECT AVG(ipv4_in) AS ipv4_in, AVG(ipv4_out) AS ipv4_out,
+              AVG(ipv6_in) AS ipv6_in, AVG(ipv6_out) AS ipv6_out,
+              AVG(onion_in) AS onion_in, AVG(onion_out) AS onion_out
+            FROM node_samples WHERE sampled_at >= ? AND sampled_at < ?
+        """, (beginning, ending)).fetchone()
+        blocks = connection.execute("""
+            SELECT COUNT(*) AS recorded_blocks,
+              CASE WHEN COUNT(transactions) = COUNT(*) THEN SUM(transactions) END AS transactions,
+              CASE WHEN COUNT(total_size) = COUNT(*) THEN AVG(total_size) END AS mean_block_size,
+              CASE WHEN COUNT(total_fee_btc) = COUNT(*) THEN SUM(total_fee_btc) END AS total_fee_btc
+            FROM block_observations WHERE block_time >= ? AND block_time < ?
+        """, (beginning, ending)).fetchone()
+        days.append(dict(traffic) | {"day_start": day_start, "start": beginning, "end": ending,
+                    "start_local": (epoch + timedelta(seconds=beginning)).astimezone(zone).isoformat(),
+                    "end_local": (epoch + timedelta(seconds=ending)).astimezone(zone).isoformat(),
+                    "window_seconds": ending - beginning, "networks": dict(networks),
+                    "blocks": dict(blocks)})
+    return days
+
+
+def traffic_week_summary(days: list[dict[str, Any]], start: int, end: int) -> dict[str, Any]:
+    measured = [day for day in days if day["measured_seconds"] > 0]
+    received = sum(day["received_bytes"] for day in measured) if measured else None
+    sent = sum(day["sent_bytes"] for day in measured) if measured else None
+    return {"start": start, "end": end, "window_seconds": end - start,
+            "measured_seconds": sum(day["measured_seconds"] for day in days),
+            "received_bytes": received, "sent_bytes": sent,
+            "mean_daily_sent_bytes": sent / 7 if sent is not None else None,
+            "strongest_day": max(measured, key=lambda day: day["sent_bytes"]) if measured else None}
+
+
 def traffic_history(range_name: str, timezone_name: str = "UTC") -> dict[str, Any]:
     """Measured counter deltas only; never bridge restarts or long sampling gaps."""
     range_name = range_name if range_name in HISTORY_RANGES else "24h"
@@ -1687,7 +1756,9 @@ def traffic_history(range_name: str, timezone_name: str = "UTC") -> dict[str, An
         day = int(datetime.combine(local_now.date(), datetime_time.min, zone).timestamp())
         month = int(datetime.combine(local_now.date().replace(day=1), datetime_time.min, zone).timestamp())
         starts = {"selected": now - duration, "today": day, "month": month}
-        lower = min(starts.values())
+        week_start = int(datetime.combine(local_now.date() - timedelta(days=7), datetime_time.min, zone).timestamp())
+        previous_start = int(datetime.combine(local_now.date() - timedelta(days=14), datetime_time.min, zone).timestamp())
+        lower = min(*starts.values(), previous_start)
         init_database()
         with closing(database_connection()) as connection:
             # Include one predecessor to measure the first interval without scanning
@@ -1735,29 +1806,26 @@ def traffic_history(range_name: str, timezone_name: str = "UTC") -> dict[str, An
                 GROUP BY timestamp ORDER BY timestamp
             """, (bucket, bucket, starts["selected"], starts["selected"])).fetchall()
             connection.execute("CREATE INDEX temp.traffic_interval_beginning ON traffic_intervals(beginning)")
-            daily = []
-            selected_start = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=starts["selected"])
-            date = selected_start.astimezone(zone).date()
-            while date <= local_now.date():
-                day_start = int(datetime.combine(date, datetime_time.min, zone).timestamp())
-                date += timedelta(days=1)
-                day_end = int(datetime.combine(date, datetime_time.min, zone).timestamp())
-                start, end = max(day_start, starts["selected"]), min(day_end, now)
-                if end <= start:
-                    continue
-                row = connection.execute("""
-                    SELECT SUM(received) AS received_bytes, SUM(sent) AS sent_bytes,
-                      SUM(mean_connections * seconds) /
-                        SUM(CASE WHEN mean_connections IS NOT NULL THEN seconds END) AS mean_connections,
-                      MAX(1.0 * sent / seconds) AS peak_sent_bytes_per_second,
-                      COALESCE(SUM(seconds), 0) AS measured_seconds
-                    FROM traffic_intervals
-                    WHERE valid AND beginning >= ? AND beginning < ? AND ending <= ?
-                """, (start, end, end)).fetchone()
-                daily.append(dict(row) | {"day_start": day_start, "window_seconds": end - start})
+            daily = daily_node_statistics(connection, starts["selected"], now, zone)
+            current_week = traffic_week_summary(daily_node_statistics(connection, week_start, day, zone), week_start, day)
+            previous_week = traffic_week_summary(daily_node_statistics(connection, previous_start, week_start, zone), previous_start, week_start)
+            network_points = connection.execute("""
+                SELECT CAST(sampled_at / ? AS INTEGER) * ? AS timestamp,
+                  AVG(ipv4_in) AS ipv4_in, AVG(ipv4_out) AS ipv4_out,
+                  AVG(ipv6_in) AS ipv6_in, AVG(ipv6_out) AS ipv6_out,
+                  AVG(onion_in) AS onion_in, AVG(onion_out) AS onion_out
+                FROM node_samples WHERE sampled_at BETWEEN ? AND ?
+                GROUP BY timestamp ORDER BY timestamp
+            """, (bucket, bucket, starts["selected"], now)).fetchall()
+        sufficient = all(week["measured_seconds"] >= 0.9 * week["window_seconds"]
+                         for week in (current_week, previous_week))
+        change = ((current_week["sent_bytes"] / previous_week["sent_bytes"] - 1) * 100
+                  if sufficient and previous_week["sent_bytes"] else None)
         result = {"range": range_name, "generated_at": now, "bucket_seconds": bucket,
                   "points": [dict(row) for row in rows], "periods": summaries,
-                  "daily": daily[::-1], "timezone": zone_name}
+                  "daily": daily[::-1], "timezone": zone_name,
+                  "weekly": {"current": current_week, "previous": previous_week, "upload_change_percent": change},
+                  "network_points": [dict(row) for row in network_points]}
         _traffic_history_cache["entries"][range_name] = (now + 30, result)
         return result
 

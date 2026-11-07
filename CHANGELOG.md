@@ -4,6 +4,14 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.23.0 – 2026-11-07
+
+- Traffic der letzten sieben abgeschlossenen Kalendertage mit den sieben Tagen davor vergleichen. Prozentänderung ab 90 % Messabdeckung anzeigen.
+- CSV-Bericht mit lokalen Zeitgrenzen, Traffic, Peer-Zahlen, Uploadspitzen, Messabdeckung und Blockstatistiken ergänzen.
+- IPv4-, IPv6- und Tor-Verbindungen getrennt nach In und Out dauerhaft in SQLite erfassen und als Verlauf anzeigen.
+- Unter Analyse die täglichen erfassten Blöcke, Transaktionen, mittlere Blockgröße und Gebührensumme darstellen.
+- Node-Karte als optionale spätere Ergänzung in der Roadmap aufnehmen.
+
 ## 1.22.2 – 2026-11-07
 
 - Datengrößen in Traffic-Tabelle, Übersicht und Adminbereich dezimal formatieren. Ab 1.000 MB erscheint GB.

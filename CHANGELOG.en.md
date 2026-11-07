@@ -4,6 +4,14 @@
 
 All significant project changes are recorded here.
 
+## 1.23.0 – 2026-11-07
+
+- Compare traffic for the last seven completed calendar days with the preceding seven days. Show percentage changes from 90% measurement coverage.
+- Add CSV reports with local time boundaries, traffic, peer counts, upload peaks, coverage and block statistics.
+- Persist IPv4, IPv6 and Tor connection counts separately for In and Out in SQLite and display their history.
+- Add daily recorded blocks, transaction totals, average block size and fees in Analysis.
+- Add a node map to the roadmap as an optional future enhancement.
+
 ## 1.22.2 – 2026-11-07
 
 - Format data sizes in the traffic table, overview and admin area with decimal units. Values of 1,000 MB or more use GB.
