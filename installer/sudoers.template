@@ -1,0 +1,7 @@
+# Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
+# SPDX-License-Identifier: GPL-3.0-only
+@USER@ ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-dashboard-update --collect --no-block /usr/local/sbin/update-bitcoin-dashboard
+@USER@ ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-core-update --collect --no-block /usr/local/sbin/update-bitcoin-core
+@USER@ ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=bitcoin-dashboard-config-restart --collect --no-block --on-active=2s /usr/bin/systemctl restart bitcoin-dashboard.service
+@USER@ ALL=(root) NOPASSWD: /usr/bin/journalctl --unit=bitcoin-dashboard-update --lines=80 --no-pager --output=short-iso --quiet
+@USER@ ALL=(root) NOPASSWD: /usr/bin/journalctl --unit=bitcoin-core-update --lines=80 --no-pager --output=short-iso --quiet

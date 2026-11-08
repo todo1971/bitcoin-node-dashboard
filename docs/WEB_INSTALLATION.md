@@ -10,16 +10,15 @@ wird nur durch einen SSH-Tunnel geöffnet. Nach der Installation wird der Prozes
 mit `Strg+C` beendet.
 
 Unterstützt werden systemd-basierte Linux-Systeme mit Python 3.11 oder neuer.
-Für die Dashboard-Installation muss Bitcoin Core bereits laufen und der gewählte
-Service-Benutzer Zugriff auf dessen RPC-Cookie besitzen.
+Für die Dashboard-Installation muss Bitcoin Core bereits als eigener systemd-Dienst laufen. Der Bootstrap richtet das getrennte Dashboard-Konto und lokale RPC-Leserechte ein. [Migration und Grenzen](SECURITY.md).
 
 ## Start
 
 Release-Archiv aus dem aktuellen Verzeichnis in ein temporäres Verzeichnis entpacken:
 
 ```bash
-tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.23.1.tar.gz -C "$tmpdir"
+tmpdir=$(sudo mktemp -d /root/bitcoin-dashboard-web.XXXXXX)
+sudo tar -xzf ./bitcoin-node-dashboard-1.24.0.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 
@@ -37,7 +36,7 @@ http://127.0.0.1:8791
 ```
 
 Der Installer prüft Benutzer, Pfade und Zahlenbereiche, installiert den Code in
-das Home-Verzeichnis des Service-Benutzers, schreibt die Environment-Datei und
+`/opt/bitcoin-dashboard` mit root als Eigentümer, schreibt die Environment-Datei und
 eine gehärtete Systemd-Unit, richtet die abgesicherten Update-Helfer ein und
 startet das Dashboard. Das ausgegebene Admin-Passwort gehört zu `/admin`.
 Nach Abschluss und Beenden des Installers kann das temporäre Verzeichnis mit

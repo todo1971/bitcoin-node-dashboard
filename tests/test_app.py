@@ -61,7 +61,7 @@ class RealtimeTests(unittest.TestCase):
 
 class DashboardLayoutTests(unittest.TestCase):
     def test_overview_includes_system_and_remaining_tabs_keep_details_available(self):
-        html = (app.APP_DIR / "static" / "index.html").read_text(encoding="utf-8")
+        html = (app.APP_DIR / "static" / "index.html").read_text(encoding="utf-8") + (app.APP_DIR / "static" / "dashboard.js").read_text(encoding="utf-8")
         panels = {}
         for name in ("overview", "network", "analysis", "history"):
             match = re.search(rf'<section\b[^>]*id="{name}Panel"[^>]*>.*?</section>', html, re.S)
@@ -139,9 +139,10 @@ class ServiceConfigurationTests(unittest.TestCase):
         bootstrap = (project / "installer" / "bootstrap-admin.sh").read_text(encoding="utf-8")
         fetcher = (project / "installer" / "fetch-dashboard-release").read_text(encoding="utf-8")
         self.assertIn("EnvironmentFile=/var/lib/bitcoin-dashboard/.env", service)
-        self.assertIn("legacy_env=/etc/default/bitcoin-dashboard", bootstrap)
-        self.assertIn('ln -s "$env_file" "$dashboard_target/.env"', bootstrap)
-        self.assertIn("--unit=bitcoin-dashboard-config-restart", bootstrap)
+        migration = (project / "installer" / "harden_installation.py").read_text(encoding="utf-8")
+        self.assertIn("/etc/default/bitcoin-dashboard", migration)
+        self.assertIn('(TARGET/".env").symlink_to(STATE/".env")', migration)
+        self.assertIn("--unit=bitcoin-dashboard-config-restart", (project / "installer" / "sudoers.template").read_text())
         self.assertIn('ENV_FILE = Path("/var/lib/bitcoin-dashboard/.env")', fetcher)
 
     def test_update_helpers_use_root_owned_cache_and_bootstrap_migrates_config(self):
@@ -155,8 +156,9 @@ class ServiceConfigurationTests(unittest.TestCase):
         bootstrap = (project / "installer" / "bootstrap-admin.sh").read_text(
             encoding="utf-8"
         )
-        self.assertIn('install -d -o root -g root -m 0700 "$update_root"', bootstrap)
-        self.assertIn('sed -i "s#^UPDATE_ROOT=.*#UPDATE_ROOT=$update_root#"', bootstrap)
+        migration = (project / "installer" / "harden_installation.py").read_text(encoding="utf-8")
+        self.assertIn("cache.mkdir(exist_ok=True, mode=0o700)", migration)
+        self.assertIn("harden_installation.py", bootstrap)
 
     def test_dashboard_service_does_not_force_no_new_privileges(self):
         project = Path(__file__).parent.parent
@@ -182,7 +184,7 @@ class ServiceConfigurationTests(unittest.TestCase):
     def test_updater_allows_unprivileged_test_user_to_enter_temp_directory(self):
         project = Path(__file__).parent.parent
         updater = (project / "installer" / "update-bitcoin-dashboard").read_text()
-        chmod_position = updater.index('chmod 0750 "$tmp_dir" "$source_dir"')
+        chmod_position = updater.index('chmod 0750 "$qa_dir"')
         runuser_position = updater.index('runuser -u "$DASHBOARD_USER"')
         self.assertLess(chmod_position, runuser_position)
 
@@ -208,14 +210,16 @@ class ServiceConfigurationTests(unittest.TestCase):
     def test_core_updater_verifies_before_stopping_node(self):
         project = Path(__file__).parent.parent
         updater = (project / "installer" / "update-bitcoin-core").read_text()
-        self.assertLess(updater.index("gpg --batch"), updater.index('systemctl stop "$BITCOIN_SERVICE"'))
-        self.assertLess(updater.index('sha256sum "$archive"'), updater.index('systemctl stop "$BITCOIN_SERVICE"'))
+        installation = updater.index('rollback_needed=1')
+        self.assertLess(updater.index("gpg --batch"), installation)
+        self.assertLess(updater.index('sha256sum "$archive"'), installation)
+        self.assertLess(installation, updater.index('systemctl stop "$BITCOIN_SERVICE"', installation))
         self.assertIn('release_url="https://bitcoincore.org/bin/bitcoin-core-$version"', updater)
         self.assertIn("Downgrade or reinstall rejected", updater)
         self.assertIn("BITCOIN_MIN_VALID_SIGNATURES:=2", updater)
         self.assertIn("valid_signatures", updater)
         self.assertGreater(
-            updater.index("getblockchaininfo"),
+            updater.index('rpc-health'),
             updater.index('systemctl start "$BITCOIN_SERVICE"'),
         )
 
@@ -579,7 +583,7 @@ class AlertEvaluationTests(unittest.TestCase):
 class AdminSecurityTests(unittest.TestCase):
     def setUp(self):
         app._admin_failures.clear()
-        app._admin_blocked_until = 0.0
+        app._admin_blocked_until.clear()
 
     def test_valid_credentials_require_exact_username_and_token(self):
         token = "x" * 32
@@ -618,8 +622,8 @@ class AdminSecurityTests(unittest.TestCase):
             with patch.object(app, "CONFIG_FILE", config), patch.object(app, "ADMIN_UPDATES_ENABLED", True):
                 data = app.admin_config_data()
                 fields = {field["key"]: field for field in data["fields"]}
-                self.assertEqual(fields["DASHBOARD_GITHUB_TOKEN"]["value"], "")
-                self.assertTrue(fields["DASHBOARD_GITHUB_TOKEN"]["configured"])
+                self.assertNotIn("DASHBOARD_GITHUB_TOKEN", fields)
+                self.assertNotIn("DASHBOARD_GITHUB_REPOSITORY", fields)
                 self.assertNotIn("ADMIN_TOKEN", fields)
                 proposed = {key: field["value"] for key, field in fields.items()}
                 proposed["DISK_MAX_USED_PERCENT"] = "92.5"

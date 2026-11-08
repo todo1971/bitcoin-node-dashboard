@@ -19,15 +19,26 @@ LOADER.exec_module(release_fetcher)
 
 
 class ReleaseFetcherTests(unittest.TestCase):
+    def test_redirect_rejects_external_hosts_and_http(self):
+        request = release_fetcher.urllib.request.Request('https://api.github.com/assets/1')
+        for destination in ('http://github.com/file', 'https://github.com.evil.example/file', 'https://evil.example/file'):
+            with self.subTest(destination=destination), self.assertRaises(ValueError):
+                release_fetcher.GitHubRedirect().redirect_request(request, None, 302, '', {}, destination)
+
+    def test_redirect_drops_authorization_between_hosts(self):
+        request = release_fetcher.urllib.request.Request('https://api.github.com/assets/1', headers={'Authorization':'Bearer secret'})
+        redirected = release_fetcher.GitHubRedirect().redirect_request(request, None, 302, '', {}, 'https://release-assets.githubusercontent.com/file')
+        self.assertIsNone(redirected.get_header('Authorization'))
+
     def test_anonymous_asset_request_has_no_authorization_header(self):
-        with patch.object(release_fetcher.urllib.request, 'urlopen', return_value=io.BytesIO(b'archive')) as request:
+        with patch.object(release_fetcher.urllib.request.OpenerDirector, 'open', return_value=io.BytesIO(b'archive')) as request:
             self.assertEqual(release_fetcher.request_bytes('https://api.github.com/repos/example/public/releases/assets/1', '', 'application/octet-stream', 100), b'archive')
         headers = request.call_args.args[0].headers
         self.assertNotIn('Authorization', headers)
         self.assertEqual(headers['Accept'], 'application/octet-stream')
 
     def test_private_asset_request_preserves_authorization(self):
-        with patch.object(release_fetcher.urllib.request, 'urlopen', return_value=io.BytesIO(b'archive')) as request:
+        with patch.object(release_fetcher.urllib.request.OpenerDirector, 'open', return_value=io.BytesIO(b'archive')) as request:
             release_fetcher.request_bytes('https://api.github.com/repos/example/private/releases/assets/1', 'test-token', 'application/octet-stream', 100)
         self.assertEqual(request.call_args.args[0].get_header('Authorization'), 'Bearer test-token')
 
@@ -71,24 +82,25 @@ class ReleaseFetcherTests(unittest.TestCase):
             target.mkdir()
             (target / "app.py").write_text('__version__ = "1.0.0"\n')
             env_file.write_text(
-                "DASHBOARD_GITHUB_REPOSITORY=example/project\n"
-                f"DASHBOARD_GITHUB_TOKEN={token}\n"
+                "DASHBOARD_GITHUB_REPOSITORY=attacker/override\n"
+                "DASHBOARD_GITHUB_TOKEN=untrusted-token\n"
             )
             config_file.write_text(
-                f"UPDATE_ROOT={update_root}\nDASHBOARD_TARGET={target}\n"
+                f"UPDATE_ROOT={update_root}\nDASHBOARD_TARGET={target}\nDASHBOARD_GITHUB_REPOSITORY=example/project\nDASHBOARD_GITHUB_TOKEN={token}\n"
             )
 
             responses = [metadata, f"{digest}  archive\n".encode(), archive]
             with patch.object(release_fetcher, "ENV_FILE", env_file):
                 with patch.object(release_fetcher, "UPDATER_CONFIG", config_file):
                     with patch.object(release_fetcher.os, "geteuid", return_value=0, create=True):
-                        with patch.object(release_fetcher, "safe_update_root", return_value=True):
+                        with patch.object(release_fetcher, "safe_update_root", return_value=True), patch.object(release_fetcher.subprocess, "run"):
                             with patch.object(
                                 release_fetcher,
                                 "request_bytes",
                                 side_effect=responses,
                             ) as request_bytes:
                                 result = release_fetcher.main()
+                                self.assertIn('/repos/example/project/', request_bytes.call_args_list[0].args[0])
                                 self.assertEqual([call.args[1] for call in request_bytes.call_args_list], [token, token, token])
 
             self.assertEqual(result, 0)

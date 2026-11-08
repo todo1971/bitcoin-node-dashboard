@@ -1,0 +1,9 @@
+# Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
+# SPDX-License-Identifier: GPL-3.0-only
+FROM bitcoin/bitcoin:31.1 AS core
+FROM python:3.11-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends sudo python3 curl libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=core /opt/bitcoin-31.1 /opt/bitcoin-31.1
+ENV DISPOSABLE_SECURITY_CONTAINER=1 BITCOIN_TEST_BIN=/opt/bitcoin-31.1/bin
+CMD ["/usr/bin/python3", "/source/tools/security_integration.py"]

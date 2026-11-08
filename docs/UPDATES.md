@@ -2,104 +2,21 @@
 
 Deutsch | [English](en/UPDATES.md)
 
-## Integrierte Administration
+## Einmalige Sicherheitsmigration
 
-Die Wartungsoberfläche ist unter `/admin` in das Dashboard integriert. Sie
-verwendet ein zufälliges Passwort mit mindestens 32 Zeichen, HTTP-Basic-
-Authentifizierung, einen zusätzlichen CSRF-Token, eine globale Sperre nach fünf
-Fehlversuchen sowie Größen-, Methoden- und Origin-Prüfungen.
+Vor dem ersten Update mit den neuen Helfern die [Migration ab 1.24](SECURITY.md) ausführen. Der normale Updater ersetzt keine Root-Helfer, Units oder Sudoers-Regeln. Bestehende Installationen dürfen diesen Schritt nicht überspringen.
 
-Die Root-Helfer und das Passwort werden aus dem temporär entpackten, zuvor
-geprüften Release-Paket eingerichtet. Das Archiv liegt dafür im aktuellen Verzeichnis:
+## Dashboard aktualisieren und Quelle festlegen
+
+`/admin` zeigt verfügbare Version, Ergebnis und letzte Journalzeilen. Der Browser startet ausschließlich festgelegte Root-Aufträge ohne variable Argumente. Manuell aktualisieren und die Quelle lokal verwalten:
 
 ```bash
-tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.23.1.tar.gz -C "$tmpdir"
-sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
-sudo rm -rf -- "$tmpdir"
+sudo /usr/local/sbin/update-bitcoin-dashboard
+sudo journalctl -u bitcoin-dashboard-update -n 80 --no-pager
 ```
-
-Das Script zeigt Benutzername und Passwort an. Danach ist die Seite unter der
-HTTPS-Adresse des Dashboards plus `/admin` erreichbar. Alternativ kann sie über
-einen SSH-Tunnel auf den normalen Dashboard-Port geöffnet werden. Ein zweiter
-Webprozess oder Port wird nicht mehr verwendet.
-
-## Dashboard aktualisieren
-
-Das Dashboard fragt die GitHub Releases API ab. Für private Repositorys
-wird ein Fine-grained Personal Access Token mit ausschließlich lesendem
-`Contents`-Zugriff auf dieses eine Repository benötigt. Ab Version 1.13 wird
-es unter `/admin` → Dashboard-Konfiguration eingetragen. Lokal geht es auch
-direkt über die `.env`:
 
 ```bash
-sudo editor /var/lib/bitcoin-dashboard/.env
-```
-
-```text
-DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard
-DASHBOARD_GITHUB_TOKEN=github_pat_...
-```
-
-Danach den Dienst neu starten:
-
-```bash
-sudo chmod 0600 /var/lib/bitcoin-dashboard/.env
-sudo chown btc:btc /var/lib/bitcoin-dashboard/.env
-sudo systemctl restart bitcoin-dashboard
-```
-
-Unter `/admin` werden installierte und neueste Release-Version angezeigt. Bei
-**Dashboard aktualisieren** übergibt die Webanwendung keine Browserparameter an
-Root. Sie darf nur einen exakt festgelegten transienten systemd-Auftrag starten.
-Der Root-Helfer:
-
-1. sperrt parallele Updates,
-2. ermittelt das neueste GitHub-Release,
-3. lädt Archiv und separate SHA-256-Datei herunter und verifiziert beide,
-4. verwirft Archive mit unsicheren Pfaden oder Symlinks,
-5. führt Kompilierung und Unit-Tests als Dashboard-Benutzer aus,
-6. legt ein Backup unter `/var/backups/bitcoin-dashboard` an,
-7. installiert nur die erlaubten Anwendungsdateien,
-8. startet den Dienst neu,
-9. prüft `/healthz` und führt bei einem Fehler einen Rollback aus.
-
-Jedes GitHub-Release benötigt zwei Assets mit genau diesen Namen:
-
-```text
-bitcoin-node-dashboard-VERSION.tar.gz
-bitcoin-node-dashboard-VERSION.tar.gz.sha256
-```
-
-Die Systemd-Unit, Root-Helfer und Sudoers-Dateien werden durch diesen Updater
-bewusst nicht aus einem Update-Archiv überschrieben. Nach dem Upgrade auf 1.11.6
-einmalig `installer/bootstrap-admin.sh` aus dem entpackten Release als root
-ausführen: Es aktualisiert die Helfer und verlegt die Paketablage in den
-root-eigenen Cache `/var/cache/bitcoin-dashboard-updates`. Erst danach wird
-die bisherige Ablage nicht mehr benötigt.
-
-Ab 1.11.7 zeigt `/admin` die letzten 80 Journalzeilen der beiden Update-Units
-direkt im Browser an und aktualisiert sie alle fünf Sekunden. Der Zugriff ist
-an die Admin-Anmeldung gebunden; es gibt keine frei wählbaren Units oder
-Journal-Parameter. Nach dem Dashboard-Update auf 1.11.7 muss
-`installer/bootstrap-admin.sh` **einmalig erneut als root** ausgeführt werden,
-da der normale Updater die sudoers-Datei absichtlich nicht überschreibt. Erst
-dann kann der Dashboard-Benutzer die fest definierten Log-Ausgaben lesen.
-Ab 1.11.8 steht über der Ausgabe ein Status für den letzten Lauf: grün bei
-erfolgreichem systemd-Abschluss, rot bei fehlgeschlagenem Abschluss und
-„Läuft …“ während des Auftrags. Ohne eindeutiges Ergebnis bleibt die Anzeige
-neutral.
-
-## Öffentliches Repository ohne Token
-
-Für öffentliche Repositorys ist kein GitHub-Token erforderlich. Versionsprüfung
-und Root-Downloader unterstützen diesen Modus bereits. Solange das Repository
-privat ist, funktioniert dieser Weg noch nicht.
-
-Nach der Veröffentlichung lokal als Root die Dashboard-`.env` bearbeiten:
-
-```bash
-sudoedit /var/lib/bitcoin-dashboard/.env
+sudoedit /etc/bitcoin-dashboard-updater.conf
 ```
 
 ```text
@@ -107,212 +24,26 @@ DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard
 DASHBOARD_GITHUB_TOKEN=
 ```
 
-Ein vorhandener Token muss ausdrücklich geleert oder seine Zeile entfernt werden.
-Ein leeres Token-Feld unter `/admin` bedeutet dagegen „bisherigen Wert behalten“.
-`ADMIN_TOKEN` bleibt gesetzt: Die Admin-Anmeldung ist von GitHub unabhängig.
+Das öffentliche Repository benötigt keinen Token. Root liest Repository und optionales Token ausschließlich aus dieser root-eigenen Datei (0600), niemals aus der Dashboard-`.env`. Die Weboberfläche kann diese Quelle nicht ändern. Die separate unprivilegierte Versionsanzeige kann weiterhin Werte aus der `.env` verwenden. Änderungen der Root-Konfiguration benötigen keinen Dienstneustart.
 
-```bash
-sudo systemctl restart bitcoin-dashboard
-```
+Bei privaten Forks ein Fine-grained Token unter [GitHub](https://github.com/settings/personal-access-tokens) anlegen: genau ein Repository und ausschließlich `Contents: Read-only`. Nur lokal eintragen, niemals in Git, Chat oder Logs. Bei Offenlegung sofort widerrufen.
 
-Danach unter `/admin` die Versionsprüfung und „Dashboard aktualisieren“ verwenden.
-Der Downloader lädt weiterhin die beiden benannten Release-Assets und prüft
-SHA-256; Tests, Backup und Rollback bleiben aktiv. Automatische Quellcodearchive
-von GitHub ersetzen diese Release-Assets nicht.
+Der Helfer sperrt parallele Updates, lädt die beiden versionierten Release-Assets, prüft SHA-256 und alle Archivmitglieder vor dem Entpacken und testet unprivilegiert. Anschließend sichert und ersetzt er den geschützten Programmbaum, startet das Dashboard neu und prüft `/healthz`. Bei Fehlern wird der alte Baum wiederhergestellt und sein Start versucht. Root importiert keinen Anwendungscode. Backups: `/var/backups/bitcoin-dashboard`; root-eigener Downloadcache: `/var/cache/bitcoin-dashboard-updates`.
 
-GitHub erlaubt anonym derzeit 60 REST-Anfragen je Stunde und öffentlicher IP.
-Die Versionsprüfung wird standardmäßig sechs Stunden gecacht. Bei gemeinsam
-genutzter IP kann auch anderer Traffic das Limit ausschöpfen; dann später erneut
-versuchen oder optional ein nur lesendes Token verwenden.
-Siehe [GitHub-Dokumentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
-
-Read-only-Livetest aus einem vollständigen Checkout mit einem öffentlichen Repository:
-
-```bash
-python3 tools/check_public_release.py --repo cli/cli
-```
-
-Dieser Test benutzt den vorhandenen Downloader ohne Token, liest Metadaten und
-eine kleine Prüfsummendatei und installiert nichts. Nach Veröffentlichung kann
-`--repo todo1971/bitcoin-node-dashboard` geprüft werden. Die Testsuite prüft
-zusätzlich den vollständigen paketbezogenen Download mit und ohne Token anhand
-kontrollierter Antworten. Der echte End-to-End-Test des eigenen öffentlichen
-Repositories ist erst nach der Sichtbarkeitsänderung möglich.
+Erforderliche Assets: `bitcoin-node-dashboard-VERSION.tar.gz` und `bitcoin-node-dashboard-VERSION.tar.gz.sha256`. GitHubs automatische Quellcodearchive ersetzen sie nicht. Eine Prüfsumme aus demselben Release schützt nicht gegen einen kompromittierten Herausgeberaccount. Öffentliche API-Abfragen unterliegen GitHubs Ratenlimit; die Versionsanzeige verwendet einen Cache.
 
 ## Bitcoin Core aktualisieren
 
-Unter `/admin` wird das von `bitcoincore.org` heruntergeladene Linux-Archiv
-ausgewählt oder per Drag-and-drop abgelegt. Erlaubt sind ausschließlich stabile
-Release-Dateien mit einem dieser Namen:
+Unter `/admin` ein offizielles stabiles Linux-Archiv hochladen: `bitcoin-VERSION-x86_64-linux-gnu.tar.gz` oder `bitcoin-VERSION-aarch64-linux-gnu.tar.gz`. Nur die Serverarchitektur und höchstens 200 MiB sind erlaubt. Debug-, Quellcode-, Windows-, macOS- und Vorabpakete werden abgewiesen.
 
-```text
-bitcoin-VERSION-x86_64-linux-gnu.tar.gz
-bitcoin-VERSION-aarch64-linux-gnu.tar.gz
-```
+Der parameterlose Root-Auftrag kopiert Uploads ohne Symlink-Folgen in geschützten Speicher. Er lädt `SHA256SUMS` und `SHA256SUMS.asc` ausschließlich von der offiziellen versionsgebundenen Bitcoin-Core-Adresse. Mindestens zwei unterschiedliche gültige Signaturen aus `/usr/local/share/bitcoin-core/trustedkeys.gpg`, SHA-256, Archivpfade, Plattform und Version müssen passen. Gleiche und ältere Versionen werden abgewiesen.
 
-Das Dashboard akzeptiert höchstens 200 MiB und nur die Architektur des Servers.
-Debug-, Quellcode-, Windows-, macOS- und Release-Candidate-Archive werden
-abgelehnt. Nach dem Upload zeigt `/admin` Dateiname, Größe und den Anfang des
-lokal berechneten SHA-256-Werts. **Geprüft installieren** startet den
-parameterlosen Root-Auftrag.
+Signaturschlüssel aus dem offiziellen Repository `bitcoin-core/guix.sigs` erst nach unabhängigem Vergleich ihrer Fingerprints in den root-eigenen Keyring importieren. `BITCOIN_MIN_VALID_SIGNATURES=2` nicht ohne bewusste Risikoabwägung reduzieren. Token und private Schlüssel gehören niemals in Pakete.
 
-Der Root-Helfer kopiert die hochgeladene Datei zunächst aus
-`/var/lib/bitcoin-dashboard/bitcoin-core-upload` in ein root-eigenes temporäres
-Verzeichnis. Aus der bereits streng validierten Version baut er ausschließlich
-diese beiden URLs:
+Nach der Migration stehen Programme unter `/usr/local/lib/bitcoin-core/bin`. Der Helfer stoppt Core, sichert und ersetzt Programme, startet Core und prüft RPC mit eingeschränkten Zugangsdaten. Startfehler lösen die Wiederherstellung aus. Major-Releases vorab auf Konfigurations-, Wallet- und Datenbankänderungen prüfen. Keine unbeaufsichtigten automatischen Core-Updates. Externe Nodes und Container auf ihrem jeweiligen Host beziehungsweise durch Image-Austausch aktualisieren.
 
-```text
-https://bitcoincore.org/bin/bitcoin-core-VERSION/SHA256SUMS
-https://bitcoincore.org/bin/bitcoin-core-VERSION/SHA256SUMS.asc
-```
+## Proxy und Fehlerdiagnose
 
-Anschließend werden GPG-Signatur, SHA-256, Archivpfade, Plattform und Version
-geprüft. Eine bereits installierte oder ältere Version wird abgelehnt. Erst
-danach stoppt der Helfer bitcoind, sichert `/home/btc/bin`, installiert die
-Binärdateien und startet den Dienst. Ein Startfehler stellt das Backup wieder
-her. Nach Erfolg werden Upload und Metadaten entfernt.
+Uploadlimits und Zeitgrenzen des Reverse Proxys anpassen. `plesk-apache.conf` gehört zu Apache, `plesk-nginx.conf` nur zu tatsächlich eingesetztem nginx. Adminanmeldung über HTTPS oder SSH-Tunnel. Port 8787 und RPC niemals öffentlich freigeben.
 
-Ein manuell vorbereitetes Bitcoin-Core-Paket kann weiterhin unter
-`/var/cache/bitcoin-dashboard-updates/bitcoin-core-update` bereitgestellt
-werden; im normalen Betrieb ist der Upload über `/admin` vorgesehen.
-
-### Reverse Proxy für den Upload
-
-Für Plesk muss `plesk-apache.conf` wegen der längeren Zeitbegrenzung erneut in
-die zusätzlichen Apache-Direktiven übernommen werden. Sofern nginx installiert ist,
-gehört `plesk-nginx.conf` in **Additional nginx directives**, niemals in Apache-Direktiven. Es setzt das
-Uploadlimit auf 200 MB und deaktiviert die vollständige nginx-Zwischenpufferung.
-
-### Vertrauenswürdige Signaturschlüssel
-
-Der Updater benötigt:
-
-```text
-/usr/local/share/bitcoin-core/trustedkeys.gpg
-```
-
-Mindestens zwei unterschiedliche gültige Signaturen aus diesem Schlüsselbund
-sind erforderlich. Der Grenzwert steht als `BITCOIN_MIN_VALID_SIGNATURES=2` in
-`/etc/bitcoin-dashboard-updater.conf` und sollte nicht ohne bewusste
-Risikoabwägung reduziert werden.
-
-Schlüssel können aus dem offiziellen Repository `bitcoin-core/guix.sigs` bezogen
-werden. Sie dürfen jedoch erst importiert werden, nachdem der jeweilige
-Fingerprint über eine unabhängige, vertrauenswürdige Quelle geprüft wurde:
-
-```bash
-keywork=$(mktemp -d)
-git clone --depth 1 https://github.com/bitcoin-core/guix.sigs.git \
-  "$keywork/guix.sigs"
-gpg --show-keys --with-fingerprint \
-  "$keywork"/guix.sigs/builder-keys/*.gpg
-```
-
-Erst nach dem Vergleich der Fingerprints mindestens zweier bewusst ausgewählter
-Signer werden deren Schlüssel importiert:
-
-```bash
-sudo install -d -o root -g root -m 0755 /usr/local/share/bitcoin-core
-sudo gpg --batch --no-default-keyring \
-  --keyring /usr/local/share/bitcoin-core/trustedkeys.gpg \
-  --import /PFAD/ZU/SIGNER-1.gpg /PFAD/ZU/SIGNER-2.gpg
-sudo chmod 0644 /usr/local/share/bitcoin-core/trustedkeys.gpg
-rm -rf -- "$keywork"
-```
-
-Der Updater verlangt die konfigurierte Anzahl gültiger Signaturen aus diesem Keyring und
-eine exakt passende SHA256-Prüfsumme. Erst danach stoppt er den Node, sichert die
-vorhandenen Binärdateien, installiert das Release und startet den Dienst. Bei
-einem Startfehler werden die bisherigen Binärdateien wiederhergestellt.
-
-Major-Releases sollten vorab anhand der Release Notes und auf Änderungen an
-Konfiguration, Wallet und Datenbankformat geprüft werden. Unbeaufsichtigte
-automatische Bitcoin-Core-Updates sind absichtlich nicht vorgesehen.
-
-## Root-Konfiguration
-
-Pfade und Service-Namen stehen in:
-
-```text
-/etc/bitcoin-dashboard-updater.conf
-```
-
-Die Datei muss `root:root` gehören und darf nicht durch `btc` beziehungsweise
-den gewählten Dashboard-Benutzer beschreibbar sein. Die Sudoers-Regel erlaubt
-ausschließlich zwei vollständig festgelegte `systemd-run`-Aufrufe ohne variable
-Argumente. Dadurch laufen Updates außerhalb der Dashboard-Control-Group und ein
-Dashboard-Update kann den aufrufenden Webprozess gefahrlos neu starten.
-
-```text
-/usr/bin/systemd-run --unit=bitcoin-dashboard-update --collect --no-block /usr/local/sbin/update-bitcoin-dashboard
-/usr/bin/systemd-run --unit=bitcoin-core-update --collect --no-block /usr/local/sbin/update-bitcoin-core
-```
-
-Das GitHub-Token darf niemals in Git, Logs oder Release-Paketen gespeichert
-werden. Nach einer unbeabsichtigten Offenlegung muss es bei GitHub sofort
-widerrufen werden.
-
-## Fine-grained GitHub-Token einrichten
-
-Die Token-Verwaltung befindet sich unter
-<https://github.com/settings/personal-access-tokens>. Dort **Generate new
-token** auswählen und diese Werte verwenden:
-
-| Einstellung | Wert |
-|---|---|
-| Token name | `Bitcoin Dashboard Server` |
-| Expiration | beispielsweise 365 Tage |
-| Resource owner | `todo1971` |
-| Repository access | `Only select repositories` |
-| Repository | `bitcoin-node-dashboard` |
-| Repository permission | ausschließlich `Contents: Read-only` |
-
-`Metadata: Read-only` wird von GitHub automatisch ergänzt. Schreibrechte,
-Actions-, Administration- oder Kontoberechtigungen sind nicht erforderlich.
-Das Token wird nach dem Erzeugen nur einmal vollständig angezeigt. Es darf
-nicht in Chat, Shell-History, Git oder Dokumentation kopiert werden.
-
-Ab Version 1.13 kann das Token unter `/admin` → Dashboard-Konfiguration
-eingetragen werden. Alternativ wird es lokal in die `.env` geschrieben:
-
-```bash
-sudoedit /var/lib/bitcoin-dashboard/.env
-```
-
-```text
-DASHBOARD_GITHUB_REPOSITORY=todo1971/bitcoin-node-dashboard
-DASHBOARD_GITHUB_TOKEN=github_pat_HIER_DAS_ECHTE_TOKEN
-```
-
-Das Beispiel `github_pat_HIER_DAS_ECHTE_TOKEN` muss vollständig durch das von
-GitHub ausgegebene Token ersetzt werden. Anschließend Rechte setzen und Dienst
-neu starten:
-
-```bash
-sudo chown btc:btc /var/lib/bitcoin-dashboard/.env
-sudo chmod 0600 /var/lib/bitcoin-dashboard/.env
-sudo systemctl restart bitcoin-dashboard
-```
-
-Ob ein Wert vorhanden ist, lässt sich prüfen, ohne das Geheimnis auszugeben:
-
-```bash
-sudo awk -F= '
-  /^DASHBOARD_GITHUB_TOKEN=/ {
-    print length($2) >= 20 ? "GitHub-Token ist gesetzt" : "GitHub-Token fehlt"
-  }
-' /var/lib/bitcoin-dashboard/.env
-```
-
-Danach zeigt `/admin` beispielsweise
-`Installiert: 1.13.0 · GitHub: 1.13.0 · aktuell`. Schlägt die Prüfung fehl,
-helfen die Logs:
-
-```bash
-sudo journalctl -u bitcoin-dashboard -n 50 --no-pager
-```
-
-Vor Ablauf wird ein neues Token mit denselben Minimalrechten erzeugt, der Wert
-in `/var/lib/bitcoin-dashboard/.env` ersetzt und der Dienst neu gestartet. Das
-alte Token danach bei GitHub widerrufen. Bei vermuteter Offenlegung ist es
-sofort zu widerrufen und zu ersetzen.
+Bei Fehlern getrennte Update-Logs im Adminbereich, Dienstzustand und geschützte Backups prüfen. [Sicherheitsmodell und Testumfang](SECURITY.md).

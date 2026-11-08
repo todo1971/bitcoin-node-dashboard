@@ -5,11 +5,11 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=btc
-Group=btc
-WorkingDirectory=/home/btc/bitcoin-dashboard
+User=bitcoin-dashboard
+Group=bitcoin-dashboard
+WorkingDirectory=/opt/bitcoin-dashboard
 EnvironmentFile=/var/lib/bitcoin-dashboard/.env
-ExecStart=/usr/bin/python3 /home/btc/bitcoin-dashboard/app.py
+ExecStart=/usr/bin/python3 -I /opt/bitcoin-dashboard/app.py
 Restart=on-failure
 RestartSec=5
 StateDirectory=bitcoin-dashboard
@@ -17,8 +17,10 @@ StateDirectoryMode=0750
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadOnlyPaths=/home/btc/bitcoin-dashboard /home/btc/bitcoin-data /home/btc/bitcoin-core/.bitcoin
+ReadOnlyPaths=/opt/bitcoin-dashboard
 ProtectControlGroups=true
+MemoryMax=768M
+TasksMax=128
 
 [Install]
 WantedBy=multi-user.target

@@ -4,6 +4,14 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.24.0 – 2026-11-08
+
+- Root-Updatequelle und Helfer absichern; Archive vor dem Entpacken prüfen und Root-Import von Anwendungscode entfernen.
+- Host-Dashboard auf ein eigenes Dienstkonto, root-eigenen Programmcode und einen eingeschränkten lokalen RPC-Zugang umstellen. Gesicherte Migration mit Wiederherstellung von Daten und Eigentümern ergänzen.
+- Anmeldesperren nach Client trennen, Anfragen und HTTP-Handler begrenzen sowie Inline-JavaScript und Versionsdetails aus HTTP-Headern entfernen.
+- Sicherheitsmigration und Grenzen auf Deutsch und Englisch dokumentieren; echten Core-Regtest und Rollback auf AMD64/ARM64 testen.
+- GitHub-Hauptzweig durch CI schützen sowie Secret Scanning, Push Protection und Dependabot aktivieren.
+
 ## 1.23.1 – 2026-11-08
 
 - Systemwerte, Versionsprüfung und bitcoind-Laufzeit in die Überblicksseite integrieren. Bisherige System-Links öffnen den Überblick.

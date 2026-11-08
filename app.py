@@ -38,7 +38,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.23.1"
+__version__ = "1.24.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -47,6 +47,7 @@ CACHE_SECONDS = max(1, int(os.getenv("DASHBOARD_CACHE_SECONDS", "10")))
 BITCOIN_CLI = os.getenv("BITCOIN_CLI", "/home/btc/bin/bitcoin-cli")
 BITCOIN_RPC_URL = os.getenv("BITCOIN_RPC_URL", "").strip()
 BITCOIN_DATADIR = os.getenv("BITCOIN_DATADIR", "/home/btc/bitcoin-data")
+DISK_MONITOR_PATH = os.getenv("DISK_MONITOR_PATH", BITCOIN_DATADIR)
 BITCOIN_COOKIE = os.getenv(
     "BITCOIN_COOKIE", "/home/btc/bitcoin-core/.bitcoin/.cookie"
 )
@@ -164,8 +165,6 @@ CONFIG_FIELDS = (
     ("SYNC_LAG_BLOCKS", "Sync-Rückstand (Blöcke)", "Alarme", "lag"),
     ("DISK_MAX_USED_PERCENT", "Datenträger-Alarm (%)", "Alarme", "percent"),
     ("MEMORY_MAX_USED_PERCENT", "RAM-Alarm (%)", "Alarme", "percent"),
-    ("DASHBOARD_GITHUB_REPOSITORY", "GitHub-Repository", "Updates", "repository"),
-    ("DASHBOARD_GITHUB_TOKEN", "GitHub-Token (leer lassen = unverändert)", "Updates", "secret"),
 )
 CONFIG_FIELD_KINDS = {key: kind for key, _, _, kind in CONFIG_FIELDS}
 CONFIG_NUMERIC_RANGES = {
@@ -211,8 +210,10 @@ _cpu_lock = threading.Lock()
 _cpu_previous: tuple[int, int] | None = None
 _admin_auth_lock = threading.Lock()
 _config_lock = threading.Lock()
-_admin_failures: list[float] = []
-_admin_blocked_until = 0.0
+_admin_failures: dict[str, list[float]] = {}
+_admin_blocked_until: dict[str, float] = {}
+_request_limits: dict[str, tuple[float, int, int]] = {}
+_request_limits_lock = threading.Lock()
 _bitcoin_upload_lock = threading.Lock()
 _mempool_analysis_lock = threading.Lock()
 _mempool_analysis_cache: dict[str, Any] = {"expires": 0.0, "data": None}
@@ -838,7 +839,7 @@ def memory_stats() -> dict[str, int | float | None]:
 
 def system_stats() -> dict[str, Any]:
     try:
-        disk = shutil.disk_usage(BITCOIN_DATADIR)
+        disk = shutil.disk_usage(DISK_MONITOR_PATH)
         disk_free_percent = round(100.0 * disk.free / disk.total, 2)
         disk_values: dict[str, int | float | None] = {
             "total": disk.total,
@@ -2140,41 +2141,77 @@ def constant_time_equal(left: str, right: str) -> bool:
     return hmac.compare_digest(left.encode("utf-8"), right.encode("utf-8"))
 
 
-def check_admin_auth(header: str) -> str:
+def check_admin_auth(header: str, client_id: str = "local") -> str:
     """Return ok, missing, failed, disabled, or locked."""
-    global _admin_blocked_until
     if len(ADMIN_TOKEN) < 32:
         return "disabled"
     now = time.monotonic()
     with _admin_auth_lock:
-        if now < _admin_blocked_until:
+        if now < _admin_blocked_until.get(client_id, 0):
             return "locked"
     credentials = decode_admin_credentials(header)
     if credentials is None:
-        return "missing" if not header else record_admin_failure(now)
+        return "missing" if not header else record_admin_failure(now, client_id)
     username, password = credentials
     valid = constant_time_equal(username, "admin") and constant_time_equal(
         password, ADMIN_TOKEN
     )
     if valid:
         with _admin_auth_lock:
-            _admin_failures.clear()
+            _admin_failures.pop(client_id, None)
+            _admin_blocked_until.pop(client_id, None)
         return "ok"
-    return record_admin_failure(now)
+    return record_admin_failure(now, client_id)
 
 
-def record_admin_failure(now: float | None = None) -> str:
-    global _admin_blocked_until
+def record_admin_failure(now: float | None = None, client_id: str = "local") -> str:
     current = time.monotonic() if now is None else now
     with _admin_auth_lock:
         cutoff = current - ADMIN_LOCK_SECONDS
-        _admin_failures[:] = [value for value in _admin_failures if value >= cutoff]
-        _admin_failures.append(current)
-        if len(_admin_failures) >= ADMIN_MAX_FAILURES:
-            _admin_blocked_until = current + ADMIN_LOCK_SECONDS
-            _admin_failures.clear()
+        for key in list(_admin_failures):
+            if not _admin_failures[key] or _admin_failures[key][-1] < cutoff:
+                _admin_failures.pop(key)
+        for key in list(_admin_blocked_until):
+            if _admin_blocked_until[key] <= current:
+                _admin_blocked_until.pop(key)
+        if client_id not in _admin_failures and len(_admin_failures) + len(_admin_blocked_until) >= 2048:
+            return "locked"
+        failures = [value for value in _admin_failures.get(client_id, []) if value >= cutoff]
+        failures.append(current)
+        _admin_failures[client_id] = failures
+        if len(failures) >= ADMIN_MAX_FAILURES:
+            _admin_blocked_until[client_id] = current + ADMIN_LOCK_SECONDS
+            _admin_failures.pop(client_id, None)
             return "locked"
     return "failed"
+
+
+def request_client_id(address: str, headers: Any) -> str:
+    peer = ipaddress.ip_address(address)
+    if peer.is_loopback:
+        # Apache appends the real peer after any client-supplied values.
+        forwarded = headers.get("X-Forwarded-For", "").split(",")[-1].strip()
+        try:
+            return str(ipaddress.ip_address(forwarded))
+        except ValueError:
+            pass
+    return str(peer)
+
+
+def allow_request(client_id: str, path: str) -> bool:
+    now = time.monotonic()
+    heavy = path in ("/api/traffic", "/api/history", "/api/analytics", "/api/chain-tips")
+    with _request_limits_lock:
+        for key in list(_request_limits):
+            if now - _request_limits[key][0] >= 60:
+                _request_limits.pop(key)
+        if client_id not in _request_limits and len(_request_limits) >= 2048:
+            return False
+        start, count, costly = _request_limits.get(client_id, (now, 0, 0))
+        if count >= 240 or heavy and costly >= 12:
+            return False
+        _request_limits[client_id] = (start, count + 1, costly + int(heavy))
+        return True
 
 
 def admin_origin_allowed(headers: Any) -> bool:
@@ -2580,8 +2617,47 @@ def analytics_sampler_loop() -> None:
         time.sleep(min(3600, max(60, UTXO_SAMPLE_SECONDS)))
 
 
+class DashboardHTTPServer(ThreadingHTTPServer):
+    def __init__(self, *args, **kwargs):
+        self.request_slots = threading.BoundedSemaphore(48)
+        super().__init__(*args, **kwargs)
+
+    def get_request(self):
+        connection, address = super().get_request()
+        connection.settimeout(15)
+        return connection, address
+
+    def process_request(self, request, client_address):
+        if not self.request_slots.acquire(blocking=False):
+            try:
+                request.sendall(b"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+            finally:
+                self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self.request_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.request_slots.release()
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = f"BitcoinDashboard/{__version__}"
+    server_version = "BitcoinDashboard"
+    sys_version = ""
+
+    def request_allowed(self) -> bool:
+        client = request_client_id(self.client_address[0], self.headers)
+        if allow_request(client, urlparse(self.path).path):
+            return True
+        self.send_bytes(b'{"error":"Request rate exceeded"}', "application/json", 429)
+        self.close_connection = True
+        return False
 
     def send_event_stream(self) -> None:
         if not _sse_slots.acquire(blocking=False):
@@ -2628,14 +2704,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; style-src 'self' 'unsafe-inline'; "
-            "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
+            "script-src 'self'; connect-src 'self'; "
             "img-src 'self'; frame-ancestors 'none'",
         )
         self.end_headers()
         self.wfile.write(body)
 
     def require_admin_auth(self) -> bool:
-        result = check_admin_auth(self.headers.get("Authorization", ""))
+        client = request_client_id(self.client_address[0], self.headers)
+        result = check_admin_auth(self.headers.get("Authorization", ""), client)
         if result == "ok":
             return True
         if result == "disabled":
@@ -2660,9 +2737,13 @@ class Handler(BaseHTTPRequestHandler):
         return False
 
     def do_GET(self) -> None:  # noqa: N802
+        if not self.request_allowed():
+            return
         parsed = urlparse(self.path)
         path = parsed.path
         public_assets = {
+            "/static/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
+            "/static/admin.js": ("admin.js", "text/javascript; charset=utf-8"),
             "/static/node-insights.js": ("node-insights.js", "text/javascript; charset=utf-8"),
             "/static/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
             "/static/locales/de.json": ("locales/de.json", "application/json; charset=utf-8"),
@@ -2802,6 +2883,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:  # noqa: N802
+        if not self.request_allowed():
+            return
         path = urlparse(self.path).path
         if path not in (
             "/api/admin/update/dashboard",
@@ -2951,4 +3034,4 @@ if __name__ == "__main__":
     )
     analytics_thread.start()
     print(f"Bitcoin dashboard listening on http://{HOST}:{PORT}", flush=True)
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    DashboardHTTPServer((HOST, PORT), Handler).serve_forever()

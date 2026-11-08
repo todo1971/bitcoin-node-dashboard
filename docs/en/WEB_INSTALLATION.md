@@ -9,16 +9,15 @@ The installer is not served through a public domain. It binds to
 only through an SSH tunnel. Stop the process with Ctrl+C after installation.
 
 Supported systems are systemd-based Linux with Python 3.11 or newer.
-Bitcoin Core must already be running, and the chosen service user must have
-access to its RPC cookie.
+Bitcoin Core must already run as a separate systemd service. Bootstrap configures the dedicated dashboard account and local read-only RPC access. [Migration and limits](SECURITY.md).
 
 ## Start
 
 Extract the release archive from the current directory into a temporary directory:
 
 ```bash
-tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.23.1.tar.gz -C "$tmpdir"
+tmpdir=$(sudo mktemp -d /root/bitcoin-dashboard-web.XXXXXX)
+sudo tar -xzf ./bitcoin-node-dashboard-1.24.0.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 
@@ -36,7 +35,7 @@ http://127.0.0.1:8791
 ```
 
 The installer validates users, paths and numeric ranges, installs the application
-in the service user's home, writes the environment file and a hardened systemd
+under root-owned `/opt/bitcoin-dashboard`, writes the environment file and a hardened systemd
 unit, configures protected update helpers and starts the dashboard.
 The printed admin password belongs to `/admin`. After installation and stopping
 the installer, remove the temporary directory with

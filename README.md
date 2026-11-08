@@ -82,45 +82,21 @@ Für den Containerbetrieb stehen `compose.host-node.yaml`, `compose.yaml` und
 `compose.all-in-one.yaml` bereit. Die Unterschiede und sicheren Updatebefehle beschreibt
 [docs/DOCKER.md](docs/DOCKER.md).
 
-## Schnellinstallation
+## Installation und Migration
 
-Repository auf dem Server auschecken:
+Ab 1.24 verwendet die Host-Installation root-eigenen Code unter `/opt/bitcoin-dashboard`, ein eigenes Konto `bitcoin-dashboard` und eingeschränkte lokale RPC-Zugangsdaten. Vorhandene Installationen benötigen einmalig den Bootstrap aus einem geprüften Release. Dabei werden Dashboard und lokaler Core neu gestartet; Historie und Datadir bleiben erhalten.
 
-```bash
-sudo -u btc git clone https://github.com/todo1971/bitcoin-node-dashboard.git \
-  /home/btc/bitcoin-dashboard
-```
-
-Konfiguration und Service mit dem Bootstrap aus dem zuvor geprüften
-Release-Archiv einrichten (nicht aus dem `btc`-schreibbaren Checkout):
-
-```bash
-tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.23.1.tar.gz -C "$tmpdir"
-sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
-rm -rf -- "$tmpdir"
-sudo systemctl enable --now bitcoin-dashboard
-```
-
-Lokaler Test:
-
-```bash
-curl -fsS http://127.0.0.1:8787/healthz
-curl -fsS http://127.0.0.1:8787/api/dashboard | python3 -m json.tool
-```
-
-Eine vollständige Anleitung einschließlich Plesk-Konfiguration steht in
-[docs/INSTALLATION.md](docs/INSTALLATION.md).
+Vollständige Befehle: [Sicherheitsmigration](docs/SECURITY.md). Root-Helfer niemals aus einem beschreibbaren Benutzer-Checkout starten.
 
 ## Aktualisierung
 
+Nach der einmaligen Migration im Adminbereich aktualisieren oder als root:
+
 ```bash
-cd /home/btc/bitcoin-dashboard
-sudo -u btc git pull --ff-only
-sudo cp bitcoin-dashboard.service /etc/systemd/system/bitcoin-dashboard.service
-sudo systemctl daemon-reload
-sudo systemctl restart bitcoin-dashboard
+sudo /usr/local/sbin/update-bitcoin-dashboard
 ```
+
+Updatequelle und optionaler Token werden ausschließlich als root in `/etc/bitcoin-dashboard-updater.conf` verwaltet. Das öffentliche Repository benötigt keinen Token. [Details und Core-Updates](docs/UPDATES.md).
 
 ## HTTP-Endpunkte
 

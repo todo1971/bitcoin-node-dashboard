@@ -1,56 +1,20 @@
 # Dashboard configuration
 
-[Deutsch](../CONFIGURATION.md) | [English documentation](../../README.en.md#documentation)
+[Deutsch](../CONFIGURATION.md) | English
 
-Systemd installations read `/var/lib/bitcoin-dashboard/.env`.
-`/home/btc/bitcoin-dashboard/.env` is a symbolic link to that file.
-The real file belongs to service user `btc`, with mode `0600`;
-the running web service has read-only access to the application directory.
+The systemd installation reads `/var/lib/bitcoin-dashboard/.env`, linked from `/opt/bitcoin-dashboard/.env`. The file belongs to the dedicated `bitcoin-dashboard` account with mode 0600; code belongs to root.
 
-At `/admin` → **Dashboard configuration**, edit the node address, ZMQ endpoint,
-sampling intervals, retention, alert thresholds and destinations, and GitHub
-repository and token. The editor validates allowed fields and values, writes
-atomically and schedules a short delayed restart of the fixed dashboard service.
-If restart scheduling fails, it restores the previous file. Valid admin
-authentication, same-origin checks and a CSRF token are required.
+Edit the node address, ZMQ, sampling intervals, retention and alert settings under `/admin`. Allowed fields and values are validated, the file is replaced atomically, and only the fixed dashboard service is restarted. Failed restart scheduling restores the previous file. Admin authentication, same-origin and CSRF checks are required.
 
-Secret tokens are never sent back to the browser. An empty GitHub token field
-means “keep the current value”. `ADMIN_TOKEN`, service binding, RPC paths,
-database path and upload directory cannot be changed over the web.
-Edit these locally as root in `.env`, then run
-`sudo systemctl restart bitcoin-dashboard`.
+`ADMIN_TOKEN`, service binding, RPC and database paths are editable only locally by root. The root update repository and optional GitHub token are separate in `/etc/bitcoin-dashboard-updater.conf`; the browser cannot change them. Public downloads need no token. Dashboard `.env` changes require a dashboard restart.
 
-## One-time migration of an existing installation
+The [one-time security migration since 1.24](SECURITY.md) preserves existing settings. `/etc/default/bitcoin-dashboard` is only used when no state `.env` exists. Existing secrets remain protected and are never printed.
 
-1. Update to dashboard 1.13.0 or newer. Migration also requires the **new**
-   `installer/bootstrap-admin.sh` from the release archive; normal dashboard
-   updates do not install root helpers.
-2. Extract the release into a temporary directory as root and run bootstrap:
+```bash
+systemctl show bitcoin-dashboard -p EnvironmentFiles
+stat -c '%U:%G %a %n' /var/lib/bitcoin-dashboard/.env
+readlink /opt/bitcoin-dashboard/.env
+curl -fsS http://127.0.0.1:8787/healthz
+```
 
-   ```sh
-   tmpdir=$(mktemp -d)
-   tar -xzf bitcoin-node-dashboard-1.13.0.tar.gz -C "$tmpdir"
-   sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
-   rm -rf -- "$tmpdir"
-   ```
-
-3. Bootstrap copies the old `/etc/default/bitcoin-dashboard` into the new
-   `.env` **only if** no configuration exists there. It reinstalls the service
-   and narrowly scoped restart permission. The old file remains unchanged as
-   a fallback copy but is no longer read by the service.
-4. Check without printing secrets:
-
-   ```sh
-   systemctl show bitcoin-dashboard -p EnvironmentFiles
-   stat -c '%U:%G %a %n' /var/lib/bitcoin-dashboard/.env
-   readlink /home/btc/bitcoin-dashboard/.env
-   curl -fsS http://127.0.0.1:8787/healthz
-   ```
-
-5. Open `/admin`, save a harmless setting and verify the restart.
-   Only after successful verification, deliberately remove or securely archive
-   the obsolete `/etc/default/bitcoin-dashboard` copy.
-
-Never upload configuration files or GitHub tokens to a repository.
-`.env` is excluded by `.gitignore`. In container installations, Compose
-continues to manage `.env`; the web editor is disabled.
+Never commit configuration to Git. Containers manage environment settings through Compose; their web editor is disabled.

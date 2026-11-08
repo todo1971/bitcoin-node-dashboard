@@ -1,83 +1,50 @@
-# Sicherheitskonzept
+# Sicherheit und einmalige Umstellung ab 1.24
 
 Deutsch | [English](en/SECURITY.md)
 
-## Grundsätze
+Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 
-- Der Webdienst bindet standardmäßig ausschließlich an `127.0.0.1`.
-- Bitcoin-RPC-Port 8332 bleibt lokal und wird nicht über den Reverse Proxy geleitet.
-- Der RPC-Cookie wird nicht an Browser oder externe Dienste übertragen.
-- Der Browser kann keine frei gewählten RPC-Kommandos ausführen.
-- Unterprozesse werden ohne Shell und mit festen Argumentstrukturen gestartet.
-- Der Systemd-Service läuft ohne Root-Rechte als Benutzer `btc`.
-- Nur `/var/lib/bitcoin-dashboard` ist als persistenter Schreibbereich vorgesehen.
-- Browserantworten enthalten CSP-, Frame-, Referrer- und MIME-Sicherheitsheader.
-- Der einmalige Installer bindet fest an `127.0.0.1` und benötigt ein zufälliges Zugangstoken.
-- `/admin` benötigt ein starkes separates Passwort und schützt Änderungen zusätzlich durch CSRF- und Origin-Prüfungen.
-- Nach fünf falschen Anmeldungen wird die Administration für 15 Minuten gesperrt.
-- Root-Aktionen sind auf zwei vollständige, feste Update-Befehle und einen verzögerten Neustart des Dashboard-Dienstes begrenzt; Browserparameter werden nicht an Root übergeben.
-- Die Admin-Logansicht darf per `sudo` nur die letzten 80 Zeilen der beiden festen Update-Units lesen; sie nimmt keine freien Journal-Parameter an und begrenzt die Antwort auf 32 KiB.
-- Die root-eigenen Helfer akzeptieren keine Argumente, validieren Paketpfade und führen Updates außerhalb der Webdienst-Control-Group aus.
-- Der Update-Cache `/var/cache/bitcoin-dashboard-updates` gehört root und hat Modus `0700`.
-- Core-Uploads landen als einzige Ausnahme im festen StateDirectory-Pfad. Der Root-Updater kopiert sie vor der Prüfung in sein eigenes temporäres Verzeichnis.
+## Vertrauensgrenzen
 
-Wird der Dashboard-Prozess vollständig kompromittiert, kann ein Angreifer die
-festgelegten Update-Aufträge und einen Dashboard-Neustart anstoßen und die vom
-Dienstbenutzer beschreibbare `.env` verändern, aber weder Root-Befehlsargumente
-noch Paketpfade bestimmen. Dashboard-Pakete werden vor Installation getestet; Bitcoin-Core-
-Pakete benötigen zusätzlich eine passende SHA256-Prüfsumme und die konfigurierte Anzahl gültiger
-Signaturen aus dem root-kontrollierten Schlüsselbund. Diese Grenze hängt zwingend
-davon ab, dass der root-eigene Update-Cache, Root-Helfer, Sudoers-Regel und Updater-Konfiguration
-nicht durch den Benutzer `btc` beschreibbar sind.
+Die Host-Installation trennt das Dienstkonto `bitcoin-dashboard` vom Bitcoin-Core-Konto. Dashboard-Code liegt unter `/opt/bitcoin-dashboard` und gehört root. Beschreibbar bleiben ausschließlich die Zustandsdaten unter `/var/lib/bitcoin-dashboard`. Die `.env` und `rpc.auth` gehören dem Dashboard-Konto mit Modus 0600. Das Dashboard liest bei lokalen Nodes einen eigenen RPC-Zugang, nicht den vollständigen Node-Cookie.
 
-Ein kompromittierter Dashboard-Prozess kann ein Core-Archiv im Uploadordner
-ersetzen und den festen Updateauftrag starten. Das verschafft ihm dennoch keine
-Auswahl einer Prüfsumme oder Signatur: Beide Dateien werden vom Root-Helfer über
-eine fest vorgegebene HTTPS-Adresse bei `bitcoincore.org` geladen. Der Node wird
-erst gestoppt, nachdem die erforderlichen Signaturen aus dem root-kontrollierten Schlüsselbund
-und die SHA-256-Prüfsumme erfolgreich geprüft wurden.
+Der lokale RPC-Zugang erlaubt ausschließlich: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Andere bereits vorhandene RPC-Benutzer behalten ihre Rechte. Bei einem extern betriebenen Node muss dessen Administrator diese Beschränkung dort selbst einrichten. Container werden durch diesen Host-Bootstrap nicht migriert; dort Updates extern verwalten und RPC-Zugänge separat beschränken.
 
-## Öffentliche Informationen
+Die Updatequelle und ein optionales GitHub-Token stehen für Root-Updates ausschließlich in `/etc/bitcoin-dashboard-updater.conf` (root:root, 0600). Die Weboberfläche kann sie nicht ändern. Angaben in der Dashboard-`.env` dienen gegebenenfalls nur der unprivilegierten Versionsanzeige. Das öffentliche Projekt benötigt keinen Token. HTTPS und ein vertrauenswürdiger GitHub-Account bleiben Teil der Vertrauenskette: Eine SHA-256-Datei aus demselben Release ersetzt keine unabhängige Signatur.
 
-Eine öffentliche Instanz zeigt bewusst einige ohnehin über das Bitcoin-P2P-Netz
-beobachtbare Informationen, darunter Node-Version, Blockhöhe und öffentliche IP.
-Peer-IP-Adressen werden derzeit nicht an den Browser ausgeliefert.
+## Einmalige Migration
 
-## Empfohlene Absicherung
+Ein normales Dashboard-Update ersetzt keine Root-Helfer. Deshalb muss der Bootstrap aus dem bewusst ausgewählten und geprüften Release **einmal als root** ausgeführt werden. Nicht aus einem vom Dashboard-Konto beschreibbaren Checkout starten. Die folgenden Befehle in einer Root-Shell ausführen:
 
-- HTTPS über Let's Encrypt erzwingen.
-- `/admin` niemals über unverschlüsseltes öffentliches HTTP verwenden.
-- Optional Plesk-Passwortschutz oder IP-Freigabe aktivieren.
-- Port 8787 und RPC-Port 8332 per Firewall blockiert lassen.
-- `/var/lib/bitcoin-dashboard/.env` mit Modus `0600` für den Dienstbenutzer `btc` halten; über `/admin` nur erlaubte Betriebswerte bearbeiten.
-- Bitcoin Core und das Betriebssystem regelmäßig aktualisieren.
-- Reverse-Proxy-Rate-Limits ergänzen, falls die Instanz öffentlich stark genutzt wird.
-- Port 8791 des einmaligen Installers niemals über Plesk, Firewall oder Reverse Proxy veröffentlichen.
-- Webhook-Ziele ausschließlich per HTTPS konfigurieren und das Ziel als Geheimnis behandeln.
+```bash
+install -d -m 0700 /root/bitcoin-dashboard-release
+cd /root/bitcoin-dashboard-release
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz.sha256
+sha256sum -c bitcoin-node-dashboard-1.24.0.tar.gz.sha256
+tmpdir=$(mktemp -d /root/bitcoin-dashboard-release/unpack.XXXXXX)
+tar -xzf bitcoin-node-dashboard-1.24.0.tar.gz -C "$tmpdir"
+sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
+systemctl enable bitcoin-dashboard
+curl -fsS http://127.0.0.1:8787/healthz
+```
 
-## Geheimnisse
+Vorher ein eigenes Backup anlegen. Der Bootstrap sichert außerdem Zustand, ursprüngliche Dienste und Helfer unter `/var/backups/bitcoin-dashboard/hardening-*`. Die Sicherung enthält Geheimnisse und bleibt nur für root zugänglich. Die erste lokale Migration startet **Dashboard und Bitcoin Core neu**, ohne den Server neu zu starten. Bestehende Historie und ein ausreichend langes Admin-Passwort bleiben erhalten. Ein neues Passwort wird bei Bedarf in der geschützten `.env` erzeugt und nicht ausgegeben; lokal mit `sudoedit /var/lib/bitcoin-dashboard/.env` verwalten.
 
-Folgende Inhalte dürfen nicht in Git eingecheckt werden:
+Für einen lokalen systemd-Node wird ein expliziter `-conf=...`-Pfad und ein eigenes Core-Dienstkonto vorausgesetzt. Der Bootstrap übernimmt den bisherigen Konfigurationsinhalt, ergänzt die RPC-Freigaben und schreibt ihn nach `/etc/bitcoin-dashboard/bitcoin.conf` (root und Core-Gruppe, 0640). Ein Drop-in für `bitcoind.service` verwendet diese Konfiguration und die nach `/usr/local/lib/bitcoin-core/bin` kopierten, root-eigenen Programme. Der vorhandene `-datadir` bleibt erhalten. Künftige Core-Konfigurationsänderungen müssen an der neuen aktiven Datei erfolgen. Die ursprüngliche Datei wird nicht gelöscht. Sonderkonfigurationen mit Includes, weiteren Drop-ins oder externen Nodes vorher prüfen.
 
-- RPC-Cookie-Inhalt
-- RPC-Passwörter
-- Wallet-Dateien, Seeds oder Private Keys
-- TLS-Private-Keys
-- persönliche Zugangstoken
-- `DASHBOARD_GITHUB_TOKEN` aus `/var/lib/bitcoin-dashboard/.env`
-- `ADMIN_TOKEN` aus `/var/lib/bitcoin-dashboard/.env`
-- produktive SQLite-Datenbanken
-- Webhook-URLs mit eingebetteten Zugangstoken
+Bei einem Fehler stellt der Bootstrap die gesicherten Dienstdateien, Programmdateien, Zustandsdaten und deren Eigentümer wieder her und versucht den vorher laufenden Dienst erneut zu starten. Backups und Journal anschließend prüfen; auch ein Rollback kann durch externe Fehler scheitern. Ein erfolgreich wiederholter Bootstrap behält den bereits eingeschränkten RPC-Zugang bei und startet Core nicht erneut.
 
-Die Datei `.env` wird deshalb durch `.gitignore` ausgeschlossen.
+## Schutz der Weboberfläche
 
-Das GitHub-Token erhält ausschließlich `Contents: Read-only` für das einzelne
-Repository `bitcoin-node-dashboard`. Es wird in der nur für `btc` lesbaren Datei
-`/var/lib/bitcoin-dashboard/.env` mit Modus `0600` gespeichert. Bei Ablauf oder
-vermuteter Offenlegung wird es ersetzt und das alte Token bei GitHub widerrufen.
+Admin-Zugriff erfordert Basic-Authentifizierung, mindestens 32 Zeichen Passwort, CSRF- und Origin-Prüfung. Fünf falsche Anmeldungen sperren nur die betroffene Client-Adresse vorübergehend. Ausschließlich bei einem Loopback-Proxy wird der letzte Eintrag von `X-Forwarded-For` als Client verwendet. Der Reverse Proxy muss die tatsächliche Client-Adresse anhängen oder den Header ersetzen; den Dashboard-Port nicht öffentlich freigeben.
 
-## Sicherheitsmeldungen
+Pro Client gelten 240 Anfragen pro Minute und zusätzlich zwölf teure Historien-/Analyseabfragen pro Minute. Es gibt höchstens 48 gleichzeitige HTTP-Handler, 15 Sekunden Socket-Lesezeit und 16 SSE-Verbindungen. Überschreitungen erhalten 429 oder 503. Externe Skripte und Inline-JavaScript sind durch die Content Security Policy gesperrt. Der HTTP-Server meldet keine Python- oder Dashboard-Versionsnummer.
 
-Das Repository ist öffentlich. Sicherheitsprobleme zuerst vertraulich an den
-Repository-Eigentümer melden; keine Zugangsdaten oder ausnutzbaren Details in
-öffentliche Issues schreiben.
+Root-Helfer prüfen Eigentümer und Schreibrechte sämtlicher Pfadkomponenten. Archive werden vor dem ersten Entpacken vollständig auf Pfade, Größe, Duplikate und Dateitypen geprüft. Links und Spezialdateien werden abgelehnt. Anwendungstests und Core-Versionsabfragen laufen unprivilegiert. Dashboard-Updates ersetzen einen geschützten Programmbaum und rollen bei fehlgeschlagener Funktionsprüfung zurück; Root importiert dabei keinen Dashboard-Code. Core-Uploads werden ohne Symlink-Folgen in einen geschützten Bereich kopiert und benötigen weiterhin gültige GPG-Signaturen und SHA-256.
+
+## Prüfung und Grenzen
+
+Regressionstests prüfen Archivangriffe, fremde Updatequellen, Redirects, getrennte Anmeldesperren und begrenzte HTTP-Handler. Die CI verwendet zusätzlich echten Bitcoin Core im Regtest in einer Wegwerfumgebung auf AMD64 und ARM64: getrennte Konten, erlaubte und abgelehnte RPC-Abfragen, geschützte Pfade und Wiederherstellung nach absichtlich fehlgeschlagenem Neustart. Dies ersetzt weder einen Penetrationstest noch eine Sicherung der Produktivinstallation.
+
+GitHub schützt `main` durch erfolgreiche CI-Prüfungen; Secret Scanning, Push Protection und Dependabot sind aktiviert. Neue Funktionen werden eigenständig entwickelt. Hinweise auf Sicherheitsprobleme ohne Zugangsdaten an hb@308-arms.de melden.
