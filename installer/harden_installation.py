@@ -338,4 +338,7 @@ if __name__ == "__main__":
     try:
         install()
     except Exception as error:
-        raise SystemExit("Hardening failed. Review the protected backup and service state. "+type(error).__name__)
+        import traceback
+        location=traceback.extract_tb(error.__traceback__)[-1]
+        raise SystemExit("Hardening failed. Review the protected backup and service state. "
+                         +type(error).__name__+" at "+Path(location.filename).name+":"+str(location.lineno))

@@ -67,7 +67,7 @@ class RootUpdateSecurityTests(unittest.TestCase):
                     SimpleNamespace(st_uid=0,st_mode=stat.S_IFDIR|0o775),
                     SimpleNamespace(st_uid=0,st_mode=stat.S_IFLNK|0o777)):
             with patch.object(Path,"lstat",side_effect=[good,bad]),self.assertRaises(ValueError):
-                guard.trusted_path(Path("/opt/dashboard"))
+                guard.trusted_path(Path(tempfile.gettempdir())/"dashboard")
 
 
 class RequestSecurityTests(unittest.TestCase):

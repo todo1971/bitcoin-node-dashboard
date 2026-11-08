@@ -95,7 +95,11 @@ def test():
     ROOT.mkdir(mode=0o700)
     unitdir=Path("/etc/systemd/system")
     unitdir.mkdir(parents=True,exist_ok=True)
-    Path("/usr/bin/systemctl").symlink_to(Path(__file__).resolve())
+    controller=Path("/usr/bin/systemctl")
+    controller.write_text("#!/usr/bin/python3\nimport runpy,sys\n"
+        "module=runpy.run_path('/source/tools/security_integration.py',run_name='fixture_module')\n"
+        "raise SystemExit(module['control'](sys.argv[1:]))\n")
+    controller.chmod(0o755)
     execute("useradd","--create-home","--shell","/usr/sbin/nologin","btc")
     account=pwd.getpwnam("btc")
     binaries=Path("/home/btc/bin")
