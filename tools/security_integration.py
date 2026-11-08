@@ -120,6 +120,7 @@ def test():
     os.chown(state,account.pw_uid,account.pw_gid)
     environment=state/".env"
     environment.write_text("DASHBOARD_PORT=8787\nBITCOIN_CLI=/home/btc/bin/bitcoin-cli\n"
+        "BITCOIN_RPC_URL=http://127.0.0.1:18443\n"
         "BITCOIN_DATADIR=/home/btc/bitcoin-data\nBITCOIN_COOKIE=/home/btc/bitcoin-data/regtest/.cookie\n"
         "DATABASE_PATH=/var/lib/bitcoin-dashboard/history.sqlite3\nADMIN_TOKEN="+"x"*40+"\n"
         "DASHBOARD_GITHUB_REPOSITORY=untrusted/source\n")

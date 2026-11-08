@@ -89,12 +89,30 @@ def reject_links(path):
                 raise ValueError(f"Unexpected link or special file: {entry}")
 
 
+def ownership(path):
+    result={}
+    for root, directories, files in os.walk(path, followlinks=False):
+        for entry in [Path(root),*(Path(root)/name for name in directories+files)]:
+            info=entry.lstat()
+            result[str(entry.relative_to(path))]=(info.st_uid,info.st_gid)
+    return result
+
+
+def restore_ownership(path, owners):
+    for relative,(uid,gid) in owners.items():
+        os.chown(path/relative,uid,gid,follow_symlinks=False)
+
+
 def install():
     if os.geteuid() != 0:
         raise ValueError("Run as root from a verified release")
     os.umask(0o077)
+    source_guard=str(PROJECT/"installer/update_guard.py")
+    run("/usr/bin/python3","-I",source_guard,"check","/opt","/var/lib","/usr/local")
     # The supplied source is the release explicitly selected by the root operator.
     for destination in (Path("/usr/local/libexec"), Path("/usr/local/sbin")):
+        if destination.exists():
+            run("/usr/bin/python3","-I",source_guard,"check",str(destination))
         destination.mkdir(exist_ok=True)
         destination.chmod(0o755)
     helpers = (
@@ -137,29 +155,35 @@ def install():
             # The root-owned application may contain the documented .env link.
             if path == STATE:
                 reject_links(path)
-    backup = Path("/var/backups/bitcoin-dashboard") / ("hardening-"+time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()))
-    backup.parent.mkdir(exist_ok=True)
-    backup.mkdir(mode=0o700)
+    backup_parent=Path("/var/backups/bitcoin-dashboard")
+    run("/usr/bin/python3","-I",source_guard,"check",str(backup_parent if backup_parent.exists() else backup_parent.parent))
+    backup_parent.mkdir(exist_ok=True,mode=0o700)
+    backup=Path(tempfile.mkdtemp(prefix="hardening-"+time.strftime("%Y%m%dT%H%M%SZ",time.gmtime())+"-",dir=backup_parent))
     tracked = [SERVICE, CONFIG]
     tracked.extend(Path(destination) for _,destination in helpers)
     old_code = backup/"code"
+    code_owners = ownership(TARGET) if TARGET.exists() else {}
     if TARGET.exists():
         shutil.copytree(TARGET, old_code, symlinks=True)
     was_running = subprocess.run(["systemctl","is-active","--quiet","bitcoin-dashboard"]).returncode == 0
     state_backup = backup/"state"
-    state_owners = {}
+    state_owners = ownership(STATE) if STATE.exists() else {}
+    # Complete backups before changing code or configuration. If copying fails,
+    # resume the old service immediately; no partial backup may replace state.
     run("systemctl", "stop", "bitcoin-dashboard.service")
-    if STATE.exists():
-        for root, directories, files in os.walk(STATE):
-            for entry in [Path(root),*(Path(root)/name for name in files)]:
-                info=entry.stat()
-                state_owners[str(entry.relative_to(STATE))]=(info.st_uid,info.st_gid)
-        shutil.copytree(STATE, state_backup)
-        import json
-        atomic_write(backup/"state-owners.json",json.dumps(state_owners))
-    for path in tracked:
-        if path.exists():
-            shutil.copy2(path, backup/(path.parent.name+"-"+path.name))
+    try:
+        if STATE.exists():
+            shutil.copytree(STATE, state_backup)
+            import json
+            atomic_write(backup/"state-owners.json",json.dumps(state_owners))
+        for path in tracked:
+            if path.exists():
+                run("/usr/bin/python3","-I",source_guard,"check",str(path))
+                shutil.copy2(path, backup/(path.parent.name+"-"+path.name))
+    except Exception:
+        if was_running:
+            subprocess.run(["systemctl","start","bitcoin-dashboard"],capture_output=True)
+        raise
     core_dropin = Path("/etc/systemd/system/bitcoind.service.d/bitcoin-dashboard-hardening.conf")
     core_config = Path("/etc/bitcoin-dashboard/bitcoin.conf")
     core_metadata = {}
@@ -311,18 +335,11 @@ def install():
         if old_code.exists():
             shutil.rmtree(TARGET)
             shutil.copytree(old_code,TARGET,symlinks=True)
+            restore_ownership(TARGET,code_owners)
         if state_backup.exists():
             shutil.rmtree(STATE)
             shutil.copytree(state_backup,STATE)
-            # copytree does not restore UID/GID. Restore each saved entry explicitly.
-            for root, directories, files in os.walk(state_backup):
-                relative=Path(root).relative_to(state_backup)
-                for name in [None,*directories,*files]:
-                    source=Path(root) if name is None else Path(root)/name
-                    destination=STATE/relative if name is None else STATE/relative/name
-                    relative_name=str(destination.relative_to(STATE))
-                    uid,gid=state_owners.get(relative_name,(0,0))
-                    os.chown(destination,uid,gid)
+            restore_ownership(STATE,state_owners)
         subprocess.run(["systemctl","daemon-reload"],capture_output=True)
         if core_changed:
             subprocess.run(["systemctl","restart","bitcoind"],capture_output=True)
