@@ -9,8 +9,8 @@ Browser
 Plesk / Apache reverse proxy
    | HTTP on 127.0.0.1:8787
    v
-Python dashboard (user btc)
-   +-- bitcoin-cli --> local Bitcoin Core RPC
+Python dashboard (user bitcoin-dashboard, root-owned code)
+   +-- JSON-RPC ----> local Bitcoin Core RPC with method allowlist
    +-- SQLite ------> /var/lib/bitcoin-dashboard/history.sqlite3
    +-- HTTPS -------> public BTCNodes API / Bitcoin Core version
    +-- /admin ------> precisely defined transient systemd update job
@@ -19,6 +19,8 @@ Python dashboard (user btc)
 ```
 
 ## Local data
+
+Since 1.24 application code and the root update source reside in protected root-owned paths. Dedicated RPC credentials permit only the required read methods. [One-time migration and security limits](SECURITY.md).
 
 The dashboard only executes a fixed list of read-only calls:
 

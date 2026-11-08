@@ -9,8 +9,8 @@ Browser
 Plesk / Apache Reverse Proxy
    │ HTTP auf 127.0.0.1:8787
    ▼
-Python-Dashboard (Benutzer btc)
-   ├── bitcoin-cli ──► lokaler Bitcoin-Core-RPC
+Python-Dashboard (Benutzer bitcoin-dashboard, Code root-eigen)
+   ├── JSON-RPC ────► lokaler Bitcoin-Core-RPC mit Methodenfreigabe
    ├── SQLite ────────► /var/lib/bitcoin-dashboard/history.sqlite3
    ├── HTTPS ────────► öffentliche BTCNodes-API / Bitcoin-Core-Version
    └── /admin ───────► exakt definierter transienter systemd-Updateauftrag
@@ -19,6 +19,8 @@ Python-Dashboard (Benutzer btc)
 ```
 
 ## Lokale Daten
+
+Ab 1.24 liegen Anwendungscode und Root-Updatequelle in geschützten Root-Pfaden. Der eigene RPC-Zugang ist auf die benötigten Lesemethoden begrenzt. [Einmalige Migration und Sicherheitsgrenzen](SECURITY.md).
 
 Das Dashboard führt nur eine fest definierte Liste lesender Aufrufe aus:
 
