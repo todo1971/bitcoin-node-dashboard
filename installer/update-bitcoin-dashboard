@@ -2,6 +2,10 @@
 # Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 # SPDX-License-Identifier: GPL-3.0-only
 set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+umask 077
+GUARD=/usr/local/libexec/bitcoin-dashboard-update-guard
 test "$#" -eq 0 || { echo "Arguments are not allowed" >&2; exit 1; }
 
 CONFIG=/etc/bitcoin-dashboard-updater.conf
@@ -22,6 +26,7 @@ wait_for_health() {
     return 1
 }
 
+python3 -I "$GUARD" check "$CONFIG"
 test -r "$CONFIG" || { echo "Missing $CONFIG" >&2; exit 1; }
 . "$CONFIG"
 : "${UPDATE_ROOT:=/var/cache/bitcoin-dashboard-updates}"
@@ -40,6 +45,8 @@ case "$DASHBOARD_TARGET" in /home/*/bitcoin-dashboard|/opt/bitcoin-dashboard) ;;
 case "$DASHBOARD_SERVICE" in *[!A-Za-z0-9_.@-]*|'') echo "Invalid dashboard service" >&2; exit 1 ;; esac
 ARCHIVE="$UPDATE_ROOT/bitcoin-node-dashboard-update.tar.gz"
 TARGET="$DASHBOARD_TARGET"
+python3 -I "$GUARD" check "$TARGET" "$BACKUP_DIR"
+
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || { echo "Another dashboard update is running" >&2; exit 1; }
@@ -54,26 +61,34 @@ fi
 
 test -f "$ARCHIVE" || { echo "GitHub downloader did not create $ARCHIVE" >&2; exit 1; }
 
-tmp_dir=$(mktemp -d /var/tmp/bitcoin-dashboard-update.XXXXXX)
+tmp_dir=$(mktemp -d "$UPDATE_ROOT"/dashboard.XXXXXX)
 backup=""
-cleanup() { rm -rf -- "$tmp_dir"; }
-trap cleanup EXIT INT TERM
+qa_dir=""
+stage_dir=""
+rollback_dir=""
+cleanup() {
+    result=$?
+    if test "$result" -ne 0 && test -n "$rollback_dir" && test -d "$rollback_dir"; then
+        systemctl stop "$DASHBOARD_SERVICE" || true
+        rm -rf -- "$TARGET"
+        mv -- "$rollback_dir" "$TARGET"
+        systemctl start "$DASHBOARD_SERVICE" || true
+    fi
+    test -z "$qa_dir" || rm -rf -- "$qa_dir"
+    test -z "$stage_dir" || rm -rf -- "$stage_dir"
+    rm -rf -- "$tmp_dir"
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM
 
-if tar -tzf "$ARCHIVE" | awk '
-    /^\// { bad=1 }
-    /(^|\/)\.\.($|\/)/ { bad=1 }
-    END { exit bad ? 0 : 1 }
-'; then
-    echo "Unsafe path found in update archive" >&2
-    exit 1
-fi
-
-tar -xzf "$ARCHIVE" -C "$tmp_dir"
+python3 -I "$GUARD" extract "$ARCHIVE" "$tmp_dir" "bitcoin-dashboard" 209715200
 source_dir="$tmp_dir/bitcoin-dashboard"
 dashboard_group=$(id -gn "$DASHBOARD_USER")
-chgrp "$dashboard_group" "$tmp_dir" "$source_dir"
-chmod 0750 "$tmp_dir" "$source_dir"
-pycache_dir="$tmp_dir/pycache"
+qa_dir=$(mktemp -d /var/tmp/bitcoin-dashboard-qa.XXXXXX)
+chgrp "$dashboard_group" "$qa_dir"
+chmod 0750 "$qa_dir"
+cp -a "$source_dir" "$qa_dir/source"
+pycache_dir="$qa_dir/pycache"
 install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0700 "$pycache_dir"
 if find "$source_dir" -type l -print -quit | grep -q .; then
     echo "Symbolic links are not allowed in dashboard packages" >&2
@@ -84,7 +99,8 @@ test -f "$source_dir/static/index.html" || { echo "UI missing" >&2; exit 1; }
 test -d "$source_dir/tests" || { echo "Tests missing" >&2; exit 1; }
 
 runuser -u "$DASHBOARD_USER" -- env PYTHONPYCACHEPREFIX="$pycache_dir" \
-    sh -c "cd '$source_dir' && python3 -m py_compile app.py && python3 -m unittest discover -s tests -v"
+    sh -c "cd '$qa_dir/source' && python3 -m py_compile app.py && python3 -m unittest discover -s tests -v"
+python3 -I "$GUARD" version "$source_dir/app.py"
 
 mkdir -p "$BACKUP_DIR"
 if test -d "$TARGET"; then
@@ -92,24 +108,22 @@ if test -d "$TARGET"; then
     tar -czf "$backup" -C "$(dirname "$TARGET")" "$(basename "$TARGET")"
 fi
 
-install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET"
-install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$source_dir/app.py" "$TARGET/app.py"
-for directory in static docs tests tools; do
-    install -d -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0750 "$TARGET/$directory"
-    cp -a "$source_dir/$directory/." "$TARGET/$directory/"
-done
-for file in LICENSE NOTICE README.md README.en.md CHANGELOG.md CHANGELOG.en.md bitcoin-dashboard.env.example plesk-apache.conf plesk-nginx.conf; do
-    test ! -f "$source_dir/$file" || install -o "$DASHBOARD_USER" -g "$dashboard_group" -m 0640 "$source_dir/$file" "$TARGET/$file"
-done
-chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"
+stage_dir=$(mktemp -d "$(dirname "$TARGET")/.bitcoin-dashboard-stage.XXXXXX")
+cp -a "$source_dir/." "$stage_dir/"
+chmod 0755 "$stage_dir"
+ln -s /var/lib/bitcoin-dashboard/.env "$stage_dir/.env"
+rollback_dir=$(mktemp -d "$(dirname "$TARGET")/.bitcoin-dashboard-previous.XXXXXX")
+rmdir "$rollback_dir"
+mv -- "$TARGET" "$rollback_dir"
+mv -- "$stage_dir" "$TARGET"
 
 systemctl restart "$DASHBOARD_SERVICE"
 if ! wait_for_health; then
     echo "Healthcheck failed; rolling back" >&2
     if test -n "$backup"; then
         systemctl stop "$DASHBOARD_SERVICE" || true
-        tar -xzf "$backup" -C "$(dirname "$TARGET")"
-        chown -R "$DASHBOARD_USER:$dashboard_group" "$TARGET"
+        rm -rf -- "$TARGET"
+        mv -- "$rollback_dir" "$TARGET"
         systemctl start "$DASHBOARD_SERVICE"
         if ! wait_for_health; then
             echo "Rollback healthcheck failed" >&2
@@ -118,5 +132,6 @@ if ! wait_for_health; then
     exit 1
 fi
 
+rm -rf -- "$rollback_dir"
 echo "Dashboard update completed successfully"
-python3 -c "import sys; sys.path.insert(0, '$TARGET'); import app; print('Version:', app.__version__)"
+python3 -I "$GUARD" version "$TARGET/app.py"

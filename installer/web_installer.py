@@ -136,12 +136,12 @@ def install_dashboard(values: dict[str, str]) -> str:
     home = Path(account.pw_dir).resolve()
     if not home.is_absolute() or home == Path("/"):
         raise ValueError("Unsafe service user home directory")
-    target = home / "bitcoin-dashboard"
+    target = Path("/opt/bitcoin-dashboard")
     if (target / "app.py").exists():
         raise RuntimeError(
             "Dashboard is already installed; use the dedicated updater"
         )
-    copy_project(target, account.pw_uid, account.pw_gid)
+    copy_project(target, 0, 0)
 
     environment = f"""DASHBOARD_HOST=127.0.0.1
 DASHBOARD_PORT={dashboard_port}
@@ -232,8 +232,8 @@ WantedBy=multi-user.target
 
     commands = (
         ("systemctl", "daemon-reload"),
-        ("systemctl", "enable", "--now", "bitcoin-dashboard"),
         ("sh", str(PROJECT_DIR / "installer" / "bootstrap-admin.sh")),
+        ("systemctl", "enable", "--now", "bitcoin-dashboard"),
     )
     output: list[str] = []
     for command in commands:

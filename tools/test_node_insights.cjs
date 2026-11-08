@@ -43,7 +43,7 @@ const assert = require('node:assert/strict');
       }
       if (pathname === '/api/recent-blocks') return route.fulfill({json:{blocks:[{height:900001,block_time:now,transactions:42,total_size:1048576,total_fee_btc:0.001}]}});
       const file = pathname === '/' ? 'index.html' : pathname.startsWith('/static/') ? pathname.slice(8) : null;
-      if (file && fs.existsSync(path.join(__dirname,'../static',file))) return route.fulfill({body:fs.readFileSync(path.join(__dirname,'../static',file)),contentType:file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':'application/json'});
+      if (file && fs.existsSync(path.join(__dirname,'../static',file))) return route.fulfill({body:fs.readFileSync(path.join(__dirname,'../static',file)),headers:{'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self'"},contentType:file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':'application/json'});
       return route.fulfill({status:503,json:{error:'Offline for QA'}});
     });
     for (const language of ['de','en','es','pt-BR','zh-Hans','ru']) {
