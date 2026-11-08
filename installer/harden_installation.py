@@ -177,6 +177,7 @@ def install():
     core_metadata = {}
     for path in (core_dropin, core_config):
         if path.exists():
+            run("/usr/bin/python3","-I",source_guard,"check",str(path))
             info=path.stat()
             core_metadata[path]=(stat.S_IMODE(info.st_mode),info.st_uid,info.st_gid)
             shutil.copy2(path, backup/("core-"+path.name))
@@ -236,6 +237,8 @@ def install():
                 "rpcwhitelistdefault=0\n"
                 "rpcwhitelist=dashboard-monitor:"+",".join(METHODS)+"\n# dashboard-rpc-end\n")
             core_account = pwd.getpwnam(core_user)
+            if core_config.parent.exists():
+                run("/usr/bin/python3","-I",guard,"check",str(core_config.parent))
             core_config.parent.mkdir(exist_ok=True)
             os.chown(core_config.parent, 0, core_account.pw_gid)
             core_config.parent.chmod(0o750)
@@ -253,6 +256,8 @@ def install():
                 atomic_write(binary_dir/binary.name, regular_bytes(binary, require_root=True), 0o755)
             core_command[0] = str(binary_dir/"bitcoind")
             core_command = [f"-conf={core_config}" if arg.startswith("-conf=") else arg for arg in core_command]
+            if core_dropin.parent.exists():
+                run("/usr/bin/python3","-I",guard,"check",str(core_dropin.parent))
             core_dropin.parent.mkdir(exist_ok=True)
             atomic_write(core_dropin, "[Service]\nExecStart=\nExecStart="+shlex.join(core_command)+"\n", 0o644)
             core_changed = True
@@ -296,6 +301,7 @@ def install():
         sudo_file = Path("/etc/sudoers.d/bitcoin-dashboard-updates")
         tracked.append(sudo_file)
         if sudo_file.exists():
+            run("/usr/bin/python3","-I",guard,"check",str(sudo_file))
             shutil.copy2(sudo_file, backup/(sudo_file.parent.name+"-"+sudo_file.name))
         atomic_write(sudo_file,sudoers,0o440)
         run("visudo","-cf",str(sudo_file))

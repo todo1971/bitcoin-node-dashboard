@@ -210,8 +210,10 @@ class ServiceConfigurationTests(unittest.TestCase):
     def test_core_updater_verifies_before_stopping_node(self):
         project = Path(__file__).parent.parent
         updater = (project / "installer" / "update-bitcoin-core").read_text()
-        self.assertLess(updater.index("gpg --batch"), updater.index('systemctl stop "$BITCOIN_SERVICE"'))
-        self.assertLess(updater.index('sha256sum "$archive"'), updater.index('systemctl stop "$BITCOIN_SERVICE"'))
+        installation = updater.index('rollback_needed=1')
+        self.assertLess(updater.index("gpg --batch"), installation)
+        self.assertLess(updater.index('sha256sum "$archive"'), installation)
+        self.assertLess(installation, updater.index('systemctl stop "$BITCOIN_SERVICE"', installation))
         self.assertIn('release_url="https://bitcoincore.org/bin/bitcoin-core-$version"', updater)
         self.assertIn("Downgrade or reinstall rejected", updater)
         self.assertIn("BITCOIN_MIN_VALID_SIGNATURES:=2", updater)

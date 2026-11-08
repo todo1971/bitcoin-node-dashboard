@@ -2,40 +2,25 @@
 
 Deutsch | [English](en/INSTALLATION.md)
 
-## 1. Repository installieren
+## Voraussetzungen und Einrichtung
 
-```bash
-sudo install -d -o btc -g btc -m 0750 /home/btc/bitcoin-dashboard
-sudo -u btc git clone https://github.com/todo1971/bitcoin-node-dashboard.git \
-  /home/btc/bitcoin-dashboard
-```
+Linux mit systemd, Python 3.11 oder neuer und laufendem Bitcoin Core mit eigenem Dienstkonto. [Benötigte Pakete](DEPENDENCIES.md). Bei lokaler Migration muss `bitcoind.service` einen expliziten `-conf`-Pfad verwenden. Vorher Backup erstellen.
 
-Das Repository ist öffentlich und kann ohne GitHub-Anmeldung geklont werden.
-Für private Forks ist eine passende Anmeldung nötig. Alternativ kann ein Release-Archiv nach
-`/home/btc/bitcoin-dashboard` entpackt werden.
+Die vollständigen Installations- und Migrationsbefehle stehen unter [Sicherheit](SECURITY.md). Sie richten root-eigenen Code unter `/opt/bitcoin-dashboard`, das Konto `bitcoin-dashboard`, eine eigene RPC-Leseberechtigung und die geschützten Root-Helfer ein. Der bestehende Datadir und die Historie bleiben erhalten. Die erste lokale Umstellung startet beide Dienste neu.
 
-## 2. Umgebung konfigurieren
+## Konfiguration
 
-```bash
-sudo install -d -o btc -g btc -m 0750 /var/lib/bitcoin-dashboard
-sudo install -o btc -g btc -m 0600 \
-  /home/btc/bitcoin-dashboard/bitcoin-dashboard.env.example \
-  /var/lib/bitcoin-dashboard/.env
-sudo ln -s /var/lib/bitcoin-dashboard/.env /home/btc/bitcoin-dashboard/.env
-sudo editor /var/lib/bitcoin-dashboard/.env
-```
-
-Verfügbare Einstellungen:
+Die aktive Dashboard-Konfiguration liegt unter `/var/lib/bitcoin-dashboard/.env`, verlinkt aus `/opt/bitcoin-dashboard/.env`. Rechte: `bitcoin-dashboard:bitcoin-dashboard`, 0600. Betriebswerte sind im Adminbereich editierbar. Updatequelle und optionales GitHub-Token für Root-Updates ausschließlich in `/etc/bitcoin-dashboard-updater.conf` pflegen. Pfade in dieser Tabelle beschreiben die migrierte Host-Installation; Datadir und Netzwerkadresse an den eigenen Node anpassen.
 
 | Variable | Vorgabe | Bedeutung |
 |---|---|---|
 | `DASHBOARD_HOST` | `127.0.0.1` | lokale Bind-Adresse |
 | `DASHBOARD_PORT` | `8787` | lokaler HTTP-Port |
 | `DASHBOARD_CACHE_SECONDS` | `10` | Cache lokaler RPC-Daten |
-| `BITCOIN_CLI` | `/home/btc/bin/bitcoin-cli` | CLI-Programm |
+| `BITCOIN_CLI` | `/usr/local/lib/bitcoin-core/bin/bitcoin-cli` | CLI-Programm |
 | `BITCOIN_RPC_URL` | leer | optionaler direkter JSON-RPC-Endpunkt, insbesondere für Docker |
 | `BITCOIN_DATADIR` | `/home/btc/bitcoin-data` | Bitcoin-Datadir |
-| `BITCOIN_COOKIE` | `/home/btc/bitcoin-core/.bitcoin/.cookie` | RPC-Cookie |
+| `BITCOIN_COOKIE` | `/var/lib/bitcoin-dashboard/rpc.auth` | RPC-Cookie |
 | `PUBLIC_NODE_ADDRESS` | `217.160.16.224` | öffentliche P2P-Adresse |
 | `PUBLIC_NODE_PORT` | `8333` | öffentlicher P2P-Port |
 | `EXTERNAL_CACHE_SECONDS` | `300` | Cache externer Crawler-Daten |
@@ -60,107 +45,21 @@ Verfügbare Einstellungen:
 | `BITCOIN_UPLOAD_DIR` | `/var/lib/bitcoin-dashboard/bitcoin-core-upload` | isolierter Zwischenordner für Core-Uploads |
 | `BITCOIN_UPLOAD_MAX_BYTES` | `209715200` | maximales Uploadvolumen (200 MiB) |
 
-## 3. Systemd-Service installieren
-
-```bash
-sudo cp /home/btc/bitcoin-dashboard/bitcoin-dashboard.service \
-  /etc/systemd/system/bitcoin-dashboard.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now bitcoin-dashboard
-```
-
-Die integrierte Administration samt eng begrenzter Update-Berechtigungen wird
-anschließend aus einem temporär entpackten, geprüften Release eingerichtet.
-Das Release-Archiv liegt für diesen einmaligen Schritt im aktuellen Verzeichnis:
-
-```bash
-tmpdir=$(mktemp -d)
-sudo tar -xzf ./bitcoin-node-dashboard-1.24.0.tar.gz -C "$tmpdir"
-sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
-sudo rm -rf -- "$tmpdir"
-```
-
-`StateDirectory=bitcoin-dashboard` erzeugt automatisch das beschreibbare
-Verzeichnis `/var/lib/bitcoin-dashboard` mit passenden Rechten für `btc`.
-
-Status und Logs:
+## Betrieb prüfen
 
 ```bash
 sudo systemctl status bitcoin-dashboard --no-pager
-sudo journalctl -u bitcoin-dashboard -f
-```
-
-## 4. Lokal testen
-
-```bash
+sudo journalctl -u bitcoin-dashboard -n 50 --no-pager
 curl -fsS http://127.0.0.1:8787/healthz
 curl -fsS http://127.0.0.1:8787/api/dashboard | python3 -m json.tool
-```
-
-## 5. Subdomain in Plesk
-
-1. Subdomain anlegen, beispielsweise `node.example.de`.
-2. Let's Encrypt aktivieren und HTTP auf HTTPS umleiten.
-3. **Apache & nginx Settings** öffnen.
-4. Den Inhalt von `plesk-apache.conf` unter **Additional Apache directives**
-   für HTTP und HTTPS eintragen.
-5. Den Inhalt von `plesk-nginx.conf` unter **Additional nginx directives**
-   eintragen, sofern nginx installiert ist. Dadurch sind Bitcoin-Core-Uploads bis 200 MB erlaubt.
-6. Bei nginx den Plesk-Proxy-Modus aktiviert lassen. Auf reinen Apache-Systemen nur Apache-Direktiven verwenden.
-
-Port 8787 bleibt ausschließlich an `127.0.0.1` gebunden. Weder Port 8787 noch
-Bitcoin-RPC-Port 8332 dürfen in der Firewall öffentlich freigegeben werden.
-
-Die vollständige Einrichtung des Fine-grained GitHub-Tokens für automatische
-Dashboard-Updates steht in [UPDATES.md](UPDATES.md#fine-grained-github-token-einrichten).
-
-## 6. Aktualisieren
-
-```bash
-cd /home/btc/bitcoin-dashboard
-sudo -u btc git pull --ff-only
-sudo cp bitcoin-dashboard.service /etc/systemd/system/bitcoin-dashboard.service
-sudo systemctl daemon-reload
-sudo systemctl restart bitcoin-dashboard
-curl -fsS http://127.0.0.1:8787/healthz
-```
-
-## 7. Fehlerdiagnose
-
-```bash
-sudo journalctl -u bitcoin-dashboard --since '30 minutes ago'
-sudo -u btc /home/btc/bin/bitcoin-cli \
-  -datadir=/home/btc/bitcoin-data \
-  -rpccookiefile=/home/btc/bitcoin-core/.bitcoin/.cookie \
-  getblockchaininfo
-```
-
-Wenn `/healthz` den Status 503 liefert, zuerst Cookie-Pfad, Dateirechte,
-Datadir und den Zustand von `bitcoind` prüfen.
-
-## Neustartfestigkeit prüfen
-
-Ohne einen Neustart auszulösen, zeigen diese Befehle Startfreigabe, aktuellen
-Zustand und automatische Wiederanläufe der drei benötigten Dienste:
-
-```bash
-systemctl is-enabled bitcoind.service bitcoin-dashboard.service tor.service
-systemctl is-active bitcoind.service bitcoin-dashboard.service tor@default.service
-systemctl show bitcoind.service bitcoin-dashboard.service tor@default.service \
-  -p Id -p Restart -p After -p Result --no-pager
-```
-
-`enabled` und `active` bestätigen die aktuelle Konfiguration, ersetzen aber
-keinen echten Reboot-Test. Den Server nicht allein für diese Prüfung neu starten.
-
-Alarmzustände und Benachrichtigungskanäle sind in [ALERTS.md](ALERTS.md)
-beschrieben.
-
-Die Datenbank kann separat geprüft werden:
-
-```bash
-sudo -u btc sqlite3 /var/lib/bitcoin-dashboard/history.sqlite3 \
+sudo -u bitcoin-dashboard sqlite3 /var/lib/bitcoin-dashboard/history.sqlite3 \
   'SELECT COUNT(*), MIN(sampled_at), MAX(sampled_at) FROM node_samples;'
 ```
 
-Paketvoraussetzungen vor der Installation: [Abhängigkeiten](DEPENDENCIES.md).
+Bei Status 503 zuerst Core-Zustand und RPC-Zugang prüfen. Admin-Zugangsdaten lokal in der geschützten `.env` verwalten. Keine Zugangsdaten in Logs oder Git kopieren.
+
+## HTTPS und Updates
+
+Plesk-Subdomain anlegen, Zertifikat und HTTPS-Weiterleitung aktivieren. `plesk-apache.conf` in die zusätzlichen Apache-Direktiven übernehmen. Nur bei tatsächlich installiertem nginx auch `plesk-nginx.conf` verwenden. Port 8787 bleibt lokal; RPC-Port 8332 niemals öffentlich freigeben.
+
+[Updates](UPDATES.md), [Alarme](ALERTS.md), [Web-Installation](WEB_INSTALLATION.md) und [Containerbetrieb](DOCKER.md).

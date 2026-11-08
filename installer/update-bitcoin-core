@@ -55,6 +55,8 @@ case "$BITCOIN_DATADIR" in /home/*) ;; *) echo "Unsafe BITCOIN_DATADIR" >&2; exi
 case "$BITCOIN_COOKIE" in /home/*/.cookie) ;; *) echo "Unsafe BITCOIN_COOKIE" >&2; exit 1 ;; esac
 
 python3 -I "$GUARD" check "$BITCOIN_BIN_DIR" "$BITCOIN_BIN_DIR/bitcoind"
+test -d "$BACKUP_DIR" || install -d -o root -g root -m 0700 "$BACKUP_DIR"
+python3 -I "$GUARD" check "$BACKUP_DIR" "$KEYRING"
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || { echo "Another Bitcoin Core update is running" >&2; exit 1; }
@@ -70,8 +72,23 @@ test -f "$KEYRING" || { echo "Missing trusted keyring: $KEYRING" >&2; exit 1; }
 tmp_dir=$(mktemp -d "$UPDATE_ROOT"/core.XXXXXX)
 status_file="$tmp_dir/gpg-status"
 backup="$BACKUP_DIR/bitcoin-core-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
-cleanup() { rm -rf -- "$tmp_dir"; }
-trap cleanup EXIT INT TERM
+version_dir=""
+rollback_needed=0
+cleanup() {
+    result=$?
+    if test "$result" -ne 0 && test "$rollback_needed" -eq 1; then
+        systemctl stop "$BITCOIN_SERVICE" || true
+        if test -f "$backup"; then
+            rm -rf -- "$BITCOIN_BIN_DIR"
+            tar -xzf "$backup" -C "$(dirname "$BITCOIN_BIN_DIR")"
+        fi
+        systemctl start "$BITCOIN_SERVICE" || true
+    fi
+    test -z "$version_dir" || rm -rf -- "$version_dir"
+    rm -rf -- "$tmp_dir"
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM
 
 uploaded=0
 metadata="$BITCOIN_UPLOAD_DIR/metadata.json"
@@ -151,13 +168,17 @@ python3 -I "$GUARD" extract "$archive" "$tmp_dir" "bitcoin-$version" 1073741824
 source_bin="$tmp_dir/bitcoin-$version/bin"
 test -x "$source_bin/bitcoind" || { echo "bitcoind missing" >&2; exit 1; }
 test -x "$source_bin/bitcoin-cli" || { echo "bitcoin-cli missing" >&2; exit 1; }
-"$source_bin/bitcoind" -version | head -n 1
+version_dir=$(mktemp -d /var/tmp/bitcoin-core-version.XXXXXX)
+chmod 0755 "$version_dir"
+install -o root -g root -m 0755 "$source_bin/bitcoind" "$version_dir/bitcoind"
+runuser -u "$DASHBOARD_USER" -- "$version_dir/bitcoind" -version | head -n 1
 
 if test -d "$BITCOIN_BIN_DIR"; then
     mkdir -p "$BACKUP_DIR"
     tar -czf "$backup" -C "$(dirname "$BITCOIN_BIN_DIR")" "$(basename "$BITCOIN_BIN_DIR")"
 fi
 
+rollback_needed=1
 systemctl stop "$BITCOIN_SERVICE"
 install -d -o root -g root -m 0755 "$BITCOIN_BIN_DIR"
 for binary in "$source_bin"/bitcoin-* "$source_bin"/bitcoind; do
@@ -187,11 +208,13 @@ if test "$start_failed" -ne 0; then
         tar -xzf "$backup" -C "$(dirname "$BITCOIN_BIN_DIR")"
     fi
     systemctl start "$BITCOIN_SERVICE" || true
+    rollback_needed=0
     exit 1
 fi
 
+rollback_needed=0
 echo "Bitcoin Core update completed successfully"
-"$BITCOIN_BIN_DIR/bitcoin-cli" -version | head -n 1
+runuser -u "$DASHBOARD_USER" -- "$BITCOIN_BIN_DIR/bitcoin-cli" -version | head -n 1
 if test "$uploaded" -eq 1; then
-    rm -f -- "$uploaded_archive" "$metadata"
+    runuser -u "$DASHBOARD_USER" -- rm -f -- "$uploaded_archive" "$metadata"
 fi
