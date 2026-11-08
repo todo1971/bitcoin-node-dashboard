@@ -15,7 +15,7 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
     await page.route('http://dashboard.test/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
       if (route.request().method() !== 'GET') { posts++; return route.fulfill({status:403,json:{error:'Unexpected mutation'}}); }
-      if (pathname === '/api/admin/status') return route.fulfill({json:{dashboard:{available:true,current:'1.23.0',latest:'1.23.0'},bitcoin:'Bitcoin Core',updates_enabled:true,bitcoin_keyring_ready:true,bitcoin_upload:{filename:'bitcoin-31.1-x86_64-linux-gnu.tar.gz',size:100,sha256:'0'.repeat(64)}}});
+      if (pathname === '/api/admin/status') return route.fulfill({json:{dashboard:{available:true,current:'1.23.1',latest:'1.23.1'},bitcoin:'Bitcoin Core',updates_enabled:true,bitcoin_keyring_ready:true,bitcoin_upload:{filename:'bitcoin-31.1-x86_64-linux-gnu.tar.gz',size:100,sha256:'0'.repeat(64)}}});
       if (pathname === '/api/admin/config') return route.fulfill({json:{fields:[{key:'DASHBOARD_GITHUB_TOKEN',label:'GitHub-Token (leer lassen = unverändert)',section:'Updates',kind:'secret',value:'',configured:false}]}});
       const files = {'/':'index.html','/admin':'admin.html','/static/i18n.js':'i18n.js','/static/node-insights.js':'node-insights.js',...Object.fromEntries(languages.map(lang => ['/static/locales/' + lang + '.json','locales/' + lang + '.json']))};
       if (files[pathname] && !(languageFailure && pathname.endsWith('/ru.json'))) {
@@ -70,11 +70,22 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
       await page.waitForFunction(expected => document.querySelector('#tab-overview').textContent === expected, t('Überblick'));
       for (const viewport of [{width:1280,height:900},{width:390,height:844}]) {
         await page.setViewportSize(viewport);
-        for (const view of ['overview','network','analysis','history','system']) {
+        for (const view of ['overview','network','analysis','history']) {
           await page.evaluate(view => { location.hash = view; }, view);
           await page.waitForFunction(view => !document.getElementById(view + 'Panel').hidden, view);
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, language + ' ' + view + ' should not overflow');
         }
+        await page.evaluate(() => { location.hash='system'; });
+        await page.waitForFunction(() => location.hash === '#overview' && !document.getElementById('overviewPanel').hidden);
+        assert.equal(await page.locator('#tab-system').count(), 0);
+        for (const id of ['cpu','memory','disk','versionStatus','uptime']) {
+          assert(await page.locator('#overviewPanel #' + id).isVisible(), id + ' belongs on Overview');
+        }
+        await page.locator('#tab-overview').focus();
+        await page.keyboard.press('End');
+        assert.equal(await page.locator('#tab-history').getAttribute('aria-selected'), 'true');
+        await page.keyboard.press('ArrowRight');
+        assert.equal(await page.locator('#tab-overview').getAttribute('aria-selected'), 'true');
       }
       if (process.env.QA_SCREENSHOT_DIR && language !== 'de') {
         fs.mkdirSync(process.env.QA_SCREENSHOT_DIR,{recursive:true});

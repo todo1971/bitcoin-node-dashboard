@@ -4,6 +4,10 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.23.1 – 2026-11-08
+
+- Systemwerte, Versionsprüfung und bitcoind-Laufzeit in die Überblicksseite integrieren. Bisherige System-Links öffnen den Überblick.
+
 ## 1.23.0 – 2026-11-07
 
 - Traffic der letzten sieben abgeschlossenen Kalendertage mit den sieben Tagen davor vergleichen. Prozentänderung ab 90 % Messabdeckung anzeigen.

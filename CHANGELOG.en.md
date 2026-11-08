@@ -4,6 +4,10 @@
 
 All significant project changes are recorded here.
 
+## 1.23.1 – 2026-11-08
+
+- Integrate system metrics, version checks and bitcoind uptime into Overview. Existing System links open Overview.
+
 ## 1.23.0 – 2026-11-07
 
 - Compare traffic for the last seven completed calendar days with the preceding seven days. Show percentage changes from 90% measurement coverage.

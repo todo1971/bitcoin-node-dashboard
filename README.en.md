@@ -35,7 +35,7 @@ provides a separately identified external directory status, not our own live por
 - Global server IPv6 displayed separately, even when Bitcoin Core does not report it as a P2P address.
 - Tor onion address as node identity, explicitly distinguished from a Bitcoin protocol ID.
 - Automatic retention and aggregation of chart data.
-- Responsive desktop and mobile UI with a compact overview and separate Network, Analysis, History and System tabs.
+- Responsive desktop and mobile UI with node status, system metrics, version checks and uptime on Overview, plus Network, Analysis and History tabs.
 - Systemd hardening and a Plesk reverse proxy example.
 - Local web installer for systemd-based Linux servers.
 - Integrated protected administration at `/admin`.
@@ -90,7 +90,7 @@ archive, rather than the checkout writable by `btc`:
 
 ```bash
 tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.23.0.tar.gz -C "$tmpdir"
+tar -xzf ./bitcoin-node-dashboard-1.23.1.tar.gz -C "$tmpdir"
 sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 rm -rf -- "$tmpdir"
 sudo systemctl enable --now bitcoin-dashboard
