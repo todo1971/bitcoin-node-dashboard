@@ -60,26 +60,28 @@ class RealtimeTests(unittest.TestCase):
 
 
 class DashboardLayoutTests(unittest.TestCase):
-    def test_tabs_keep_overview_short_and_details_available(self):
+    def test_overview_includes_system_and_remaining_tabs_keep_details_available(self):
         html = (app.APP_DIR / "static" / "index.html").read_text(encoding="utf-8")
         panels = {}
-        for name in ("overview", "network", "analysis", "history", "system"):
+        for name in ("overview", "network", "analysis", "history"):
             match = re.search(rf'<section\b[^>]*id="{name}Panel"[^>]*>.*?</section>', html, re.S)
             self.assertIsNotNone(match, name)
             panels[name] = match.group(0)
             self.assertIn(f'id="tab-{name}"', html)
             self.assertIn(f'aria-controls="{name}Panel"', html)
         for name, ids in {
-            "overview": ("blocks", "syncText", "version", "overviewPeers", "overviewAlerts"),
+            "overview": ("blocks", "syncText", "version", "overviewPeers", "overviewAlerts",
+                         "cpu", "memory", "disk", "versionStatus", "uptime"),
             "network": ("peers", "ipv4Peers", "ipv6Peers", "onionPeers", "peerQualityRows", "chainTipRows", "nodeIdentity", "externalStatus"),
             "analysis": ("mempoolTx", "fee2", "utxoCount", "feeBucketRows", "hash"),
             "history": ("peerChart", "feeChart", "systemChart", "diskChart", "timelineList"),
-            "system": ("cpu", "memory", "disk", "versionStatus", "uptime"),
         }.items():
             for element_id in ids:
                 self.assertIn(f'id="{element_id}"', panels[name])
         self.assertNotIn('id="peerQualityRows"', panels["overview"])
         self.assertNotIn('id="feeBucketRows"', panels["overview"])
+        self.assertNotIn('id="tab-system"', html)
+        self.assertNotIn('id="systemPanel"', html)
         html_ids = re.findall(r'\bid="([^"]+)"', html)
         self.assertEqual(len(html_ids), len(set(html_ids)))
         self.assertIn('panel.hidden=!selected', html)
