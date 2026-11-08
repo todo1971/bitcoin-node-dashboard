@@ -168,22 +168,10 @@ def install():
     was_running = subprocess.run(["systemctl","is-active","--quiet","bitcoin-dashboard"]).returncode == 0
     state_backup = backup/"state"
     state_owners = ownership(STATE) if STATE.exists() else {}
-    # Complete backups before changing code or configuration. If copying fails,
-    # resume the old service immediately; no partial backup may replace state.
-    run("systemctl", "stop", "bitcoin-dashboard.service")
-    try:
-        if STATE.exists():
-            shutil.copytree(STATE, state_backup)
-            import json
-            atomic_write(backup/"state-owners.json",json.dumps(state_owners))
-        for path in tracked:
-            if path.exists():
-                run("/usr/bin/python3","-I",source_guard,"check",str(path))
-                shutil.copy2(path, backup/(path.parent.name+"-"+path.name))
-    except Exception:
-        if was_running:
-            subprocess.run(["systemctl","start","bitcoin-dashboard"],capture_output=True)
-        raise
+    for path in tracked:
+        if path.exists():
+            run("/usr/bin/python3","-I",source_guard,"check",str(path))
+            shutil.copy2(path, backup/(path.parent.name+"-"+path.name))
     core_dropin = Path("/etc/systemd/system/bitcoind.service.d/bitcoin-dashboard-hardening.conf")
     core_config = Path("/etc/bitcoin-dashboard/bitcoin.conf")
     core_metadata = {}
@@ -195,6 +183,15 @@ def install():
     stage = Path(tempfile.mkdtemp(prefix=".bitcoin-dashboard-stage.", dir="/opt"))
     core_changed = False
     try:
+        # A partial backup must never replace live state during rollback.
+        if was_running or SERVICE.exists():
+            run("systemctl", "stop", "bitcoin-dashboard.service")
+        if STATE.exists():
+            partial_state = backup/"state-incomplete"
+            shutil.copytree(STATE, partial_state)
+            os.replace(partial_state, state_backup)
+            import json
+            atomic_write(backup/"state-owners.json",json.dumps(state_owners))
         for source, destination in helpers:
             atomic_write(Path(destination), (PROJECT/"installer"/source).read_bytes(), 0o755)
         for entry in PROJECT.iterdir():

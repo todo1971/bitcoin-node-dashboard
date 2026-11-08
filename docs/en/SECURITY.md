@@ -1,79 +1,50 @@
-# Security model
+# Security and one-time migration since 1.24
 
-[Deutsch](../SECURITY.md) | [English documentation](../../README.en.md#documentation)
+[Deutsch](../SECURITY.md) | English
 
-## Principles
+Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 
-- Bind the web service only to `127.0.0.1` by default.
-- Keep Bitcoin RPC port 8332 local and outside the reverse proxy.
-- Never send the RPC cookie to browsers or external services.
-- Browsers cannot execute arbitrary RPC commands.
-- Start subprocesses without a shell and with fixed argument structures.
-- Run the systemd service as unprivileged user `btc`.
-- Use only `/var/lib/bitcoin-dashboard` for persistent writable data.
-- Include CSP, frame, referrer and MIME security headers in browser responses.
-- Bind the one-time installer to `127.0.0.1` and require a random access token.
-- Protect `/admin` with a strong separate password, CSRF and origin checks.
-- Lock administration for 15 minutes after five failed logins.
-- Limit root actions to two complete fixed update commands and one delayed dashboard restart; do not forward browser arguments to root.
-- Allow the admin log view to read only the last 80 lines from two fixed update units via sudo. Accept no arbitrary journal arguments and limit responses to 32 KiB.
-- Root-owned helpers accept no arguments, validate package paths and run outside the web service's control group.
-- Root owns `/var/cache/bitcoin-dashboard-updates`, with mode `0700`.
-- Core uploads are the sole package-staging exception in the fixed StateDirectory path. The root updater copies them into its own temporary directory before verification.
+## Trust boundaries
 
-If the dashboard process is fully compromised, an attacker can trigger the fixed
-update jobs and dashboard restart and modify the service-user-writable `.env`,
-but cannot choose root command arguments or package paths. Dashboard packages
-are tested before installation. Bitcoin Core packages additionally require
-matching SHA-256 checksums and the configured number of valid signatures from
-the root-controlled keyring. This boundary depends on the update cache, root
-helpers, sudoers rules and updater configuration remaining unwritable by `btc`.
+The host installation separates the `bitcoin-dashboard` service account from the Bitcoin Core account. Dashboard code is root-owned under `/opt/bitcoin-dashboard`. Writable state remains under `/var/lib/bitcoin-dashboard`; `.env` and `rpc.auth` belong to the dashboard account with mode 0600. Local nodes use dedicated RPC credentials instead of the full node cookie.
 
-A compromised dashboard can replace a Core archive in the upload directory and
-start the fixed update job, but cannot choose its checksum or signature:
-the root helper downloads both from fixed HTTPS addresses at `bitcoincore.org`.
-The node is stopped only after trusted-signature and SHA-256 verification succeeds.
+The local RPC account permits only: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Existing RPC users retain their permissions. Remote node administrators must configure this restriction on their node themselves. This host bootstrap does not migrate containers; manage container updates externally and restrict their RPC credentials separately.
 
-## Public information
+Root updates obtain their repository and optional GitHub token exclusively from `/etc/bitcoin-dashboard-updater.conf` (root:root, 0600). The web UI cannot edit them. Values in the dashboard `.env` may only influence the unprivileged version display. The public project needs no token. HTTPS and a trusted GitHub account remain part of the trust chain: a checksum from the same release is not an independent signature.
 
-Public instances intentionally expose some information already observable over
-Bitcoin P2P, including node version, block height and public IP.
-Other peers' IP addresses are currently not delivered to the browser.
+## One-time migration
 
-## Recommended protection
+A regular dashboard update does not replace root helpers. Run the bootstrap **once as root** from a deliberately selected and verified release. Never use a checkout writable by the dashboard account. Run these commands in a root shell:
 
-- Enforce HTTPS with Let's Encrypt.
-- Never use `/admin` over public unencrypted HTTP.
-- Optionally enable Plesk password protection or an IP allowlist.
-- Keep dashboard port 8787 and RPC port 8332 blocked by the public firewall.
-- Keep `/var/lib/bitcoin-dashboard/.env` at mode `0600` for service user `btc`; edit only allowed settings through `/admin`.
-- Regularly update Bitcoin Core and the operating system.
-- Add reverse proxy rate limits for heavily used public deployments.
-- Never publish one-time installer port 8791 through Plesk, the firewall or reverse proxy.
-- Use only HTTPS webhook targets and treat the destination as a secret.
+```bash
+install -d -m 0700 /root/bitcoin-dashboard-release
+cd /root/bitcoin-dashboard-release
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz.sha256
+sha256sum -c bitcoin-node-dashboard-1.24.0.tar.gz.sha256
+tmpdir=$(mktemp -d /root/bitcoin-dashboard-release/unpack.XXXXXX)
+tar -xzf bitcoin-node-dashboard-1.24.0.tar.gz -C "$tmpdir"
+sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
+systemctl enable bitcoin-dashboard
+curl -fsS http://127.0.0.1:8787/healthz
+```
 
-## Secrets
+Create your own backup first. The bootstrap also saves state, original services and helpers under `/var/backups/bitcoin-dashboard/hardening-*`. Backups contain secrets and remain root-only. The first local migration **restarts both the dashboard and Bitcoin Core**, without rebooting the server. Existing history and a sufficiently long admin password are preserved. A new password is generated in the protected `.env` if needed and is never printed; manage it locally with `sudoedit /var/lib/bitcoin-dashboard/.env`.
 
-Never commit:
+A local systemd node requires an explicit `-conf=...` path and its own Core service account. Bootstrap preserves the existing configuration content, adds RPC permissions and writes `/etc/bitcoin-dashboard/bitcoin.conf` (root and Core group, 0640). A `bitcoind.service` drop-in uses this configuration and root-owned binaries copied to `/usr/local/lib/bitcoin-core/bin`. Existing `-datadir` arguments are preserved. Future Core configuration changes must target the new active file. The original file is retained. Review unusual configurations with includes, additional drop-ins or external nodes first.
 
-- RPC cookie contents.
-- RPC passwords.
-- Wallet files, seeds or private keys.
-- TLS private keys.
-- Personal access tokens.
-- `DASHBOARD_GITHUB_TOKEN` from `/var/lib/bitcoin-dashboard/.env`.
-- `ADMIN_TOKEN` from the same file.
-- Production SQLite databases.
-- Webhook URLs containing access tokens.
+On failure bootstrap restores saved service files, code, state and ownership, and attempts to restart the previously running service. Review backups and the journal afterwards; external failures can also prevent rollback. Successful repeated bootstrap retains the restricted RPC credentials and does not restart Core again.
 
-`.gitignore` therefore excludes `.env`.
+## Web protection
 
-The GitHub token receives only `Contents: Read-only` for the single
-`bitcoin-node-dashboard` repository. Store it in
-`/var/lib/bitcoin-dashboard/.env`, readable only by `btc`, with mode `0600`.
-Replace expired or potentially exposed tokens and revoke the old token at GitHub.
+Administration requires Basic authentication, a password of at least 32 characters, CSRF and Origin checks. Five incorrect logins temporarily lock only that client address. Only a loopback proxy may supply the last `X-Forwarded-For` address as the client identity. The reverse proxy must append the real client address or replace this header; never publish the dashboard port directly.
 
-## Reporting security issues
+Each client is limited to 240 requests per minute and an additional twelve expensive history/analysis requests per minute. There are at most 48 concurrent HTTP handlers, a 15-second socket read timeout and 16 SSE connections. Excess requests receive 429 or 503. Content Security Policy blocks third-party scripts and inline JavaScript. HTTP server headers no longer disclose Python or dashboard versions.
 
-The repository is public. Report security problems privately to the repository
-owner first; do not put credentials or exploitable details in public issues.
+Root helpers validate ownership and write permissions for every path component. All archive members are checked for paths, size, duplicates and file types before extraction starts. Links and special files are rejected. Application tests and Core version checks run without root privileges. Dashboard updates replace a protected code tree and roll back if the health check fails; root never imports dashboard code. Core uploads are copied without following symlinks into protected storage and still require valid GPG signatures and SHA-256.
+
+## Verification and limits
+
+Regression tests cover archive attacks, untrusted update sources, redirects, isolated login lockouts and bounded HTTP handlers. CI also runs real Bitcoin Core regtest in disposable AMD64 and ARM64 environments: separate accounts, permitted and rejected RPC calls, protected paths and recovery after a deliberately failed restart. This does not replace a penetration test or production backups.
+
+GitHub protects `main` with required successful CI checks; Secret Scanning, Push Protection and Dependabot are enabled. Features are developed independently. Report security concerns without credentials to hb@308-arms.de.

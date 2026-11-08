@@ -76,44 +76,21 @@ Dashboard configuration is stored at `/var/lib/bitcoin-dashboard/.env`, linked a
 Container deployments can use `compose.host-node.yaml`, `compose.yaml` or
 `compose.all-in-one.yaml`. See [Docker](docs/en/DOCKER.md) for differences and update commands.
 
-## Quick installation
+## Installation and migration
 
-Check out the repository on the server:
+Since 1.24 the host installation uses root-owned code under `/opt/bitcoin-dashboard`, a dedicated `bitcoin-dashboard` account and restricted local RPC credentials. Existing installations require one bootstrap from a verified release. This restarts the dashboard and local Core while preserving history and the datadir.
 
-```bash
-sudo -u btc git clone https://github.com/todo1971/bitcoin-node-dashboard.git \
-  /home/btc/bitcoin-dashboard
-```
-
-Configure the service using the bootstrap from a previously verified release
-archive, rather than the checkout writable by `btc`:
-
-```bash
-tmpdir=$(mktemp -d)
-tar -xzf ./bitcoin-node-dashboard-1.23.1.tar.gz -C "$tmpdir"
-sudo sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
-rm -rf -- "$tmpdir"
-sudo systemctl enable --now bitcoin-dashboard
-```
-
-Local checks:
-
-```bash
-curl -fsS http://127.0.0.1:8787/healthz
-curl -fsS http://127.0.0.1:8787/api/dashboard | python3 -m json.tool
-```
-
-See [Installation](docs/en/INSTALLATION.md) for the complete guide, including Plesk.
+Complete commands: [security migration](docs/en/SECURITY.md). Never run root helpers from a writable user checkout.
 
 ## Updating
 
+After the one-time migration, update through the admin UI or as root:
+
 ```bash
-cd /home/btc/bitcoin-dashboard
-sudo -u btc git pull --ff-only
-sudo cp bitcoin-dashboard.service /etc/systemd/system/bitcoin-dashboard.service
-sudo systemctl daemon-reload
-sudo systemctl restart bitcoin-dashboard
+sudo /usr/local/sbin/update-bitcoin-dashboard
 ```
+
+Only root can manage the update repository and optional token in `/etc/bitcoin-dashboard-updater.conf`. The public repository needs no token. [Details and Core updates](docs/en/UPDATES.md).
 
 ## HTTP endpoints
 

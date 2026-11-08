@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tarfile
 import time
 import urllib.error
 import urllib.request
@@ -162,6 +163,26 @@ def test():
         error.close()
     execute("/usr/bin/python3","-I","/usr/local/libexec/bitcoin-dashboard-update-guard",
             "check","/opt/bitcoin-dashboard","/usr/local/lib/bitcoin-core/bin")
+    # Exercise the real root updater using a local verified-release fixture.
+    # Network/GitHub trust is tested independently by the fetcher unit tests.
+    archive=ROOT/"release.tar.gz"
+    with tarfile.open(archive,"w:gz") as output:
+        for entry in SOURCE.rglob('*'):
+            relative=entry.relative_to(SOURCE)
+            if any(part.startswith('.') or part.startswith('preview') or part=='__pycache__' for part in relative.parts):
+                continue
+            if entry.is_file():
+                output.add(entry,arcname='bitcoin-dashboard/'+str(relative),recursive=False)
+    fetcher=Path('/usr/local/libexec/fetch-bitcoin-dashboard-release')
+    original_fetcher=fetcher.read_bytes()
+    fetcher.write_text('#!/bin/sh\ncp '+str(archive)+' /var/cache/bitcoin-dashboard-updates/bitcoin-node-dashboard-update.tar.gz\n')
+    execute('/usr/local/sbin/update-bitcoin-dashboard')
+    wait_health()
+    ROOT.joinpath('fail-dashboard-once').touch()
+    failed_update=subprocess.run(['/usr/local/sbin/update-bitcoin-dashboard'],capture_output=True)
+    assert failed_update.returncode != 0
+    wait_health()
+    fetcher.write_bytes(original_fetcher)
     # A failed second installation must preserve the working state and credentials.
     marker=state/"sentinel"
     marker.write_text("keep")
@@ -172,7 +193,7 @@ def test():
     wait_health()
     assert marker.read_text()=="keep" and marker.stat().st_uid==dashboard.pw_uid
     assert state.joinpath("rpc.auth").read_bytes().strip()==credentials
-    print("Root integration passed: real Core regtest RPC allowlist, account separation, protected paths, preserved state and rollback.")
+    print("Root integration passed: real Core regtest RPC allowlist, account separation, protected paths, real updater success/rollback, preserved state and migration rollback.")
 
 
 if __name__=="__main__":

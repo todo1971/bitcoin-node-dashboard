@@ -4,6 +4,14 @@
 
 All significant project changes are recorded here.
 
+## 1.24.0 – 2026-11-08
+
+- Protect root update sources and helpers, validate archives before extraction, and remove root imports of application code.
+- Separate the host dashboard account, root-owned application code and restricted local RPC credentials. Add backed-up migration with data and ownership recovery.
+- Isolate login lockouts per client, bound requests and HTTP handlers, remove inline JavaScript and HTTP version disclosures.
+- Document security migration and limitations in German and English; test real Core regtest and rollback on AMD64/ARM64.
+- Require CI for the GitHub main branch and enable Secret Scanning, Push Protection and Dependabot.
+
 ## 1.23.1 – 2026-11-08
 
 - Integrate system metrics, version checks and bitcoind uptime into Overview. Existing System links open Overview.
