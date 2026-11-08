@@ -10,7 +10,6 @@ test "$#" -eq 0 || { echo "Arguments are not allowed" >&2; exit 1; }
 
 CONFIG=/etc/bitcoin-dashboard-updater.conf
 KEYRING=/usr/local/share/bitcoin-core/trustedkeys.gpg
-LOCK_FILE=/run/lock/bitcoin-core-update.lock
 BACKUP_DIR=/var/backups/bitcoin-core
 
 python3 -I "$GUARD" check "$CONFIG"
@@ -55,6 +54,8 @@ case "$BITCOIN_DATADIR" in /home/*) ;; *) echo "Unsafe BITCOIN_DATADIR" >&2; exi
 case "$BITCOIN_COOKIE" in /home/*/.cookie) ;; *) echo "Unsafe BITCOIN_COOKIE" >&2; exit 1 ;; esac
 
 python3 -I "$GUARD" check "$BITCOIN_BIN_DIR" "$BITCOIN_BIN_DIR/bitcoind"
+python3 -I "$GUARD" check "$UPDATE_ROOT"
+LOCK_FILE="$UPDATE_ROOT/.core-update.lock"
 test -d "$BACKUP_DIR" || install -d -o root -g root -m 0700 "$BACKUP_DIR"
 python3 -I "$GUARD" check "$BACKUP_DIR" "$KEYRING"
 

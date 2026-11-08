@@ -10,7 +10,6 @@ test "$#" -eq 0 || { echo "Arguments are not allowed" >&2; exit 1; }
 
 CONFIG=/etc/bitcoin-dashboard-updater.conf
 BACKUP_DIR=/var/backups/bitcoin-dashboard
-LOCK_FILE=/run/lock/bitcoin-dashboard-update.lock
 
 wait_for_health() {
     attempt=0
@@ -46,6 +45,8 @@ case "$DASHBOARD_SERVICE" in *[!A-Za-z0-9_.@-]*|'') echo "Invalid dashboard serv
 ARCHIVE="$UPDATE_ROOT/bitcoin-node-dashboard-update.tar.gz"
 TARGET="$DASHBOARD_TARGET"
 python3 -I "$GUARD" check "$TARGET" "$BACKUP_DIR"
+python3 -I "$GUARD" check "$UPDATE_ROOT"
+LOCK_FILE="$UPDATE_ROOT/.dashboard-update.lock"
 
 
 exec 9>"$LOCK_FILE"
