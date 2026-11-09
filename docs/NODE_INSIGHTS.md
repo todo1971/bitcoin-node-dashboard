@@ -13,8 +13,8 @@ Unter **Netzwerk → Traffic nach Nachrichtentyp** stehen zwei gestapelte Fläch
 
 - Blöcke: `block`, `cmpctblock`, `blocktxn`, `getblocktxn`.
 - Transaktionen: `tx`.
-- Ankündigungen und Anfragen: `inv`, `getdata`, `notfound` (gemischte Inhalte).
-- Blockheader: `headers`, `getheaders`, `getblocks`.
+- Ankündigungen und Anfragen: `inv`, `getdata`, `notfound`, `getblocks` (gemischte Inhalte; `getblocks` fordert eine Block-Inventarliste an).
+- Blockheader: `headers`, `getheaders`.
 - Weitere Nachrichten: alle übrigen Typen, einschließlich Protokollverwaltung.
 
 Einmal pro Messintervall werden `getpeerinfo` und `uptime` gelesen. Deltas gelten nur für dieselbe Peer-ID und Verbindungsstartzeit, nicht sinkende Einzelzähler und passende Core-Laufzeit. Zu große Zeitlücken oder Neustarts werden nicht überbrückt. Neue, getrennte oder nicht vergleichbare Verbindungen fehlen in den Summen. Auch unbemerkt zwischen zwei Messungen gestartete und beendete Verbindungen fehlen. Die Werte sind daher ein erfasster Teil des P2P-Anwendungsverkehrs, kein vollständiger Node- oder Provider-Traffic. Null ist gemessener Stillstand; unbekannte Werte bleiben leer.
