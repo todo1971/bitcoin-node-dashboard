@@ -17,6 +17,7 @@ externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 
 ## Eigenschaften
 
+- Traffic nach P2P-Nachrichtentyp, bestätigte Gebührenbänder und vollständige Blockauslastung mit Historie und erklärenden Fußnoten ([Details](docs/NODE_INSIGHTS.md))
 - Multi-Plattform-Container für AMD64 und ARM64 / Raspberry Pi mit 64-Bit-Linux ([Voraussetzungen und Build](docs/ARM64.md))
 - Peer-Software, Service-Flags, Verbindungsarten, Traffic-Tagesvergleich mit Peer-Zahl und Uploadspitzen sowie die letzten 20 erfassten Blöcke ([Details](docs/NODE_INSIGHTS.md))
 - Traffic-Wochenvergleich, CSV-Bericht, IPv4-/IPv6-/Tor-Verlauf und tägliche Blockstatistik
@@ -107,6 +108,7 @@ Updatequelle und optionaler Token werden ausschließlich als root in `/etc/bitco
 | `/api/history?range=24h` | verdichtete historische Messwerte |
 | `/api/timeline?range=24h` | Ereignisse und Datenqualitäts-Hinweise im gewählten Zeitraum |
 | `/api/analytics?range=24h` | Block-, UTXO- und Mempool-Analysedaten |
+| `/api/protocol-history?range=24h` | Nachrichten-Traffic und Blockdiagramme aus SQLite |
 | `/api/alerts` | derzeit aktive Alarme |
 | `/api/admin/upload/bitcoin` | geschützter Bitcoin-Core-Archivupload |
 | `/api/admin/logs/dashboard` und `/api/admin/logs/bitcoin` | letzte Update-Logzeilen, nur mit Admin-Anmeldung |

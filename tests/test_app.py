@@ -924,7 +924,7 @@ class HistoryDatabaseTests(unittest.TestCase):
         with closing(app.database_connection()) as connection:
             with connection:
                 connection.execute(
-                    "INSERT INTO block_observations VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
+                    "INSERT INTO block_observations (height,observed_at,block_time,transactions,total_size,total_fee_btc,transaction_rate,source) VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
                 )
         data = self.sample(5_000, 10, 5, 8.0)
         data["chain"]["blocks"] = 104
@@ -948,7 +948,7 @@ class HistoryDatabaseTests(unittest.TestCase):
         with closing(app.database_connection()) as connection:
             with connection:
                 connection.execute(
-                    "INSERT INTO block_observations VALUES (100, 5000, 5000, 20, 2000, 0.01, NULL, 'rpc_backfill')"
+                    "INSERT INTO block_observations (height,observed_at,block_time,transactions,total_size,total_fee_btc,transaction_rate,source) VALUES (100, 5000, 5000, 20, 2000, 0.01, NULL, 'rpc_backfill')"
                 )
         with patch.object(app.time, "time", return_value=5_000):
             with patch.object(app, "mempool_analysis", return_value={}):
@@ -959,7 +959,7 @@ class HistoryDatabaseTests(unittest.TestCase):
         with closing(app.database_connection()) as connection:
             with connection:
                 connection.execute(
-                    "INSERT INTO block_observations VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
+                    "INSERT INTO block_observations (height,observed_at,block_time,transactions,total_size,total_fee_btc,transaction_rate,source) VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
                 )
         data = self.sample(5_000, 10, 5, 8.0)
         data["chain"]["blocks"] = 102
@@ -982,7 +982,7 @@ class HistoryDatabaseTests(unittest.TestCase):
         with closing(app.database_connection()) as connection:
             with connection:
                 connection.execute(
-                    "INSERT INTO block_observations VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
+                    "INSERT INTO block_observations (height,observed_at,block_time,transactions,total_size,total_fee_btc,transaction_rate,source) VALUES (100, 4000, 4000, 10, 1000, 0.01, 1.0, 'snapshot')"
                 )
         data = self.sample(5_000, 10, 5, 8.0)
         data["chain"]["blocks"] = 120

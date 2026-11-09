@@ -148,13 +148,23 @@ def test():
     assert denied.returncode != 0
     credentials=state.joinpath("rpc.auth").read_bytes().strip()
     authorization="Basic "+base64.b64encode(credentials).decode()
-    def rpc(method):
+    def rpc(method,params=None):
         request=urllib.request.Request("http://127.0.0.1:18443",data=json.dumps(
-            {"jsonrpc":"2.0","id":"test","method":method,"params":[]}).encode(),
+            {"jsonrpc":"2.0","id":"test","method":method,"params":params or []}).encode(),
             headers={"Authorization":authorization,"Content-Type":"application/json"})
         return urllib.request.urlopen(request,timeout=5)
     with rpc("getblockchaininfo") as response:
-        assert json.load(response)["result"]["chain"]=="regtest"
+        chain=json.load(response)["result"]
+        assert chain["chain"]=="regtest"
+    # Simulate upgrading the old 1.24 whitelist without rotating credentials.
+    config=Path('/etc/bitcoin-dashboard/bitcoin.conf')
+    config.write_text(config.read_text().replace(',getblock,',','))
+    execute('/usr/bin/systemctl','restart','bitcoind')
+    execute('/bin/sh',str(SOURCE/'installer/bootstrap-admin.sh'))
+    wait_health()
+    assert state.joinpath('rpc.auth').read_bytes().strip()==credentials
+    with rpc('getblock',[chain['bestblockhash'],1]) as response:
+        assert json.load(response)['result']['weight']>0
     try:
         rpc("getrpcinfo")
         raise AssertionError("RPC allowlist was not enforced")

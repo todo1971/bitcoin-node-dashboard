@@ -38,7 +38,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.24.0"
+__version__ = "1.25.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -197,6 +197,11 @@ HISTORY_RANGES: dict[str, tuple[int, int]] = {
 }
 
 _cache_lock = threading.Lock()
+MESSAGE_GROUPS = ("blocks", "transactions", "announcements", "headers", "other")
+MESSAGE_COLUMNS = tuple(f"{group}_{direction}" for direction in ("received", "sent") for group in MESSAGE_GROUPS)
+_message_baseline: dict[str, Any] | None = None
+_protocol_cache_lock = threading.Lock()
+_protocol_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _cache: dict[str, Any] = {"expires": 0.0, "data": None}
 _external_cache_lock = threading.Lock()
 _external_cache: dict[str, Any] = {"expires": 0.0, "data": None}
@@ -1319,6 +1324,15 @@ def init_database() -> None:
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS block_observations_time ON block_observations(block_time)"
             )
+            block_columns = {row[1] for row in connection.execute("PRAGMA table_info(block_observations)")}
+            for column in ("block_weight", "fee_p10", "fee_p25", "fee_p50", "fee_p75", "fee_p90"):
+                if column not in block_columns:
+                    connection.execute(f"ALTER TABLE block_observations ADD COLUMN {column} REAL")
+            connection.execute("CREATE TABLE IF NOT EXISTS message_traffic_samples ("
+                               "sampled_at INTEGER PRIMARY KEY, beginning INTEGER, seconds INTEGER, "
+                               "matched_peers INTEGER, skipped_peers INTEGER, "
+                               + ",".join(f"{column} INTEGER" for column in MESSAGE_COLUMNS) + ")")
+            connection.execute("CREATE INDEX IF NOT EXISTS message_traffic_beginning ON message_traffic_samples(beginning)")
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS dashboard_meta (
                     key TEXT PRIMARY KEY,
@@ -1573,6 +1587,12 @@ def backfill_missing_blocks(data: dict[str, Any], max_blocks: int = 12) -> None:
             )}
             heights = [height for height in range(first_height, current_height + 1)
                        if height not in known]
+            current_metrics = connection.execute(
+                "SELECT fee_p50,block_weight FROM block_observations WHERE height=?", (current_height,)).fetchone()
+            if (current_height in known and current_metrics is not None
+                    and any(value is None for value in current_metrics)
+                    and isinstance((data.get("latest_block") or {}).get("feerate_percentiles"), list)):
+                heights.append(current_height)
             skipped = (max(0, first_height - previous_height - 1)
                        if previous_height is not None and previous_height < current_height else 0)
             if not heights and not skipped:
@@ -1599,18 +1619,21 @@ def backfill_missing_blocks(data: dict[str, Any], max_blocks: int = 12) -> None:
                 rate = (round(float(stats["txs"]) / interval, 3)
                         if isinstance(stats.get("txs"), int) and interval and interval > 0 else None)
                 fee = stats.get("totalfee")
+                metrics = block_visual_metrics(stats)
                 observations.append((height, int(time.time()), block_time,
                                      _number(stats.get("txs")), _number(stats.get("total_size")),
                                      float(fee) / 100_000_000 if isinstance(fee, (int, float)) else None,
-                                     rate, "snapshot" if height == current_height else "rpc_backfill"))
+                                     rate, "snapshot" if height == current_height else "rpc_backfill",
+                                     *metrics))
                 if height != current_height:
                     recovered += 1
             with connection:
                 connection.executemany(
                     """INSERT OR REPLACE INTO block_observations
                        (height, observed_at, block_time, transactions, total_size,
-                        total_fee_btc, transaction_rate, source)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        total_fee_btc, transaction_rate, source, block_weight,
+                        fee_p10, fee_p25, fee_p50, fee_p75, fee_p90)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     observations,
                 )
                 connection.execute(
@@ -1841,6 +1864,142 @@ def recent_blocks_data() -> dict[str, Any]:
             ORDER BY height DESC LIMIT 20
         """).fetchall()
     return {"generated_at": int(time.time()), "blocks": [dict(row) for row in rows]}
+
+
+def block_visual_metrics(stats: dict[str, Any]) -> tuple:
+    """Full block weight includes coinbase; getblockstats.total_weight does not."""
+    weight = None
+    block_hash = stats.get("blockhash")
+    if isinstance(block_hash, str) and re.fullmatch(r"[0-9a-fA-F]{64}", block_hash):
+        block = safe_call("getblock", block_hash, "1")
+        value = block.get("weight") if isinstance(block, dict) else None
+        if isinstance(value, int) and not isinstance(value, bool) and 0 < value <= 4_000_000:
+            weight = value
+    values = stats.get("feerate_percentiles")
+    fees = [None] * 5
+    if (isinstance(values, list) and len(values) == 5
+            and all(isinstance(value, (int, float)) and not isinstance(value, bool)
+                    and math.isfinite(value) and value >= 0 for value in values)
+            and values == sorted(values)):
+        fees = values
+    return (weight, *fees)
+
+
+def message_peer_counters(peers: Any) -> dict[str, dict[str, int]]:
+    """Retain only connection identity and counters in memory, never addresses."""
+    result = {}
+    if not isinstance(peers, list):
+        return result
+    for peer in peers:
+        if not isinstance(peer, dict):
+            continue
+        identity, connected = peer.get("id"), peer.get("conntime")
+        if not all(isinstance(value, int) and not isinstance(value, bool) and value >= 0
+                   for value in (identity, connected)):
+            continue
+        counters = {}
+        valid = True
+        for direction, key in (("received", "bytesrecv_per_msg"), ("sent", "bytessent_per_msg")):
+            raw = peer.get(key)
+            if not isinstance(raw, dict) or len(raw) > 256:
+                valid = False
+                break
+            for name, value in raw.items():
+                if (not isinstance(name, str) or len(name) > 64 or not isinstance(value, int)
+                        or isinstance(value, bool) or value < 0 or value > 2**63-1):
+                    valid = False
+                    break
+                counters[f"{direction}:{name}"] = value
+        if valid:
+            result[f"{identity}:{connected}"] = counters
+    return result
+
+
+def message_traffic_delta(previous: Any, current: dict[str, Any]) -> dict[str, Any]:
+    row = {"sampled_at": current["timestamp"], "beginning": current["timestamp"], "seconds": 0,
+           "matched_peers": 0, "skipped_peers": current["peer_count"],
+           **dict.fromkeys(MESSAGE_COLUMNS)}
+    if previous is None:
+        return row
+    elapsed = current["timestamp"] - previous["timestamp"]
+    old, new = previous.get("uptime"), current.get("uptime")
+    if (not all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in (old, new))
+            or not 0 < elapsed <= max(180, 3 * SAMPLE_INTERVAL_SECONDS)
+            or new < old or abs(new - old - elapsed) > 5):
+        return row
+    totals = dict.fromkeys(MESSAGE_COLUMNS, 0)
+    matched = 0
+    for identity, counters in current["peers"].items():
+        before = previous["peers"].get(identity)
+        if before is None:
+            continue
+        # A disappearing key or decreasing counter is a reset, not negative traffic.
+        if any(counters.get(name, 0) < value for name, value in before.items()):
+            continue
+        matched += 1
+        for name, value in counters.items():
+            direction, message = name.split(":", 1)
+            group = ("blocks" if message in ("block", "cmpctblock", "blocktxn", "getblocktxn") else
+                     "transactions" if message == "tx" else
+                     "announcements" if message in ("inv", "getdata", "notfound") else
+                     "headers" if message in ("headers", "getheaders", "getblocks") else "other")
+            totals[f"{group}_{direction}"] += value - before.get(name, 0)
+    departed = len(previous["peers"].keys() - current["peers"].keys())
+    row.update(beginning=previous["timestamp"], matched_peers=matched,
+               skipped_peers=current["peer_count"] - matched + departed)
+    if matched:
+        row.update(seconds=elapsed, **totals)
+    return row
+
+
+def sample_message_traffic() -> None:
+    global _message_baseline
+    peers = safe_call("getpeerinfo")
+    uptime = safe_call("uptime")
+    current = {"timestamp": int(time.time()), "uptime": uptime,
+               "peer_count": len(peers) if isinstance(peers, list) else 0,
+               "peers": message_peer_counters(peers)}
+    row = message_traffic_delta(_message_baseline, current)
+    with closing(database_connection()) as connection, connection:
+        columns = ("sampled_at", "beginning", "seconds", "matched_peers", "skipped_peers", *MESSAGE_COLUMNS)
+        connection.execute(f"INSERT OR REPLACE INTO message_traffic_samples ({','.join(columns)}) "
+                           f"VALUES ({','.join('?' for _ in columns)})", tuple(row[column] for column in columns))
+        connection.execute("DELETE FROM message_traffic_samples WHERE sampled_at < ?",
+                           (current["timestamp"] - HISTORY_RETENTION_DAYS * 86400,))
+    _message_baseline = current
+
+
+def protocol_history(range_name: str) -> dict[str, Any]:
+    range_name = range_name if range_name in HISTORY_RANGES else "24h"
+    now = int(time.time())
+    duration, bucket = HISTORY_RANGES[range_name]
+    with _protocol_cache_lock:
+        cached = _protocol_cache.get(range_name)
+        if cached and now < cached[0] and cached[1].get("database") == str(DATABASE_PATH):
+            return cached[1]["result"]
+        init_database()
+        with closing(database_connection()) as connection:
+            aggregate = ",".join(f"CASE WHEN MIN(seconds)>0 THEN 1.0*SUM({column})/SUM(seconds) END AS {column}" for column in MESSAGE_COLUMNS)
+            messages = connection.execute(
+                f"SELECT CAST(sampled_at/? AS INTEGER)*? AS timestamp,{aggregate},"
+                "SUM(seconds) AS measured_seconds, AVG(matched_peers) AS matched_peers, SUM(skipped_peers) AS skipped_peers "
+                "FROM message_traffic_samples WHERE beginning>=? AND sampled_at<=? "
+                "GROUP BY timestamp ORDER BY timestamp", (bucket,bucket,now-duration,now)).fetchall()
+            totals = connection.execute("SELECT "+",".join(f"SUM({column}) AS {column}" for column in MESSAGE_COLUMNS)
+                + ",COALESCE(SUM(seconds),0) AS measured_seconds FROM message_traffic_samples WHERE beginning>=? AND sampled_at<=?",
+                (now-duration,now)).fetchone()
+            blocks = connection.execute("""WITH ranked AS (
+                SELECT *, CAST(block_time/? AS INTEGER)*? AS timestamp,
+                  ROW_NUMBER() OVER (PARTITION BY CAST(block_time/? AS INTEGER) ORDER BY block_time DESC,height DESC) AS rank
+                FROM block_observations WHERE block_time BETWEEN ? AND ?
+              ) SELECT timestamp,height,block_time,block_weight,
+                block_weight/40000.0 AS fullness_percent,fee_p10,fee_p25,fee_p50,fee_p75,fee_p90
+                FROM ranked WHERE rank=1 ORDER BY timestamp""",(bucket,bucket,bucket,now-duration,now)).fetchall()
+        result = {"range": range_name, "generated_at": now, "bucket_seconds": bucket,
+                  "message_points": [dict(row) for row in messages], "message_totals": dict(totals),
+                  "block_points": [dict(row) for row in blocks]}
+        _protocol_cache[range_name] = (now+30,{"database":str(DATABASE_PATH),"result":result})
+        return result
 
 
 def store_daily_utxo_sample(now: int | None = None) -> bool:
@@ -2200,7 +2359,7 @@ def request_client_id(address: str, headers: Any) -> str:
 
 def allow_request(client_id: str, path: str) -> bool:
     now = time.monotonic()
-    heavy = path in ("/api/traffic", "/api/history", "/api/analytics", "/api/chain-tips")
+    heavy = path in ("/api/traffic", "/api/history", "/api/analytics", "/api/chain-tips", "/api/protocol-history")
     with _request_limits_lock:
         for key in list(_request_limits):
             if now - _request_limits[key][0] >= 60:
@@ -2570,6 +2729,7 @@ def admin_update_log(kind: str) -> tuple[int, str, str]:
 
 
 def sampler_loop() -> None:
+    global _message_baseline
     initialized = False
     while True:
         started = time.monotonic()
@@ -2594,6 +2754,11 @@ def sampler_loop() -> None:
         else:
             try:
                 store_snapshot(data)
+                try:
+                    sample_message_traffic()
+                except Exception as exc:
+                    print(f"Message traffic sample unavailable: {exc}", flush=True)
+                    _message_baseline = None
                 evaluate_alerts(data)
                 if not _backfill_lock.locked():
                     threading.Thread(
@@ -2745,6 +2910,7 @@ class Handler(BaseHTTPRequestHandler):
             "/static/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
             "/static/admin.js": ("admin.js", "text/javascript; charset=utf-8"),
             "/static/node-insights.js": ("node-insights.js", "text/javascript; charset=utf-8"),
+            "/static/protocol-insights.js": ("protocol-insights.js", "text/javascript; charset=utf-8"),
             "/static/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
             "/static/locales/de.json": ("locales/de.json", "application/json; charset=utf-8"),
             "/static/locales/en.json": ("locales/en.json", "application/json; charset=utf-8"),
@@ -2834,11 +3000,12 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"Chain tips request failed: {exc}", flush=True)
                 self.send_bytes(b'{"error":"Chain tips unavailable"}', "application/json; charset=utf-8", 503)
             return
-        if path in ("/api/traffic", "/api/recent-blocks"):
+        if path in ("/api/traffic", "/api/recent-blocks", "/api/protocol-history"):
             try:
                 params = parse_qs(parsed.query)
                 data = (traffic_history(params.get("range", ["24h"])[0], params.get("timezone", ["UTC"])[0][:128])
-                        if path == "/api/traffic" else recent_blocks_data())
+                        if path == "/api/traffic" else protocol_history(params.get("range", ["24h"])[0])
+                        if path == "/api/protocol-history" else recent_blocks_data())
                 self.send_bytes(json.dumps(data, separators=(",", ":")).encode(), "application/json; charset=utf-8")
             except Exception as exc:
                 print(f"Node insights unavailable: {exc}", flush=True)

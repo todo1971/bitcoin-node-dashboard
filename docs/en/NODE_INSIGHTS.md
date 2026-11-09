@@ -5,9 +5,31 @@
 Since version 1.20.0, **Network** contains traffic rates and the collapsed
 **Peer software and capabilities** tables. **History** shows Bitcoin Core
 traffic by calendar day. **Analysis** lists the last 20 locally recorded blocks.
-No additional RPC methods are required.
+Functions through 1.23 require no additional RPC methods; block utilization since 1.25 requires `getblock`.
 
-## Peers
+## Charts since 1.25
+
+**Network → Traffic by message type** contains stacked received/sent charts (decimal KB/s) and recorded byte totals for the selected range. Groups:
+
+- Blocks: `block`, `cmpctblock`, `blocktxn`, `getblocktxn`.
+- Transactions: `tx`.
+- Announcements and requests: `inv`, `getdata`, `notfound` (mixed content).
+- Block headers: `headers`, `getheaders`, `getblocks`.
+- Other messages: all remaining types, including protocol management.
+
+Once per sampling interval, `getpeerinfo` and `uptime` are read. Deltas require matching peer IDs and connection start times, nondecreasing individual counters and consistent Core uptime. Restarts and excessive gaps are not bridged. New, disconnected or incomparable connections are excluded. Connections created and closed entirely between samples are also missed. These values are therefore a recorded subset of P2P application traffic, not complete node or provider traffic. Zero means measured inactivity; unknown values remain empty.
+
+Only aggregated groups are stored in `message_traffic_samples`. Peer identities remain in the volatile comparison baseline; IP addresses are neither stored nor published for this feature. Dashboard restarts require two new samples. Chart buckets containing invalid samples remain unknown. Rates are weighted by valid measurement duration; boundary intervals are not invented proportionally. Totals may contain valid subintervals even when a chart bucket is unknown.
+
+**Analysis → Fee bands and block utilization** shows transaction-weight-weighted P10/P25/P50/P75/P90 fee rates from `getblockstats` in sat/vB. P50 is the median; P10–P90 and P25–P75 appear as colored bands. These are confirmed fees, not recommendations or predictions. The last recorded block in each chart bucket is selected; percentiles are never averaged.
+
+Full weight from `getblock` includes the coinbase transaction. Utilization = weight / 4,000,000 × 100%. `getblockstats.total_weight` alone would exclude coinbase. Missing or pruned blocks remain unknown. Existing observations are not given invented history; the current block can be enriched. The global range selector under **History** applies to both new views.
+
+### Setup and updating
+
+Rerun root bootstrap from the verified current release to allow the new read method `getblock`; see [security migration](SECURITY.md). It extends the existing RPC permissions without replacing credentials and only restarts local Core when the permissions change; the dashboard is also restarted. A dashboard-only update can collect fee bands, but block utilization remains unknown without the new permission. Remote nodes need the permission on their own host. No additional Python or system packages are needed. Containers with full cookie credentials need no additional RPC permission; extend restricted accounts accordingly.
+
+## Peer details
 
 Client names and software versions come from `getpeerinfo.subver`, rather than
 the P2P protocol number. At most twelve client groups and a remainder group are

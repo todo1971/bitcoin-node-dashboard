@@ -22,7 +22,7 @@ STATE = Path("/var/lib/bitcoin-dashboard")
 TARGET = Path("/opt/bitcoin-dashboard")
 CONFIG = Path("/etc/bitcoin-dashboard-updater.conf")
 SERVICE = Path("/etc/systemd/system/bitcoin-dashboard.service")
-METHODS = ("getblockchaininfo", "getnetworkinfo", "getmempoolinfo", "getnettotals",
+METHODS = ("getblockchaininfo", "getnetworkinfo", "getmempoolinfo", "getnettotals", "getblock",
            "getpeerinfo", "uptime", "getblockstats", "getrawmempool", "getchaintips",
            "gettxoutsetinfo", "getblockcount", "estimatesmartfee")
 
@@ -273,6 +273,17 @@ def install():
                                   environment.get("BITCOIN_DATADIR","/home/btc/bitcoin-data"))
             environment["BITCOIN_DATADIR"] = actual_datadir
             config["BITCOIN_DATADIR"] = actual_datadir
+        elif core_command:
+            # Extend an existing monitor account without rotating its credentials.
+            text = regular_bytes(core_config, require_root=True).decode("utf-8")
+            wanted = "rpcwhitelist=dashboard-monitor:"+",".join(METHODS)
+            updated, count = re.subn(r"^rpcwhitelist=dashboard-monitor:[^\n]*", wanted, text, flags=re.M)
+            if count != 1:
+                raise ValueError("Expected one managed monitor RPC allowlist")
+            if updated != text:
+                info = core_config.stat()
+                atomic_write(core_config, updated, stat.S_IMODE(info.st_mode), info.st_uid, info.st_gid)
+                core_changed = True
         elif not core_command:
             credentials=regular_bytes(Path(environment["BITCOIN_COOKIE"]))
             atomic_write(STATE/"rpc.auth",credentials,0o600,account.pw_uid,account.pw_gid)
