@@ -93,3 +93,9 @@ mehrmals pro Sekunde erfolgen, mehrere Dashboard-Prozesse parallel laufen oder
 externe Analysewerkzeuge dauerhaft komplexe Abfragen ausführen. Die aktuelle
 API trennt Datenerfassung und Ausgabe bereits so, dass später ein alternatives
 Speicher-Backend ergänzt werden kann.
+
+## Zusätzliche Historie ab 1.25
+
+`message_traffic_samples` speichert pro Messintervall nur aggregierte empfangene/gesendete Bytes für fünf Nachrichtengruppen, Zeitgrenzen und Vergleichszähler. Bei 60 Sekunden Intervall entstehen höchstens 525.600 Zeilen je 365 Tage. Die konfigurierte Aufbewahrung gilt auch hier; ein Index auf dem Intervallbeginn begrenzt Bereichsabfragen. Es werden keine Peer-Adressen oder einzelnen Peer-Zähler dauerhaft gespeichert.
+
+`block_observations` erhält sechs nullable Spalten: vollständiges Blockgewicht und fünf Gebührenperzentile. Migrationen erhalten vorhandene Zeilen. Ältere Werte bleiben unbekannt; weder Nullwerte noch gemittelte Perzentile ersetzen fehlende Daten. API-Abfragen laufen lokal in SQLite und sind pro Zeitraum 30 Sekunden gecacht. Keine zusätzlichen Pakete nötig. Details: [Node-Auswertungen](NODE_INSIGHTS.md).

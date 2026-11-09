@@ -5,9 +5,31 @@ Deutsch | [English](en/NODE_INSIGHTS.md)
 Ab Version 1.20.0 enthält der Reiter **Netzwerk** Verkehrsraten und die
 eingeklappte Tabelle **Peer-Software und Fähigkeiten**. **Historie** zeigt
 den Bitcoin-Core-Traffic nach Kalendertagen. Unter **Analyse** stehen die letzten
-20 lokal erfassten Blöcke. Es werden keine zusätzlichen RPC-Methoden benötigt.
+20 lokal erfassten Blöcke. Für die Funktionen bis 1.23 werden keine zusätzlichen RPC-Methoden benötigt; die neue Blockauslastung ab 1.25 benötigt `getblock`.
 
-## Peers
+## Diagramme ab 1.25
+
+Unter **Netzwerk → Traffic nach Nachrichtentyp** stehen zwei gestapelte Flächendiagramme für Empfang und Versand (dezimal KB/s) sowie die erfassten Byte-Summen des gewählten Zeitraums. Gruppen:
+
+- Blöcke: `block`, `cmpctblock`, `blocktxn`, `getblocktxn`.
+- Transaktionen: `tx`.
+- Ankündigungen und Anfragen: `inv`, `getdata`, `notfound` (gemischte Inhalte).
+- Blockheader: `headers`, `getheaders`, `getblocks`.
+- Weitere Nachrichten: alle übrigen Typen, einschließlich Protokollverwaltung.
+
+Einmal pro Messintervall werden `getpeerinfo` und `uptime` gelesen. Deltas gelten nur für dieselbe Peer-ID und Verbindungsstartzeit, nicht sinkende Einzelzähler und passende Core-Laufzeit. Zu große Zeitlücken oder Neustarts werden nicht überbrückt. Neue, getrennte oder nicht vergleichbare Verbindungen fehlen in den Summen. Auch unbemerkt zwischen zwei Messungen gestartete und beendete Verbindungen fehlen. Die Werte sind daher ein erfasster Teil des P2P-Anwendungsverkehrs, kein vollständiger Node- oder Provider-Traffic. Null ist gemessener Stillstand; unbekannte Werte bleiben leer.
+
+Nur aggregierte Gruppenwerte werden in `message_traffic_samples` gespeichert. Peer-Identitäten bleiben ausschließlich in der flüchtigen Vergleichsbasis; IP-Adressen werden dafür weder gespeichert noch veröffentlicht. Nach einem Dashboard-Neustart benötigt die Erfassung zwei neue Messungen. Zeitabschnitte mit ungültigen Messungen bleiben im Diagramm unbekannt. Raten werden über die gültige Messdauer gewichtet; Randintervalle werden nicht anteilig erfunden. Die Summen können trotz unbekannter Diagrammabschnitte gültige Teilintervalle enthalten.
+
+Unter **Analyse → Gebührenband und Blockauslastung** zeigen P10/P25/P50/P75/P90 die nach Transaktionsgewicht gewichteten Gebührenraten aus `getblockstats` in sat/vB. P50 ist der Median; P10–P90 und P25–P75 erscheinen als farbige Bänder. Das sind bestätigte Gebühren, keine Empfehlung oder Prognose. Je Diagrammzeitabschnitt wird der letzte erfasste Block gewählt; Perzentile werden nicht gemittelt.
+
+Das vollständige Gewicht aus `getblock` enthält die Coinbase-Transaktion. Auslastung = Gewicht / 4.000.000 × 100 %. `getblockstats.total_weight` allein wäre unvollständig, weil es Coinbase ausschließt. Fehlen Daten oder ist ein Block geprunt, bleibt sein Wert unbekannt. Bestehende ältere Beobachtungen erhalten keine erfundene Historie; der aktuelle Block kann ergänzt werden. Die globale Zeitraumwahl unter **Historie** gilt für beide neuen Ansichten.
+
+### Einrichtung und Update
+
+Für die neue Lesemethode `getblock` den Root-Bootstrap aus dem geprüften aktuellen Release erneut ausführen, siehe [Sicherheitsmigration](SECURITY.md). Er ergänzt die vorhandene RPC-Freigabe ohne neue Zugangsdaten und startet den lokalen Core nur bei geänderter Freigabe neu; das Dashboard wird ebenfalls neu gestartet. Ein reines Dashboard-Update kann das Gebührenband bereits erfassen, lässt die Blockauslastung ohne diese Freigabe aber unbekannt. Externe Nodes benötigen die Freigabe auf ihrem eigenen Host. Keine neuen Python- oder Systempakete nötig. Container mit vollständigen Cookie-Rechten benötigen keine zusätzliche RPC-Freigabe; eingeschränkte Konten entsprechend ergänzen.
+
+## Peer-Details
 
 Clientnamen und Softwareversionen stammen aus `getpeerinfo.subver`, nicht aus
 der P2P-Protokollnummer. Es erscheinen maximal zwölf Clientgruppen und eine

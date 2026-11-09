@@ -8,7 +8,7 @@ Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 
 Die Host-Installation trennt das Dienstkonto `bitcoin-dashboard` vom Bitcoin-Core-Konto. Dashboard-Code liegt unter `/opt/bitcoin-dashboard` und gehört root. Beschreibbar bleiben ausschließlich die Zustandsdaten unter `/var/lib/bitcoin-dashboard`. Die `.env` und `rpc.auth` gehören dem Dashboard-Konto mit Modus 0600. Das Dashboard liest bei lokalen Nodes einen eigenen RPC-Zugang, nicht den vollständigen Node-Cookie.
 
-Der lokale RPC-Zugang erlaubt ausschließlich: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Andere bereits vorhandene RPC-Benutzer behalten ihre Rechte. Bei einem extern betriebenen Node muss dessen Administrator diese Beschränkung dort selbst einrichten. Container werden durch diesen Host-Bootstrap nicht migriert; dort Updates extern verwalten und RPC-Zugänge separat beschränken.
+Der lokale RPC-Zugang erlaubt ausschließlich: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getblock`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Andere bereits vorhandene RPC-Benutzer behalten ihre Rechte. Bei einem extern betriebenen Node muss dessen Administrator diese Beschränkung dort selbst einrichten. Container werden durch diesen Host-Bootstrap nicht migriert; dort Updates extern verwalten und RPC-Zugänge separat beschränken.
 
 Die Updatequelle und ein optionales GitHub-Token stehen für Root-Updates ausschließlich in `/etc/bitcoin-dashboard-updater.conf` (root:root, 0600). Die Weboberfläche kann sie nicht ändern. Angaben in der Dashboard-`.env` dienen gegebenenfalls nur der unprivilegierten Versionsanzeige. Das öffentliche Projekt benötigt keinen Token. HTTPS und ein vertrauenswürdiger GitHub-Account bleiben Teil der Vertrauenskette: Eine SHA-256-Datei aus demselben Release ersetzt keine unabhängige Signatur.
 
@@ -19,11 +19,11 @@ Ein normales Dashboard-Update ersetzt keine Root-Helfer. Deshalb muss der Bootst
 ```bash
 install -d -m 0700 /root/bitcoin-dashboard-release
 cd /root/bitcoin-dashboard-release
-curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz
-curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz.sha256
-sha256sum -c bitcoin-node-dashboard-1.24.0.tar.gz.sha256
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.25.0/bitcoin-node-dashboard-1.25.0.tar.gz
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.25.0/bitcoin-node-dashboard-1.25.0.tar.gz.sha256
+sha256sum -c bitcoin-node-dashboard-1.25.0.tar.gz.sha256
 tmpdir=$(mktemp -d /root/bitcoin-dashboard-release/unpack.XXXXXX)
-tar -xzf bitcoin-node-dashboard-1.24.0.tar.gz -C "$tmpdir"
+tar -xzf bitcoin-node-dashboard-1.25.0.tar.gz -C "$tmpdir"
 sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 systemctl enable bitcoin-dashboard
 curl -fsS http://127.0.0.1:8787/healthz
@@ -33,7 +33,7 @@ Vorher ein eigenes Backup anlegen. Der Bootstrap sichert außerdem Zustand, ursp
 
 Für einen lokalen systemd-Node wird ein expliziter `-conf=...`-Pfad und ein eigenes Core-Dienstkonto vorausgesetzt. Der Bootstrap übernimmt den bisherigen Konfigurationsinhalt, ergänzt die RPC-Freigaben und schreibt ihn nach `/etc/bitcoin-dashboard/bitcoin.conf` (root und Core-Gruppe, 0640). Ein Drop-in für `bitcoind.service` verwendet diese Konfiguration und die nach `/usr/local/lib/bitcoin-core/bin` kopierten, root-eigenen Programme. Der vorhandene `-datadir` bleibt erhalten. Künftige Core-Konfigurationsänderungen müssen an der neuen aktiven Datei erfolgen. Die ursprüngliche Datei wird nicht gelöscht. Sonderkonfigurationen mit Includes, weiteren Drop-ins oder externen Nodes vorher prüfen.
 
-Bei einem Fehler stellt der Bootstrap die gesicherten Dienstdateien, Programmdateien, Zustandsdaten und deren Eigentümer wieder her und versucht den vorher laufenden Dienst erneut zu starten. Backups und Journal anschließend prüfen; auch ein Rollback kann durch externe Fehler scheitern. Ein erfolgreich wiederholter Bootstrap behält den bereits eingeschränkten RPC-Zugang bei und startet Core nicht erneut.
+Bei einem Fehler stellt der Bootstrap die gesicherten Dienstdateien, Programmdateien, Zustandsdaten und deren Eigentümer wieder her und versucht den vorher laufenden Dienst erneut zu starten. Backups und Journal anschließend prüfen; auch ein Rollback kann durch externe Fehler scheitern. Ein wiederholter Bootstrap behält die Zugangsdaten bei. Bei unveränderter RPC-Freigabe wird Core nicht erneut gestartet; ab 1.25 wird bei Bedarf `getblock` ergänzt und Core dafür neu gestartet.
 
 ## Schutz der Weboberfläche
 

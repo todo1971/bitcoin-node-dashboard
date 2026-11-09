@@ -13,6 +13,15 @@ const assert = require('node:assert/strict');
     const now = Math.floor(Date.now()/1000);
     await page.route('http://dashboard.test/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
+      if (pathname === '/api/protocol-history') {
+        const fields = value => Object.fromEntries(['received','sent'].flatMap(direction=>['blocks','transactions','announcements','headers','other'].map((group,i)=>[`${group}_${direction}`,value==null?null:value*(i+1)])));
+        return route.fulfill({json:{bucket_seconds:60,
+          message_totals:{...fields(1000000000),measured_seconds:180},
+          message_points:[{timestamp:now-180,...fields(1000)},{timestamp:now-120,...fields(2000)},{timestamp:now-60,...fields(null)},{timestamp:now,...fields(1500)}],
+          block_points:[{timestamp:now-120,height:900001,fee_p10:1,fee_p25:2,fee_p50:3,fee_p75:4,fee_p90:5,fullness_percent:50},
+                        {timestamp:now-60,height:900002,fee_p10:2,fee_p25:3,fee_p50:4,fee_p75:5,fee_p90:6,fullness_percent:100}],
+        }});
+      }
       if (pathname === '/api/traffic') {
         assert.equal(new URL(route.request().url()).searchParams.get('timezone'), 'Europe/Berlin');
         return route.fulfill({json:{
@@ -54,6 +63,14 @@ const assert = require('node:assert/strict');
       await page.evaluate(() => window.dispatchEvent(new CustomEvent('node-snapshot',{detail:{network:{traffic:{available:true,received_bytes_per_second:2048,sent_bytes_per_second:0},peer_analysis:{clients:[{name:'<img src=x onerror=alert(1)>',count:2}],services:[{name:'WITNESS',count:2}],connection_types:[{name:'inbound',count:2}]}}}})));
       assert.equal(await page.locator('#receiveRate').textContent(), '2');
       assert.equal(await page.locator('#sendRate').textContent(), '0');
+      await page.locator('#messageTrafficDetails summary').click();
+      await page.waitForFunction(()=>document.querySelector('#messageGroupRows').textContent.includes('GB'));
+      assert.equal(await page.locator('#messageTrafficDetails summary').textContent(),catalog['Traffic nach Nachrichtentyp']);
+      await page.waitForFunction(()=>{
+        const canvas=document.querySelector('#messageReceivedChart');
+        const rgba=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+        return rgba.some((red,i)=>i%4===0&&red===247&&rgba[i+1]===147&&rgba[i+2]===26);
+      });
       assert.equal(await page.locator('#clientRows img').count(), 0);
       assert.match(await page.locator('#clientRows').textContent(), /<img/);
       await page.evaluate(() => window.dispatchEvent(new Event('node-offline')));
@@ -92,6 +109,17 @@ const assert = require('node:assert/strict');
       await page.click('[data-range="1h"]');
       await page.click('#tab-analysis');
       await page.waitForFunction(() => document.querySelector('#recentBlockRows').textContent.includes('42'));
+      assert.equal(await page.locator('#blockVisualDetails summary').textContent(),catalog['Gebührenband und Blockauslastung']);
+      await page.waitForFunction(()=>{
+        const canvas=document.querySelector('#confirmedFeeChart');
+        const rgba=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+        return rgba.some((red,i)=>i%4===0&&red===247&&rgba[i+1]===147&&rgba[i+2]===26);
+      });
+      await page.waitForFunction(()=>{
+        const canvas=document.querySelector('#blockFullnessChart');
+        const rgba=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+        return rgba.some((red,i)=>i%4===0&&red===210&&rgba[i+1]===168&&rgba[i+2]===255);
+      });
       await page.locator('#dailyBlockStats summary').click();
       assert.match(await page.locator('#dailyBlockRows').textContent(), /300/);
       assert.match(await page.locator('#dailyBlockRows').textContent(), /–/);
@@ -102,8 +130,9 @@ const assert = require('node:assert/strict');
       }
       await page.setViewportSize({width:1280,height:800});
       if (language === 'en' && process.env.QA_SCREENSHOT) {
+        await page.screenshot({path:process.env.QA_SCREENSHOT.replace('.png','-analysis.png'),fullPage:true});
         await page.click('#tab-network');
-        await page.locator('#networkPanel summary').click();
+        await page.locator('#networkPanel summary').first().click();
         await page.screenshot({path:process.env.QA_SCREENSHOT,fullPage:true});
       }
     }

@@ -195,7 +195,7 @@ class TrafficTests(unittest.TestCase):
         base = f'http://127.0.0.1:{server.server_port}'
         try:
             with patch.object(app, 'bitcoin_cli', side_effect=AssertionError('unexpected RPC')):
-                for path, key in (('/api/traffic?range=invalid', 'periods'), ('/api/recent-blocks', 'blocks')):
+                for path, key in (('/api/traffic?range=invalid', 'periods'), ('/api/recent-blocks', 'blocks'), ('/api/protocol-history?range=invalid','message_points')):
                     with urllib.request.urlopen(base + path, timeout=5) as response:
                         self.assertIn(key, json.load(response))
             with patch.object(app, 'recent_blocks_data', side_effect=RuntimeError('QA database error')):

@@ -8,7 +8,7 @@ Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 
 The host installation separates the `bitcoin-dashboard` service account from the Bitcoin Core account. Dashboard code is root-owned under `/opt/bitcoin-dashboard`. Writable state remains under `/var/lib/bitcoin-dashboard`; `.env` and `rpc.auth` belong to the dashboard account with mode 0600. Local nodes use dedicated RPC credentials instead of the full node cookie.
 
-The local RPC account permits only: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Existing RPC users retain their permissions. Remote node administrators must configure this restriction on their node themselves. This host bootstrap does not migrate containers; manage container updates externally and restrict their RPC credentials separately.
+The local RPC account permits only: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getblock`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Existing RPC users retain their permissions. Remote node administrators must configure this restriction on their node themselves. This host bootstrap does not migrate containers; manage container updates externally and restrict their RPC credentials separately.
 
 Root updates obtain their repository and optional GitHub token exclusively from `/etc/bitcoin-dashboard-updater.conf` (root:root, 0600). The web UI cannot edit them. Values in the dashboard `.env` may only influence the unprivileged version display. The public project needs no token. HTTPS and a trusted GitHub account remain part of the trust chain: a checksum from the same release is not an independent signature.
 
@@ -19,11 +19,11 @@ A regular dashboard update does not replace root helpers. Run the bootstrap **on
 ```bash
 install -d -m 0700 /root/bitcoin-dashboard-release
 cd /root/bitcoin-dashboard-release
-curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz
-curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.24.0/bitcoin-node-dashboard-1.24.0.tar.gz.sha256
-sha256sum -c bitcoin-node-dashboard-1.24.0.tar.gz.sha256
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.25.0/bitcoin-node-dashboard-1.25.0.tar.gz
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.25.0/bitcoin-node-dashboard-1.25.0.tar.gz.sha256
+sha256sum -c bitcoin-node-dashboard-1.25.0.tar.gz.sha256
 tmpdir=$(mktemp -d /root/bitcoin-dashboard-release/unpack.XXXXXX)
-tar -xzf bitcoin-node-dashboard-1.24.0.tar.gz -C "$tmpdir"
+tar -xzf bitcoin-node-dashboard-1.25.0.tar.gz -C "$tmpdir"
 sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 systemctl enable bitcoin-dashboard
 curl -fsS http://127.0.0.1:8787/healthz
@@ -33,7 +33,7 @@ Create your own backup first. The bootstrap also saves state, original services 
 
 A local systemd node requires an explicit `-conf=...` path and its own Core service account. Bootstrap preserves the existing configuration content, adds RPC permissions and writes `/etc/bitcoin-dashboard/bitcoin.conf` (root and Core group, 0640). A `bitcoind.service` drop-in uses this configuration and root-owned binaries copied to `/usr/local/lib/bitcoin-core/bin`. Existing `-datadir` arguments are preserved. Future Core configuration changes must target the new active file. The original file is retained. Review unusual configurations with includes, additional drop-ins or external nodes first.
 
-On failure bootstrap restores saved service files, code, state and ownership, and attempts to restart the previously running service. Review backups and the journal afterwards; external failures can also prevent rollback. Successful repeated bootstrap retains the restricted RPC credentials and does not restart Core again.
+On failure bootstrap restores saved service files, code, state and ownership, and attempts to restart the previously running service. Review backups and the journal afterwards; external failures can also prevent rollback. Repeated bootstrap retains the RPC credentials. Unchanged RPC permissions do not restart Core; since 1.25, bootstrap adds `getblock` when necessary and restarts Core to activate it.
 
 ## Web protection
 

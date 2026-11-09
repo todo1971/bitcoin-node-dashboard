@@ -16,6 +16,7 @@ provides a separately identified external directory status, not our own live por
 
 ## Features
 
+- P2P message traffic, confirmed fee bands and full block utilization with history and explanatory notes ([details](docs/en/NODE_INSIGHTS.md))
 - Multi-platform containers for AMD64 and ARM64 / Raspberry Pi with 64-bit Linux ([requirements and builds](docs/en/ARM64.md))
 - Peer software, service flags, connection types, daily traffic comparison with peer counts and upload peaks, and the last 20 recorded blocks ([details](docs/en/NODE_INSIGHTS.md))
 - Weekly traffic comparison, CSV report, IPv4/IPv6/Tor history and daily block statistics
@@ -101,6 +102,7 @@ Only root can manage the update repository and optional token in `/etc/bitcoin-d
 | `/api/history?range=24h` | Aggregated historical samples |
 | `/api/timeline?range=24h` | Events and data-quality notices for the selected period |
 | `/api/analytics?range=24h` | Block, UTXO and mempool analysis |
+| `/api/protocol-history?range=24h` | Message traffic and block charts from SQLite |
 | `/api/alerts` | Currently active alerts |
 | `/api/admin/upload/bitcoin` | Protected Bitcoin Core archive upload |
 | `/api/admin/logs/dashboard`, `/api/admin/logs/bitcoin` | Recent update log lines, admin authentication required |

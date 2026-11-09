@@ -85,3 +85,9 @@ Consider switching if several nodes write concurrently, sampling happens multipl
 times per second, multiple dashboard processes run in parallel or external
 analysis tools continuously run complex queries. The API already separates
 collection from presentation so an alternative storage backend can be added later.
+
+## Additional history since 1.25
+
+`message_traffic_samples` stores only aggregate received/sent bytes for five message groups, interval boundaries and comparison counts. A 60-second interval creates at most 525,600 rows per 365 days. Configured retention also applies here; an interval-start index bounds range queries. Peer addresses and individual peer counters are not stored persistently.
+
+`block_observations` gains six nullable columns: full block weight and five fee percentiles. Migration preserves existing rows. Older values remain unknown; neither zeros nor averaged percentiles replace missing data. API queries use local SQLite and a 30-second per-range cache. No additional packages are required. Details: [node insights](NODE_INSIGHTS.md).
