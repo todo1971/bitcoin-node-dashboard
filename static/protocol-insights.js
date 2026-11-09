@@ -25,6 +25,21 @@
     <p class="sub" id="messageCaptureState">Noch keine Messung vorhanden.</p>
     <p class="sub">Ankündigungen und Anfragen können Blöcke und Transaktionen betreffen. Die Zuordnung erfolgt nach P2P-Nachrichtentyp, nicht nach Inhalt.</p>
   </details>`);
+  card('networkPanel', `<details id="addressManagerDetails" open><summary>Bekannte Adressen und verbundene Peers</summary>
+    <p><span>Gespeicherte Adressen insgesamt</span>: <strong id="addressTotalCount" data-no-i18n>–</strong></p>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>Bestand</th><th>Balkenvergleich</th><th>Anzahl</th></tr></thead><tbody>
+      <tr><td>New: Adresskandidaten</td><td style="width:45%"><div style="background:#29313a;height:12px"><div id="addressNewBar" style="height:12px;background:#f7931a;width:0"></div></div></td><td id="addressNewCount" data-no-i18n>–</td></tr>
+      <tr><td>Tried: früher verbunden</td><td><div style="background:#29313a;height:12px"><div id="addressTriedBar" style="height:12px;background:#58a6ff;width:0"></div></div></td><td id="addressTriedCount" data-no-i18n>–</td></tr>
+      <tr><td>Aktuell verbunden</td><td><div style="background:#29313a;height:12px"><div id="addressConnectedBar" style="height:12px;background:#37d67a;width:0"></div></div></td><td id="addressConnectedCount" data-no-i18n>–</td></tr>
+    </tbody></table></div>
+    <p class="sub" id="addressManagerState">Noch keine Messung vorhanden.</p>
+    <p class="sub">Bekannt sind gespeicherte P2P-Adressen, keine eindeutigen Node-IDs. Ein Node kann mehrere Adressen haben; Verbindungen sind keine zusätzliche Adressgruppe.</p>
+    <p class="sub">New enthält Adresskandidaten. Tried bedeutet früher erfolgreich verbunden, nicht aktuell erreichbar.</p>
+    <div class="charts"><div class="chart-box"><b>Adressbestand im Verlauf</b><canvas id="addressHistoryChart"></canvas></div>
+    <div class="chart-box"><b>Aktuelle Verbindungen im Verlauf</b><canvas id="addressConnectionChart"></canvas></div></div>
+    <p class="legend"><span style="color:#f7931a">● New</span> · <span style="color:#58a6ff">● Tried</span> · <span style="color:#37d67a">● Verbindungen</span></p>
+    <p class="sub">Getrennte Diagrammskalen. Je Zeitabschnitt wird der Mittelwert der Messungen gezeigt; fehlende Werte bleiben unbekannt. Zeitraumwahl unter Historie.</p>
+  </details>`);
   card('analysisPanel', `<details id="blockVisualDetails" open><summary>Gebührenband und Blockauslastung</summary>
     <div class="charts"><div class="chart-box"><b>Bestätigte Gebührenraten (sat/vB)</b><canvas id="confirmedFeeChart"></canvas></div>
     <div class="chart-box"><b>Blockauslastung (%)</b><canvas id="blockFullnessChart"></canvas></div></div>
@@ -82,6 +97,29 @@
     }
   }
   function render() {
+    const latest = data?.address_latest;
+    const current = latest && !latest.stale ? latest : null;
+    const valid = value => typeof value==='number' && Number.isFinite(value) && value>=0;
+    el('addressTotalCount').textContent = valid(current?.total)?number(current.total):'–';
+    const maximum = Math.max(1,...['new','tried','connections'].map(key=>valid(current?.[key])?current[key]:0));
+    for(const [key,name] of [['new','New'],['tried','Tried'],['connections','Connected']]){
+      const value=current?.[key];
+      el(`address${name}Count`).textContent=valid(value)?number(value):'–';
+      el(`address${name}Bar`).style.width=`${valid(value)?100*value/maximum:0}%`;
+    }
+    const state=el('addressManagerState');
+    state.textContent = latest?.stale ? I18n.text('Messung veraltet.') : !latest ? I18n.text('Noch keine Messung vorhanden.') :
+      !valid(latest.total) ? I18n.text('Adressbestand derzeit nicht verfügbar.') :
+      `${I18n.text('Letzte Messung')}: ${new Date(latest.sampled_at*1000).toLocaleString(I18n.locale)}`;
+    state.classList.toggle('warn',Boolean(latest?.stale)||Boolean(latest&&!valid(latest.total)));
+    if(!el('networkPanel').hidden&&el('addressManagerDetails').open){
+      drawChart(el('addressHistoryChart'),data?.address_points||[],[
+        {key:'new',color:'#f7931a',markers:true},{key:'tried',color:'#58a6ff',markers:true},
+      ],data?.bucket_seconds||300,{minimum:0});
+      drawChart(el('addressConnectionChart'),data?.address_points||[],[
+        {key:'connections',color:'#37d67a',markers:true},
+      ],data?.bucket_seconds||300,{minimum:0});
+    }
     const rows=el('messageGroupRows');rows.replaceChildren();
     const legend=el('messageLegend');legend.replaceChildren();
     for(const group of groups){
@@ -120,5 +158,6 @@
   window.addEventListener('history-range',()=>{data=null;render();load();});
   el('messageTrafficDetails').addEventListener('toggle',render);
   el('blockVisualDetails').addEventListener('toggle',render);
+  el('addressManagerDetails').addEventListener('toggle',render);
   render();load();setInterval(()=>{if(!document.hidden)load();},60000);
 })();

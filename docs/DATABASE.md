@@ -99,3 +99,7 @@ Speicher-Backend ergänzt werden kann.
 `message_traffic_samples` speichert pro Messintervall nur aggregierte empfangene/gesendete Bytes für fünf Nachrichtengruppen, Zeitgrenzen und Vergleichszähler. Bei 60 Sekunden Intervall entstehen höchstens 525.600 Zeilen je 365 Tage. Die konfigurierte Aufbewahrung gilt auch hier; ein Index auf dem Intervallbeginn begrenzt Bereichsabfragen. Es werden keine Peer-Adressen oder einzelnen Peer-Zähler dauerhaft gespeichert.
 
 `block_observations` erhält sechs nullable Spalten: vollständiges Blockgewicht und fünf Gebührenperzentile. Migrationen erhalten vorhandene Zeilen. Ältere Werte bleiben unbekannt; weder Nullwerte noch gemittelte Perzentile ersetzen fehlende Daten. API-Abfragen laufen lokal in SQLite und sind pro Zeitraum 30 Sekunden gecacht. Keine zusätzlichen Pakete nötig. Details: [Node-Auswertungen](NODE_INSIGHTS.md).
+
+## Adressbestand ab 1.26
+
+`address_manager_samples` speichert Messzeit, New, Tried, Gesamtbestand und aktuelle Verbindungen. Fehlende Werte sind NULL; vorhandene Tabellen bleiben erhalten. Die konfigurierte Aufbewahrungsdauer gilt auch hier (bei 60 Sekunden höchstens 525.600 Zeilen je 365 Tage). Die API liefert nur aggregierte Zähler und Messzeiten. Einzeladressen, Peer-IDs und eine vermeintliche Anzahl eindeutiger Nodes werden nicht gespeichert.

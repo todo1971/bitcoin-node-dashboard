@@ -361,5 +361,21 @@
   "Ankündigungen und Anfragen können Blöcke und Transaktionen betreffen. Die Zuordnung erfolgt nach P2P-Nachrichtentyp, nicht nach Inhalt.": "Announcements and requests can concern blocks and transactions. Classification uses the P2P message type, not its content.",
   "Perzentile sind nach Transaktionsgewicht gewichtet. P50 ist der Median; P10 und P90 begrenzen das äußere Gebührenband. Keine Vorhersage künftiger Gebühren.": "Percentiles are weighted by transaction weight. P50 is the median; P10 and P90 bound the outer fee band. Not a prediction of future fees.",
   "Blockauslastung: vollständiges Blockgewicht einschließlich Coinbase geteilt durch 4.000.000 WU. WU = Gewichtseinheiten; vB = virtuelle Bytes.": "Block utilization: full block weight including coinbase divided by 4,000,000 WU. WU = weight units; vB = virtual bytes.",
-  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "Each interval shows the last recorded block; percentiles are not averaged. Older or pruned data may be unavailable."
+  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "Each interval shows the last recorded block; percentiles are not averaged. Older or pruned data may be unavailable.",
+  "Bekannte Adressen und verbundene Peers": "Known addresses and connected peers",
+  "Gespeicherte Adressen insgesamt": "Total stored addresses",
+  "Bestand": "Inventory",
+  "Balkenvergleich": "Bar comparison",
+  "Anzahl": "Count",
+  "New: Adresskandidaten": "New: address candidates",
+  "Tried: früher verbunden": "Tried: previously connected",
+  "Aktuell verbunden": "Currently connected",
+  "Adressbestand im Verlauf": "Address inventory history",
+  "Aktuelle Verbindungen im Verlauf": "Active connection history",
+  "Messung veraltet.": "Measurement is stale.",
+  "Adressbestand derzeit nicht verfügbar.": "Address inventory currently unavailable.",
+  "Letzte Messung": "Last measurement",
+  "Bekannt sind gespeicherte P2P-Adressen, keine eindeutigen Node-IDs. Ein Node kann mehrere Adressen haben; Verbindungen sind keine zusätzliche Adressgruppe.": "Known means stored P2P addresses, not unique node IDs. One node can have multiple addresses; connections are not an additional address group.",
+  "New enthält Adresskandidaten. Tried bedeutet früher erfolgreich verbunden, nicht aktuell erreichbar.": "New contains address candidates. Tried means successfully connected in the past, not currently reachable.",
+  "Getrennte Diagrammskalen. Je Zeitabschnitt wird der Mittelwert der Messungen gezeigt; fehlende Werte bleiben unbekannt. Zeitraumwahl unter Historie.": "Separate chart scales. Each interval shows the mean of recorded samples; missing values remain unknown. Select the range under History."
 }

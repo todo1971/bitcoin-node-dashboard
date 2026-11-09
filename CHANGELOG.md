@@ -4,6 +4,13 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.26.0 – 2026-11-09
+
+- Unter Netzwerk bekannte Adressen und aktuelle Verbindungen als unabhängige Balken sowie zwei getrennt skalierte Verlaufsdiagramme ergänzen.
+- `getaddrmaninfo` ohne Doppelzählung von `all_networks` auswerten; New, Tried und aktuelle Verbindungen eindeutig erklären. Fehlende und veraltete Messungen bleiben unbekannt.
+- Aggregierte Adresszähler in SQLite speichern, vorhandene Historie erhalten und die RPC-Lesefreigabe per Bootstrap ohne Credentialwechsel erweitern.
+- Alle sechs Sprachdateien, deutsche und englische Dokumentation sowie Daten-, Browser- und Installationsprüfungen ergänzen.
+
 ## 1.25.0 – 2026-11-09
 
 - Traffic nach P2P-Nachrichtentyp mit gestapelten Empfangs-/Sendediagrammen und SQLite-Historie ergänzen. Nur vergleichbare Peer-Zähler auswerten; Neustarts, Lücken und neue/getrennte Peers nicht als vollständigen Traffic ausgeben.

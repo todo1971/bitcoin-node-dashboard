@@ -361,5 +361,21 @@
   "Ankündigungen und Anfragen können Blöcke und Transaktionen betreffen. Die Zuordnung erfolgt nach P2P-Nachrichtentyp, nicht nach Inhalt.": "Объявления и запросы могут относиться к блокам и транзакциям. Классификация основана на типе P2P-сообщения, а не его содержимом.",
   "Perzentile sind nach Transaktionsgewicht gewichtet. P50 ist der Median; P10 und P90 begrenzen das äußere Gebührenband. Keine Vorhersage künftiger Gebühren.": "Процентили взвешены по весу транзакций. P50 — медиана; P10 и P90 ограничивают внешний диапазон комиссий. Это не прогноз будущих комиссий.",
   "Blockauslastung: vollständiges Blockgewicht einschließlich Coinbase geteilt durch 4.000.000 WU. WU = Gewichtseinheiten; vB = virtuelle Bytes.": "Заполнение блока: полный вес блока, включая coinbase, делённый на 4 000 000 WU. WU — единицы веса; vB — виртуальные байты.",
-  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "Для каждого интервала показан последний записанный блок; процентили не усредняются. Старые или удалённые при обрезке данные могут отсутствовать."
+  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "Для каждого интервала показан последний записанный блок; процентили не усредняются. Старые или удалённые при обрезке данные могут отсутствовать.",
+  "Bekannte Adressen und verbundene Peers": "Известные адреса и подключённые пиры",
+  "Gespeicherte Adressen insgesamt": "Всего сохранённых адресов",
+  "Bestand": "Учёт",
+  "Balkenvergleich": "Сравнение столбцов",
+  "Anzahl": "Количество",
+  "New: Adresskandidaten": "New: адреса-кандидаты",
+  "Tried: früher verbunden": "Tried: ранее подключённые",
+  "Aktuell verbunden": "Подключено сейчас",
+  "Adressbestand im Verlauf": "История адресной базы",
+  "Aktuelle Verbindungen im Verlauf": "История активных соединений",
+  "Messung veraltet.": "Измерение устарело.",
+  "Adressbestand derzeit nicht verfügbar.": "Адресная база сейчас недоступна.",
+  "Letzte Messung": "Последнее измерение",
+  "Bekannt sind gespeicherte P2P-Adressen, keine eindeutigen Node-IDs. Ein Node kann mehrere Adressen haben; Verbindungen sind keine zusätzliche Adressgruppe.": "Известными считаются сохранённые P2P-адреса, а не уникальные ID узлов. У одного узла может быть несколько адресов; соединения не являются дополнительной группой адресов.",
+  "New enthält Adresskandidaten. Tried bedeutet früher erfolgreich verbunden, nicht aktuell erreichbar.": "New содержит адреса-кандидаты. Tried означает успешное соединение в прошлом, а не доступность сейчас.",
+  "Getrennte Diagrammskalen. Je Zeitabschnitt wird der Mittelwert der Messungen gezeigt; fehlende Werte bleiben unbekannt. Zeitraumwahl unter Historie.": "У графиков разные шкалы. Для каждого интервала показано среднее по измерениям; пропуски остаются неизвестными. Период выбирается в разделе истории."
 }

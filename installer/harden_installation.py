@@ -22,7 +22,7 @@ STATE = Path("/var/lib/bitcoin-dashboard")
 TARGET = Path("/opt/bitcoin-dashboard")
 CONFIG = Path("/etc/bitcoin-dashboard-updater.conf")
 SERVICE = Path("/etc/systemd/system/bitcoin-dashboard.service")
-METHODS = ("getblockchaininfo", "getnetworkinfo", "getmempoolinfo", "getnettotals", "getblock",
+METHODS = ("getblockchaininfo", "getnetworkinfo", "getmempoolinfo", "getnettotals", "getblock", "getaddrmaninfo",
            "getpeerinfo", "uptime", "getblockstats", "getrawmempool", "getchaintips",
            "gettxoutsetinfo", "getblockcount", "estimatesmartfee")
 

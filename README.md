@@ -17,6 +17,7 @@ externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 
 ## Eigenschaften
 
+- Bekannte P2P-Adressen (New/Tried) und aktuelle Verbindungen als Balken und getrennt skalierte Verläufe; keine Gleichsetzung mit eindeutigen Nodes
 - Traffic nach P2P-Nachrichtentyp, bestätigte Gebührenbänder und vollständige Blockauslastung mit Historie und erklärenden Fußnoten ([Details](docs/NODE_INSIGHTS.md))
 - Multi-Plattform-Container für AMD64 und ARM64 / Raspberry Pi mit 64-Bit-Linux ([Voraussetzungen und Build](docs/ARM64.md))
 - Peer-Software, Service-Flags, Verbindungsarten, Traffic-Tagesvergleich mit Peer-Zahl und Uploadspitzen sowie die letzten 20 erfassten Blöcke ([Details](docs/NODE_INSIGHTS.md))
