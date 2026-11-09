@@ -8,7 +8,7 @@ Copyright (C) 2026 Hardy (todo1971) <hb@308-arms.de>
 
 Die Host-Installation trennt das Dienstkonto `bitcoin-dashboard` vom Bitcoin-Core-Konto. Dashboard-Code liegt unter `/opt/bitcoin-dashboard` und gehört root. Beschreibbar bleiben ausschließlich die Zustandsdaten unter `/var/lib/bitcoin-dashboard`. Die `.env` und `rpc.auth` gehören dem Dashboard-Konto mit Modus 0600. Das Dashboard liest bei lokalen Nodes einen eigenen RPC-Zugang, nicht den vollständigen Node-Cookie.
 
-Der lokale RPC-Zugang erlaubt ausschließlich: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getblock`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Andere bereits vorhandene RPC-Benutzer behalten ihre Rechte. Bei einem extern betriebenen Node muss dessen Administrator diese Beschränkung dort selbst einrichten. Container werden durch diesen Host-Bootstrap nicht migriert; dort Updates extern verwalten und RPC-Zugänge separat beschränken.
+Der lokale RPC-Zugang erlaubt ausschließlich: `getblockchaininfo`, `getnetworkinfo`, `getmempoolinfo`, `getnettotals`, `getpeerinfo`, `uptime`, `getblockstats`, `getblock`, `getaddrmaninfo`, `getrawmempool`, `getchaintips`, `gettxoutsetinfo`, `getblockcount`, `estimatesmartfee`. Andere bereits vorhandene RPC-Benutzer behalten ihre Rechte. Bei einem extern betriebenen Node muss dessen Administrator diese Beschränkung dort selbst einrichten. Container werden durch diesen Host-Bootstrap nicht migriert; dort Updates extern verwalten und RPC-Zugänge separat beschränken.
 
 Die Updatequelle und ein optionales GitHub-Token stehen für Root-Updates ausschließlich in `/etc/bitcoin-dashboard-updater.conf` (root:root, 0600). Die Weboberfläche kann sie nicht ändern. Angaben in der Dashboard-`.env` dienen gegebenenfalls nur der unprivilegierten Versionsanzeige. Das öffentliche Projekt benötigt keinen Token. HTTPS und ein vertrauenswürdiger GitHub-Account bleiben Teil der Vertrauenskette: Eine SHA-256-Datei aus demselben Release ersetzt keine unabhängige Signatur.
 
@@ -19,11 +19,11 @@ Ein normales Dashboard-Update ersetzt keine Root-Helfer. Deshalb muss der Bootst
 ```bash
 install -d -m 0700 /root/bitcoin-dashboard-release
 cd /root/bitcoin-dashboard-release
-curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.25.0/bitcoin-node-dashboard-1.25.0.tar.gz
-curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.25.0/bitcoin-node-dashboard-1.25.0.tar.gz.sha256
-sha256sum -c bitcoin-node-dashboard-1.25.0.tar.gz.sha256
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.26.0/bitcoin-node-dashboard-1.26.0.tar.gz
+curl -fL -O https://github.com/todo1971/bitcoin-node-dashboard/releases/download/v1.26.0/bitcoin-node-dashboard-1.26.0.tar.gz.sha256
+sha256sum -c bitcoin-node-dashboard-1.26.0.tar.gz.sha256
 tmpdir=$(mktemp -d /root/bitcoin-dashboard-release/unpack.XXXXXX)
-tar -xzf bitcoin-node-dashboard-1.25.0.tar.gz -C "$tmpdir"
+tar -xzf bitcoin-node-dashboard-1.26.0.tar.gz -C "$tmpdir"
 sh "$tmpdir/bitcoin-dashboard/installer/bootstrap-admin.sh"
 systemctl enable bitcoin-dashboard
 curl -fsS http://127.0.0.1:8787/healthz
@@ -48,3 +48,5 @@ Root-Helfer prüfen Eigentümer und Schreibrechte sämtlicher Pfadkomponenten. A
 Regressionstests prüfen Archivangriffe, fremde Updatequellen, Redirects, getrennte Anmeldesperren und begrenzte HTTP-Handler. Die CI verwendet zusätzlich echten Bitcoin Core im Regtest in einer Wegwerfumgebung auf AMD64 und ARM64: getrennte Konten, erlaubte und abgelehnte RPC-Abfragen, geschützte Pfade und Wiederherstellung nach absichtlich fehlgeschlagenem Neustart. Dies ersetzt weder einen Penetrationstest noch eine Sicherung der Produktivinstallation.
 
 GitHub schützt `main` durch erfolgreiche CI-Prüfungen; Secret Scanning, Push Protection und Dependabot sind aktiviert. Neue Funktionen werden eigenständig entwickelt. Hinweise auf Sicherheitsprobleme ohne Zugangsdaten an hb@308-arms.de melden.
+
+Ab 1.26 ergänzt derselbe Bootstrap bei Bedarf auch die Lesemethode `getaddrmaninfo` für die Adressbestandsanzeige. Vorhandene Zugangsdaten bleiben erhalten; nur eine geänderte Freigabe erfordert einen Core-Neustart.

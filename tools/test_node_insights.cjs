@@ -11,11 +11,14 @@ const assert = require('node:assert/strict');
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const now = Math.floor(Date.now()/1000);
+    let addressStale=false;
     await page.route('http://dashboard.test/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
       if (pathname === '/api/protocol-history') {
         const fields = value => Object.fromEntries(['received','sent'].flatMap(direction=>['blocks','transactions','announcements','headers','other'].map((group,i)=>[`${group}_${direction}`,value==null?null:value*(i+1)])));
         return route.fulfill({json:{bucket_seconds:60,
+          address_latest:{sampled_at:now,new:100,tried:20,total:120,connections:4,stale:addressStale},
+          address_points:[{timestamp:now-60,new:80,tried:20,total:100,connections:2},{timestamp:now,new:100,tried:20,total:120,connections:4}],
           message_totals:{...fields(1000000000),measured_seconds:180},
           message_points:[{timestamp:now-180,...fields(1000)},{timestamp:now-120,...fields(2000)},{timestamp:now-60,...fields(null)},{timestamp:now,...fields(1500)}],
           block_points:[{timestamp:now-120,height:900001,fee_p10:1,fee_p25:2,fee_p50:3,fee_p75:4,fee_p90:5,fullness_percent:50},
@@ -63,6 +66,27 @@ const assert = require('node:assert/strict');
       await page.evaluate(() => window.dispatchEvent(new CustomEvent('node-snapshot',{detail:{network:{traffic:{available:true,received_bytes_per_second:2048,sent_bytes_per_second:0},peer_analysis:{clients:[{name:'<img src=x onerror=alert(1)>',count:2}],services:[{name:'WITNESS',count:2}],connection_types:[{name:'inbound',count:2}]}}}})));
       assert.equal(await page.locator('#receiveRate').textContent(), '2');
       assert.equal(await page.locator('#sendRate').textContent(), '0');
+      await page.waitForFunction(()=>document.querySelector('#addressTotalCount').textContent==='120');
+      assert.equal(await page.locator('#addressManagerDetails summary').textContent(),catalog['Bekannte Adressen und verbundene Peers']);
+      assert.equal(await page.locator('#addressNewCount').textContent(),'100');
+      assert.equal(await page.locator('#addressTriedCount').textContent(),'20');
+      assert.equal(await page.locator('#addressConnectedCount').textContent(),'4');
+      assert.equal(await page.locator('#addressNewBar').evaluate(el=>el.style.width),'100%');
+      assert.equal(await page.locator('#addressConnectedBar').evaluate(el=>el.style.width),'4%');
+      await page.waitForFunction(()=>{
+        const canvas=document.querySelector('#addressConnectionChart');
+        const rgba=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+        return rgba.some((red,i)=>i%4===0&&red===55&&rgba[i+1]===214&&rgba[i+2]===122);
+      });
+      addressStale=true;
+      await page.evaluate(()=>window.dispatchEvent(new Event('history-range')));
+      await page.waitForFunction(()=>document.querySelector('#addressManagerState').classList.contains('warn'));
+      assert.equal(await page.locator('#addressTotalCount').textContent(),'–');
+      assert.equal(await page.locator('#addressConnectedBar').evaluate(el=>el.style.width),'0%');
+      assert.equal(await page.locator('#addressManagerState').textContent(),catalog['Messung veraltet.']);
+      addressStale=false;
+      await page.evaluate(()=>window.dispatchEvent(new Event('history-range')));
+      await page.waitForFunction(()=>document.querySelector('#addressTotalCount').textContent==='120');
       await page.locator('#messageTrafficDetails summary').click();
       await page.waitForFunction(()=>document.querySelector('#messageGroupRows').textContent.includes('GB'));
       assert.equal(await page.locator('#messageTrafficDetails summary').textContent(),catalog['Traffic nach Nachrichtentyp']);
@@ -133,6 +157,7 @@ const assert = require('node:assert/strict');
         await page.screenshot({path:process.env.QA_SCREENSHOT.replace('.png','-analysis.png'),fullPage:true});
         await page.click('#tab-network');
         await page.locator('#networkPanel summary').first().click();
+        await page.locator('#addressManagerDetails').screenshot({path:process.env.QA_SCREENSHOT.replace('.png','-addresses.png')});
         await page.screenshot({path:process.env.QA_SCREENSHOT,fullPage:true});
       }
     }

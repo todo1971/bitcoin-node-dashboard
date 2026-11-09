@@ -163,15 +163,17 @@ def test():
     with rpc("getblockchaininfo") as response:
         chain=json.load(response)["result"]
         assert chain["chain"]=="regtest"
-    # Simulate upgrading the old 1.24 whitelist without rotating credentials.
+    # Simulate upgrading the old 1.25 whitelist without rotating credentials.
     config=Path('/etc/bitcoin-dashboard/bitcoin.conf')
-    config.write_text(config.read_text().replace(',getblock,',','))
+    config.write_text(config.read_text().replace(',getaddrmaninfo,',','))
     execute('/usr/bin/systemctl','restart','bitcoind')
     execute('/bin/sh',str(SOURCE/'installer/bootstrap-admin.sh'))
     wait_health()
     assert state.joinpath('rpc.auth').read_bytes().strip()==credentials
     with rpc('getblock',[chain['bestblockhash'],1]) as response:
         assert json.load(response)['result']['weight']>0
+    with rpc('getaddrmaninfo') as response:
+        assert isinstance(json.load(response)['result'],dict)
     try:
         rpc("getrpcinfo")
         raise AssertionError("RPC allowlist was not enforced")

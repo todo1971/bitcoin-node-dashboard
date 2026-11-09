@@ -91,3 +91,7 @@ collection from presentation so an alternative storage backend can be added late
 `message_traffic_samples` stores only aggregate received/sent bytes for five message groups, interval boundaries and comparison counts. A 60-second interval creates at most 525,600 rows per 365 days. Configured retention also applies here; an interval-start index bounds range queries. Peer addresses and individual peer counters are not stored persistently.
 
 `block_observations` gains six nullable columns: full block weight and five fee percentiles. Migration preserves existing rows. Older values remain unknown; neither zeros nor averaged percentiles replace missing data. API queries use local SQLite and a 30-second per-range cache. No additional packages are required. Details: [node insights](NODE_INSIGHTS.md).
+
+## Address inventory since 1.26
+
+`address_manager_samples` stores sample time, New, Tried, total addresses and active connections. Missing values are NULL; existing tables are preserved. Configured retention applies (at most 525,600 rows per 365 days with a 60-second interval). The API returns only aggregate counts and sample times. Individual addresses, peer IDs and a purported unique node count are not stored.

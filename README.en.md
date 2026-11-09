@@ -16,6 +16,7 @@ provides a separately identified external directory status, not our own live por
 
 ## Features
 
+- Known P2P addresses (New/Tried) and active connections as bars and separately scaled histories; addresses are not treated as unique nodes
 - P2P message traffic, confirmed fee bands and full block utilization with history and explanatory notes ([details](docs/en/NODE_INSIGHTS.md))
 - Multi-platform containers for AMD64 and ARM64 / Raspberry Pi with 64-bit Linux ([requirements and builds](docs/en/ARM64.md))
 - Peer software, service flags, connection types, daily traffic comparison with peer counts and upload peaks, and the last 20 recorded blocks ([details](docs/en/NODE_INSIGHTS.md))

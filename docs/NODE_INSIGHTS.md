@@ -132,3 +132,13 @@ offiziellen Bitcoin-Core-RPC-Schnittstellen entwickelt; fremder Dashboard-Code
 wird nicht übernommen.
 
 [Zurück zur Übersicht](../README.md)
+
+## Bekannte Adressen und verbundene Peers ab 1.26
+
+Im Reiter **Netzwerk** zeigt ein unabhängiger Balkenvergleich `New` (Adresskandidaten), `Tried` (früher erfolgreich verbunden) und aktuelle Verbindungen. Die gespeicherte Gesamtzahl wird zusätzlich angezeigt. Das sind P2P-Adressen, keine eindeutigen Node-IDs: Ein Node kann mehrere Adressen besitzen; Verbindungen sind keine dritte, zu New und Tried addierbare Adressgruppe. Tried beweist keine aktuelle Erreichbarkeit.
+
+Die Daten stammen aus `getaddrmaninfo` und `getnetworkinfo`, jeweils einmal pro Messintervall. `all_networks` wird als Gesamtsumme verwendet und niemals nochmals zu den Netzwerksummen addiert. Ältere Antworten ohne dieses Feld werden aus vollständig lesbaren bekannten Netzwerkgruppen summiert. Es werden ausschließlich Zähler gespeichert, keine Adressen oder Peer-IDs.
+
+Zwei Verlaufsdiagramme verwenden getrennte Skalen: Adressbestand (New/Tried) und aktuelle Verbindungen. Je Zeitabschnitt erscheint das arithmetische Mittel der Messungen. Enthält ein Abschnitt einen fehlenden Wert, bleibt die betreffende Reihe unbekannt. Null ist ein gültiger Messwert. Balken verwenden nur die jüngste Messung; nach mehr als drei Messintervallen (mindestens 180 Sekunden) gelten sie als veraltet und werden nicht als aktuell angezeigt. Die Zeitraumwahl unter Historie gilt auch hier.
+
+Zum Einrichten die [Root-Bootstrap-Anleitung](SECURITY.md) aus dem geprüften aktuellen Release verwenden. Sie ergänzt `getaddrmaninfo` im bestehenden eingeschränkten RPC-Zugang, behält dessen Passwort und startet Core bei geänderter Freigabe neu. Das Dashboard wird ebenfalls neu gestartet. Externe Nodes benötigen diese Lesefreigabe auf dem jeweiligen Node-Host. Ohne Freigabe bleiben die Adresszahlen unbekannt; die Zahl aktueller Verbindungen kann trotzdem erfasst werden. Zusätzliche Pakete oder ein Blockchain-Index sind nicht nötig.

@@ -123,3 +123,13 @@ This implementation was developed independently using existing data and official
 Bitcoin Core RPC interfaces. No third-party dashboard code is incorporated.
 
 [Back to overview](../../README.en.md)
+
+## Known addresses and connected peers since 1.26
+
+Under **Network**, independent bars compare `New` (address candidates), `Tried` (previously connected successfully) and active connections. Total stored addresses are also shown. These are P2P addresses, not unique node IDs: one node may have multiple addresses, and connections are not a third address group to add to New and Tried. Tried does not prove current reachability.
+
+Data comes from `getaddrmaninfo` and `getnetworkinfo`, once per sampling interval. `all_networks` is used as the total and never added again to network subtotals. Older responses without this field are summed from fully readable known network groups. Only counts are retained, never addresses or peer IDs.
+
+Two history charts use separate scales: address inventory (New/Tried) and active connections. Each bucket shows the arithmetic mean of recorded samples. A missing value makes its series unknown for that bucket. Zero is valid. Bars use only the latest sample; after more than three sampling intervals (at least 180 seconds), they are marked stale and no longer displayed as current. The History range selector applies here too.
+
+Follow the [root bootstrap instructions](SECURITY.md) from the verified current release. Bootstrap adds `getaddrmaninfo` to the existing restricted RPC account, preserves its password and restarts Core when permissions change. The dashboard is also restarted. Remote nodes need this read permission on their own host. Without it, address counts remain unknown while active connections can still be recorded. No additional packages or blockchain index are required.

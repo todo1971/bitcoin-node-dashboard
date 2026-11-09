@@ -38,7 +38,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.25.0"
+__version__ = "1.26.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -1333,6 +1333,9 @@ def init_database() -> None:
                                "matched_peers INTEGER, skipped_peers INTEGER, "
                                + ",".join(f"{column} INTEGER" for column in MESSAGE_COLUMNS) + ")")
             connection.execute("CREATE INDEX IF NOT EXISTS message_traffic_beginning ON message_traffic_samples(beginning)")
+            connection.execute("""CREATE TABLE IF NOT EXISTS address_manager_samples (
+                sampled_at INTEGER PRIMARY KEY, new INTEGER, tried INTEGER,
+                total INTEGER, connections INTEGER)""")
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS dashboard_meta (
                     key TEXT PRIMARY KEY,
@@ -1969,6 +1972,45 @@ def sample_message_traffic() -> None:
     _message_baseline = current
 
 
+def address_manager_counts(raw: Any) -> dict[str, int] | None:
+    """Addrman counts addresses, not unique nodes. Never sum all_networks twice."""
+    def counts(value):
+        if not isinstance(value, dict):
+            return None
+        result = {key: value.get(key) for key in ("new", "tried", "total")}
+        if (not all(isinstance(number, int) and not isinstance(number, bool) and 0 <= number <= 2**62
+                    for number in result.values()) or result["new"] + result["tried"] != result["total"]):
+            return None
+        return result
+    if not isinstance(raw, dict) or not raw:
+        return None
+    if "all_networks" in raw:
+        return counts(raw["all_networks"])
+    if all(key in raw for key in ("new", "tried", "total")):
+        return counts(raw)
+    if not set(raw) <= {"ipv4", "ipv6", "onion", "i2p", "cjdns"}:
+        return None
+    networks = [counts(value) for value in raw.values()]
+    if any(value is None for value in networks):
+        return None
+    result = {key: sum(value[key] for value in networks) for key in ("new", "tried", "total")}
+    return result if result["total"] <= 2**62 else None
+
+
+def sample_address_manager() -> None:
+    counts = address_manager_counts(safe_call("getaddrmaninfo"))
+    network = safe_call("getnetworkinfo")
+    connections = network.get("connections") if isinstance(network, dict) else None
+    if not isinstance(connections, int) or isinstance(connections, bool) or not 0 <= connections <= 2**62:
+        connections = None
+    now = int(time.time())
+    with closing(database_connection()) as connection, connection:
+        connection.execute("INSERT OR REPLACE INTO address_manager_samples VALUES (?,?,?,?,?)",
+                           (now,*(counts[key] if counts else None for key in ("new","tried","total")),connections))
+        connection.execute("DELETE FROM address_manager_samples WHERE sampled_at < ?",
+                           (now-HISTORY_RETENTION_DAYS*86400,))
+
+
 def protocol_history(range_name: str) -> dict[str, Any]:
     range_name = range_name if range_name in HISTORY_RANGES else "24h"
     now = int(time.time())
@@ -1995,9 +2037,20 @@ def protocol_history(range_name: str) -> dict[str, Any]:
               ) SELECT timestamp,height,block_time,block_weight,
                 block_weight/40000.0 AS fullness_percent,fee_p10,fee_p25,fee_p50,fee_p75,fee_p90
                 FROM ranked WHERE rank=1 ORDER BY timestamp""",(bucket,bucket,bucket,now-duration,now)).fetchall()
+            address_columns = ("new", "tried", "total", "connections")
+            address_aggregate = ",".join(f"CASE WHEN COUNT({key})=COUNT(*) THEN AVG({key}) END AS {key}" for key in address_columns)
+            addresses = connection.execute(
+                f"SELECT CAST(sampled_at/? AS INTEGER)*? AS timestamp,{address_aggregate} "
+                "FROM address_manager_samples WHERE sampled_at BETWEEN ? AND ? "
+                "GROUP BY timestamp ORDER BY timestamp",(bucket,bucket,now-duration,now)).fetchall()
+            latest_address = connection.execute("SELECT * FROM address_manager_samples WHERE sampled_at<=? ORDER BY sampled_at DESC LIMIT 1",(now,)).fetchone()
+            address_latest = dict(latest_address) if latest_address else None
+            if address_latest:
+                address_latest["stale"] = now-address_latest["sampled_at"] > max(180,3*SAMPLE_INTERVAL_SECONDS)
         result = {"range": range_name, "generated_at": now, "bucket_seconds": bucket,
                   "message_points": [dict(row) for row in messages], "message_totals": dict(totals),
-                  "block_points": [dict(row) for row in blocks]}
+                  "block_points": [dict(row) for row in blocks],
+                  "address_points": [dict(row) for row in addresses], "address_latest": address_latest}
         _protocol_cache[range_name] = (now+30,{"database":str(DATABASE_PATH),"result":result})
         return result
 
@@ -2759,6 +2812,10 @@ def sampler_loop() -> None:
                 except Exception as exc:
                     print(f"Message traffic sample unavailable: {exc}", flush=True)
                     _message_baseline = None
+                try:
+                    sample_address_manager()
+                except Exception as exc:
+                    print(f"Address manager sample unavailable: {exc}", flush=True)
                 evaluate_alerts(data)
                 if not _backfill_lock.locked():
                     threading.Thread(

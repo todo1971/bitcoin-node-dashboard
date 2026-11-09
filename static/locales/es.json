@@ -361,5 +361,21 @@
   "Ankündigungen und Anfragen können Blöcke und Transaktionen betreffen. Die Zuordnung erfolgt nach P2P-Nachrichtentyp, nicht nach Inhalt.": "Los anuncios y solicitudes pueden referirse a bloques y transacciones. La clasificación usa el tipo de mensaje P2P, no su contenido.",
   "Perzentile sind nach Transaktionsgewicht gewichtet. P50 ist der Median; P10 und P90 begrenzen das äußere Gebührenband. Keine Vorhersage künftiger Gebühren.": "Los percentiles se ponderan por el peso de las transacciones. P50 es la mediana; P10 y P90 delimitan la banda exterior. No predice comisiones futuras.",
   "Blockauslastung: vollständiges Blockgewicht einschließlich Coinbase geteilt durch 4.000.000 WU. WU = Gewichtseinheiten; vB = virtuelle Bytes.": "Ocupación: peso completo del bloque, incluida coinbase, dividido por 4.000.000 WU. WU = unidades de peso; vB = bytes virtuales.",
-  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "Cada intervalo muestra el último bloque registrado; los percentiles no se promedian. Pueden faltar datos antiguos o podados."
+  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "Cada intervalo muestra el último bloque registrado; los percentiles no se promedian. Pueden faltar datos antiguos o podados.",
+  "Bekannte Adressen und verbundene Peers": "Direcciones conocidas y pares conectados",
+  "Gespeicherte Adressen insgesamt": "Total de direcciones guardadas",
+  "Bestand": "Registro",
+  "Balkenvergleich": "Comparación de barras",
+  "Anzahl": "Cantidad",
+  "New: Adresskandidaten": "New: direcciones candidatas",
+  "Tried: früher verbunden": "Tried: conexión anterior",
+  "Aktuell verbunden": "Conectados actualmente",
+  "Adressbestand im Verlauf": "Historial de direcciones",
+  "Aktuelle Verbindungen im Verlauf": "Historial de conexiones activas",
+  "Messung veraltet.": "La medición está desactualizada.",
+  "Adressbestand derzeit nicht verfügbar.": "El registro de direcciones no está disponible.",
+  "Letzte Messung": "Última medición",
+  "Bekannt sind gespeicherte P2P-Adressen, keine eindeutigen Node-IDs. Ein Node kann mehrere Adressen haben; Verbindungen sind keine zusätzliche Adressgruppe.": "Conocidas son direcciones P2P guardadas, no identificadores únicos de nodos. Un nodo puede tener varias direcciones; las conexiones no son otro grupo de direcciones.",
+  "New enthält Adresskandidaten. Tried bedeutet früher erfolgreich verbunden, nicht aktuell erreichbar.": "New contiene direcciones candidatas. Tried indica una conexión exitosa en el pasado, no disponibilidad actual.",
+  "Getrennte Diagrammskalen. Je Zeitabschnitt wird der Mittelwert der Messungen gezeigt; fehlende Werte bleiben unbekannt. Zeitraumwahl unter Historie.": "Escalas separadas. Cada intervalo muestra la media de las muestras; los datos ausentes quedan desconocidos. Selecciona el período en Historial."
 }

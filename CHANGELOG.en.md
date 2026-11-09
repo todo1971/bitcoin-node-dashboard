@@ -4,6 +4,13 @@
 
 All significant project changes are recorded here.
 
+## 1.26.0 – 2026-11-09
+
+- Add independent known-address/active-connection bars and two separately scaled history charts under Network.
+- Normalize `getaddrmaninfo` without double-counting `all_networks`; distinguish New, Tried and current connections. Missing and stale measurements remain unknown.
+- Retain aggregate address counts in SQLite, preserve existing history and extend read-only RPC permissions through bootstrap without credential rotation.
+- Update all six catalogs, German/English documentation and data, browser and installation checks.
+
 ## 1.25.0 – 2026-11-09
 
 - Add stacked P2P message traffic charts and SQLite history for received/sent bytes. Compare stable peer counters only; do not present restarts, gaps or new/disconnected peers as complete traffic.

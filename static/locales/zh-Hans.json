@@ -361,5 +361,21 @@
   "Ankündigungen und Anfragen können Blöcke und Transaktionen betreffen. Die Zuordnung erfolgt nach P2P-Nachrichtentyp, nicht nach Inhalt.": "公告和请求可能涉及区块或交易。分类依据是 P2P 消息类型，而非消息内容。",
   "Perzentile sind nach Transaktionsgewicht gewichtet. P50 ist der Median; P10 und P90 begrenzen das äußere Gebührenband. Keine Vorhersage künftiger Gebühren.": "百分位数按交易权重加权。P50 是中位数，P10 和 P90 界定外层费率区间。这不是对未来费率的预测。",
   "Blockauslastung: vollständiges Blockgewicht einschließlich Coinbase geteilt durch 4.000.000 WU. WU = Gewichtseinheiten; vB = virtuelle Bytes.": "区块利用率：包含 coinbase 交易的完整区块权重除以 4,000,000 WU。WU = 权重单位；vB = 虚拟字节。",
-  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "每个时间段显示最后一个记录的区块，不对百分位数取平均值。较早或已裁剪的数据可能缺失。"
+  "Je Zeitabschnitt wird der letzte erfasste Block gezeigt; Perzentile werden nicht gemittelt. Ältere oder geprunte Daten können fehlen.": "每个时间段显示最后一个记录的区块，不对百分位数取平均值。较早或已裁剪的数据可能缺失。",
+  "Bekannte Adressen und verbundene Peers": "已知地址与已连接节点",
+  "Gespeicherte Adressen insgesamt": "已存储地址总数",
+  "Bestand": "记录",
+  "Balkenvergleich": "条形比较",
+  "Anzahl": "数量",
+  "New: Adresskandidaten": "New：候选地址",
+  "Tried: früher verbunden": "Tried：曾连接的地址",
+  "Aktuell verbunden": "当前已连接",
+  "Adressbestand im Verlauf": "地址记录历史",
+  "Aktuelle Verbindungen im Verlauf": "活跃连接历史",
+  "Messung veraltet.": "测量数据已过期。",
+  "Adressbestand derzeit nicht verfügbar.": "地址记录暂不可用。",
+  "Letzte Messung": "上次测量",
+  "Bekannt sind gespeicherte P2P-Adressen, keine eindeutigen Node-IDs. Ein Node kann mehrere Adressen haben; Verbindungen sind keine zusätzliche Adressgruppe.": "已知表示已存储的 P2P 地址，而非唯一节点标识。一个节点可以有多个地址；连接数不是另一组地址。",
+  "New enthält Adresskandidaten. Tried bedeutet früher erfolgreich verbunden, nicht aktuell erreichbar.": "New 包含候选地址。Tried 表示过去曾成功连接，不代表当前可达。",
+  "Getrennte Diagrammskalen. Je Zeitabschnitt wird der Mittelwert der Messungen gezeigt; fehlende Werte bleiben unbekannt. Zeitraumwahl unter Historie.": "图表使用独立刻度。每个时段显示采样均值，缺失值保持未知。请在历史页面选择时间范围。"
 }
