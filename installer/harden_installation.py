@@ -150,11 +150,6 @@ def install():
         raise ValueError("Dashboard requires a separate unprivileged account")
     if STATE.is_symlink() or TARGET.is_symlink():
         raise ValueError("Unsafe installation link")
-    for path in (STATE, TARGET):
-        if path.exists():
-            # The root-owned application may contain the documented .env link.
-            if path == STATE:
-                reject_links(path)
     backup_parent=Path("/var/backups/bitcoin-dashboard")
     run("/usr/bin/python3","-I",source_guard,"check",str(backup_parent if backup_parent.exists() else backup_parent.parent))
     backup_parent.mkdir(exist_ok=True,mode=0o700)
@@ -167,7 +162,7 @@ def install():
         shutil.copytree(TARGET, old_code, symlinks=True)
     was_running = subprocess.run(["systemctl","is-active","--quiet","bitcoin-dashboard"]).returncode == 0
     state_backup = backup/"state"
-    state_owners = ownership(STATE) if STATE.exists() else {}
+    state_owners = {}
     for path in tracked:
         if path.exists():
             run("/usr/bin/python3","-I",source_guard,"check",str(path))
@@ -188,6 +183,10 @@ def install():
         if was_running or SERVICE.exists():
             run("systemctl", "stop", "bitcoin-dashboard.service")
         if STATE.exists():
+            # SQLite creates/removes WAL and SHM files while running. Inspect
+            # state only after the service stops, so those files cannot race us.
+            reject_links(STATE)
+            state_owners = ownership(STATE)
             partial_state = backup/"state-incomplete"
             shutil.copytree(STATE, partial_state)
             os.replace(partial_state, state_backup)
