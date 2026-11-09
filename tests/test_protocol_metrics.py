@@ -24,10 +24,12 @@ class MessageTrafficTests(unittest.TestCase):
     def test_stable_connections_count_each_group_without_disclosing_identity(self):
         before=state(1000,100,[peer()])
         current=state(1060,160,[peer(received=220,sent=380),peer(2,1040)])
+        current['peers']['1:900']['received:getblocks']=45
         row=app.message_traffic_delta(before,current)
         self.assertEqual(row['blocks_received'],120)
         self.assertEqual(row['transactions_sent'],180)
-        self.assertEqual(row['announcements_received'],0)
+        self.assertEqual(row['announcements_received'],45)
+        self.assertEqual(row['headers_received'],0)
         self.assertEqual(row['matched_peers'],1)
         self.assertEqual(row['skipped_peers'],1)
         self.assertEqual(row['seconds'],60)

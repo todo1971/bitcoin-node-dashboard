@@ -1941,8 +1941,8 @@ def message_traffic_delta(previous: Any, current: dict[str, Any]) -> dict[str, A
             direction, message = name.split(":", 1)
             group = ("blocks" if message in ("block", "cmpctblock", "blocktxn", "getblocktxn") else
                      "transactions" if message == "tx" else
-                     "announcements" if message in ("inv", "getdata", "notfound") else
-                     "headers" if message in ("headers", "getheaders", "getblocks") else "other")
+                     "announcements" if message in ("inv", "getdata", "notfound", "getblocks") else
+                     "headers" if message in ("headers", "getheaders") else "other")
             totals[f"{group}_{direction}"] += value - before.get(name, 0)
     departed = len(previous["peers"].keys() - current["peers"].keys())
     row.update(beginning=previous["timestamp"], matched_peers=matched,

@@ -13,8 +13,8 @@ Functions through 1.23 require no additional RPC methods; block utilization sinc
 
 - Blocks: `block`, `cmpctblock`, `blocktxn`, `getblocktxn`.
 - Transactions: `tx`.
-- Announcements and requests: `inv`, `getdata`, `notfound` (mixed content).
-- Block headers: `headers`, `getheaders`, `getblocks`.
+- Announcements and requests: `inv`, `getdata`, `notfound`, `getblocks` (mixed content; `getblocks` requests block inventory).
+- Block headers: `headers`, `getheaders`.
 - Other messages: all remaining types, including protocol management.
 
 Once per sampling interval, `getpeerinfo` and `uptime` are read. Deltas require matching peer IDs and connection start times, nondecreasing individual counters and consistent Core uptime. Restarts and excessive gaps are not bridged. New, disconnected or incomparable connections are excluded. Connections created and closed entirely between samples are also missed. These values are therefore a recorded subset of P2P application traffic, not complete node or provider traffic. Zero means measured inactivity; unknown values remain empty.

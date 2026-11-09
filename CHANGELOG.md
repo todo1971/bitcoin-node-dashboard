@@ -9,6 +9,7 @@ Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 - Traffic nach P2P-Nachrichtentyp mit gestapelten Empfangs-/Sendediagrammen und SQLite-Historie ergänzen. Nur vergleichbare Peer-Zähler auswerten; Neustarts, Lücken und neue/getrennte Peers nicht als vollständigen Traffic ausgeben.
 - Bestätigte Gebührenraten als gewichtete P10/P25/P50/P75/P90-Bänder und vollständige Blockauslastung einschließlich Coinbase darstellen.
 - Bestehende RPC-Lesefreigabe beim Root-Bootstrap gezielt um `getblock` erweitern, ohne Zugangsdaten zu rotieren. Fehlende oder geprunte Daten bleiben unbekannt.
+- Zustandsdateien erst nach dem Dienststopp prüfen, damit kurzlebige SQLite-WAL-/SHM-Dateien den Bootstrap nicht unterbrechen.
 - Sechs Sprachdateien, deutsche und englische Dokumentation, Migrations-, Aggregations- und Browsertests ergänzen.
 
 ## 1.24.0 – 2026-11-08

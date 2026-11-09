@@ -77,7 +77,14 @@ def control(arguments):
 
 
 def execute(*arguments):
-    subprocess.run(arguments,check=True,capture_output=True)
+    try:
+        subprocess.run(arguments,check=True,capture_output=True)
+    except subprocess.CalledProcessError as error:
+        # Emit only bootstrap's redacted location, never configuration/log data.
+        for line in error.stderr.decode(errors='replace').splitlines():
+            if line.startswith('Hardening failed.'):
+                print(line,flush=True)
+        raise
 
 
 def wait_health():

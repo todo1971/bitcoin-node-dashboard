@@ -9,6 +9,7 @@ All significant project changes are recorded here.
 - Add stacked P2P message traffic charts and SQLite history for received/sent bytes. Compare stable peer counters only; do not present restarts, gaps or new/disconnected peers as complete traffic.
 - Show confirmed fee rates as weighted P10/P25/P50/P75/P90 bands and full block utilization including coinbase.
 - Extend existing read-only RPC permissions with `getblock` during root bootstrap without rotating credentials. Missing or pruned data remains unknown.
+- Inspect state only after stopping the service so transient SQLite WAL/SHM files cannot interrupt bootstrap.
 - Extend all six catalogs, German/English documentation and migration, aggregation and browser tests.
 
 ## 1.24.0 – 2026-11-08
