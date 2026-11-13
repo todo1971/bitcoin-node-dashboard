@@ -32,7 +32,7 @@ externen Verzeichnisstatus, keine eigene Live-Portprüfung.
 - externer BTCNodes-Verzeichnisstatus mit fünf Minuten Cache; nicht gelistete Nodes gelten nicht als offline
 - SQLite-Historie von der 1-Stunden- bis zur Jahresansicht
 - Ereignis-Zeitleiste und Hinweise auf bekannte Erfassungslücken; begrenzter RPC-Nachtrag fehlender Blockstatistiken
-- Chain-Tips aus `getchaintips` als Momentaufnahme und separat gezählte, lokal beobachtete Block-Trennungen im gewählten Zeitraum
+- Unter **Analyse** Chain-Tips aus `getchaintips` als Momentaufnahme und separat gezählte, lokal beobachtete Block-Trennungen im gewählten Zeitraum
 - optionale lokale ZMQ-Ereignisse für Blöcke und Mempool, Minutenzähler und Browser-Liveaktualisierung per SSE mit Abfrage-Fallback
 - tägliche UTXO-Statistik sowie historische Blockgrößen und Transaktionsraten
 - periodische Mempool-Paketanalyse für Cluster, RBF und CPFP sowie Gebührenbereiche nach Transaktionen und virtuellen Bytes

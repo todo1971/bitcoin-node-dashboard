@@ -72,8 +72,8 @@ class DashboardLayoutTests(unittest.TestCase):
         for name, ids in {
             "overview": ("blocks", "syncText", "version", "overviewPeers", "overviewAlerts",
                          "cpu", "memory", "disk", "versionStatus", "uptime"),
-            "network": ("peers", "ipv4Peers", "ipv6Peers", "onionPeers", "peerQualityRows", "chainTipRows", "nodeIdentity", "externalStatus"),
-            "analysis": ("mempoolTx", "fee2", "utxoCount", "feeBucketRows", "hash"),
+            "network": ("peers", "ipv4Peers", "ipv6Peers", "onionPeers", "peerQualityRows", "nodeIdentity", "externalStatus"),
+            "analysis": ("mempoolTx", "fee2", "utxoCount", "feeBucketRows", "hash", "chainTipRows"),
             "history": ("peerChart", "feeChart", "systemChart", "diskChart", "timelineList"),
         }.items():
             for element_id in ids:
@@ -91,7 +91,7 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertIn(" out", html)
         self.assertIn("Im externen Verzeichnis nicht erfasst", html)
         for element_id in ("chainTipsStatus", "activeTipHeight", "otherTipCount", "disconnectedBlocks"):
-            self.assertIn(f'id="{element_id}"', panels["network"])
+            self.assertIn(f'id="{element_id}"', panels["analysis"])
 
 
 class ChainTipsTests(unittest.TestCase):

@@ -28,7 +28,7 @@ provides a separately identified external directory status, not our own live por
 - External BTCNodes directory status with a five-minute cache; unlisted nodes are not treated as offline.
 - SQLite history covering one hour through one year.
 - Event timeline, known collection gaps and bounded read-only RPC backfill of missing block statistics.
-- Chain tips from `getchaintips` as a snapshot, plus separately counted, locally observed block disconnections in the selected period.
+- Under **Analysis**, chain tips from `getchaintips` as a snapshot, plus separately counted, locally observed block disconnections in the selected period.
 - Optional local ZMQ block and mempool events, minute counters and live browser updates via SSE with polling fallback.
 - Daily UTXO statistics, historical block sizes and confirmed transaction rates.
 - Periodic mempool cluster, RBF and CPFP analysis, plus fee buckets by transactions and virtual bytes.
