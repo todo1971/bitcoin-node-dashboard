@@ -4,6 +4,10 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.26.1 – 2026-11-13
+
+- „Chain-Tips & mögliche Reorganisationen“ von Netzwerk nach Analyse verschieben.
+
 ## 1.26.0 – 2026-11-09
 
 - Unter Netzwerk bekannte Adressen und aktuelle Verbindungen als unabhängige Balken sowie zwei getrennt skalierte Verlaufsdiagramme ergänzen.

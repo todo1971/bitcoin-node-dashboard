@@ -132,6 +132,8 @@ const assert = require('node:assert/strict');
       });
       await page.click('[data-range="1h"]');
       await page.click('#tab-analysis');
+      assert.equal(await page.locator('#networkPanel #chainTipsStatus').count(), 0);
+      assert.equal(await page.locator('#analysisPanel #chainTipsStatus').isVisible(), true);
       await page.waitForFunction(() => document.querySelector('#recentBlockRows').textContent.includes('42'));
       assert.equal(await page.locator('#blockVisualDetails summary').textContent(),catalog['Gebührenband und Blockauslastung']);
       await page.waitForFunction(()=>{

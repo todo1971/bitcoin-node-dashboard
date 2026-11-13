@@ -4,6 +4,10 @@
 
 All significant project changes are recorded here.
 
+## 1.26.1 – 2026-11-13
+
+- Move “Chain tips & possible reorganizations” from Network to Analysis.
+
 ## 1.26.0 – 2026-11-09
 
 - Add independent known-address/active-connection bars and two separately scaled history charts under Network.
