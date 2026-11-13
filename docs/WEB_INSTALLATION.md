@@ -18,7 +18,7 @@ Release-Archiv aus dem aktuellen Verzeichnis in ein temporäres Verzeichnis entp
 
 ```bash
 tmpdir=$(sudo mktemp -d /root/bitcoin-dashboard-web.XXXXXX)
-sudo tar -xzf ./bitcoin-node-dashboard-1.26.0.tar.gz -C "$tmpdir"
+sudo tar -xzf ./bitcoin-node-dashboard-1.26.1.tar.gz -C "$tmpdir"
 sudo python3 "$tmpdir/bitcoin-dashboard/installer/web_installer.py"
 ```
 

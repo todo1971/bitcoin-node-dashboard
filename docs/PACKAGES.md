@@ -23,8 +23,8 @@ Registry-Token muss nicht als Repository-Secret eingerichtet werden.
 Beispiel:
 
 ```bash
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.26.0
-docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.26.0
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard:1.26.1
+docker pull ghcr.io/todo1971/bitcoin-node-dashboard-all-in-one:1.26.1
 ```
 
 Images ersetzen nicht die Konfiguration, Volumes und Portbindungen der
