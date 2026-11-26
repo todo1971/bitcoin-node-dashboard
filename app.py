@@ -33,14 +33,21 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from statistics import median
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 APP_DIR = Path(__file__).resolve().parent
-__version__ = "1.26.1"
+__version__ = "1.27.0"
 STARTED_AT = int(time.time())
 STATIC_DIR = APP_DIR / "static"
+NODES_FILE = os.getenv("DASHBOARD_NODES_FILE", "/etc/bitcoin-dashboard/nodes.json")
+NODE_NAME = os.getenv("DASHBOARD_NODE_NAME", "Local")
+REMOTE_READ_ENDPOINTS = frozenset((
+    "dashboard", "history", "timeline", "chain-tips", "traffic", "recent-blocks",
+    "protocol-history", "analytics", "alerts", "realtime", "events",
+))
+_remote_stream_slots = threading.BoundedSemaphore(8)
 HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 PORT = int(os.getenv("DASHBOARD_PORT", "8787"))
 CACHE_SECONDS = max(1, int(os.getenv("DASHBOARD_CACHE_SECONDS", "10")))
@@ -2412,6 +2419,9 @@ def request_client_id(address: str, headers: Any) -> str:
 
 def allow_request(client_id: str, path: str) -> bool:
     now = time.monotonic()
+    remote = re.fullmatch(r"/api/nodes/[a-z][a-z0-9-]{0,31}/([a-z-]+)", path)
+    if remote:
+        path = "/api/" + remote[1]
     heavy = path in ("/api/traffic", "/api/history", "/api/analytics", "/api/chain-tips", "/api/protocol-history")
     with _request_limits_lock:
         for key in list(_request_limits):
@@ -2869,9 +2879,120 @@ class DashboardHTTPServer(ThreadingHTTPServer):
             self.request_slots.release()
 
 
+def configured_nodes() -> list[dict[str, str]]:
+    """Read operator-configured collectors. Only loopback SSH forwards are accepted."""
+    nodes = [{"id": "local", "name": NODE_NAME}]
+    try:
+        with Path(NODES_FILE).open("rb") as source:
+            raw = source.read(65_537)
+    except FileNotFoundError:
+        return nodes
+    if len(raw) > 65_536:
+        raise ValueError("Node configuration is too large")
+    settings = json.loads(raw)
+    if not isinstance(settings, dict) or not isinstance(settings.get("nodes"), list):
+        raise ValueError("Invalid node configuration")
+    nodes[0]["name"] = settings.get("local_name", NODE_NAME)
+    if len(settings["nodes"]) > 16:
+        raise ValueError("Too many collectors")
+    seen = {"local"}
+    for entry in settings["nodes"]:
+        if not isinstance(entry, dict):
+            raise ValueError("Invalid collector")
+        identifier = entry.get("id", "")
+        if not isinstance(identifier, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", identifier) or identifier in seen:
+            raise ValueError("Invalid or duplicate node identifier")
+        url = entry.get("url", "")
+        if not isinstance(url, str):
+            raise ValueError("Invalid collector URL")
+        parsed = urlparse(url)
+        if (parsed.scheme != "http" or not parsed.hostname or
+                not ipaddress.ip_address(parsed.hostname).is_loopback or
+                parsed.username is not None or parsed.password is not None or
+                parsed.path not in ("", "/") or parsed.query or parsed.fragment or
+                parsed.port is None or not 1 <= parsed.port <= 65535):
+            raise ValueError("Collectors must use an explicit loopback port")
+        seen.add(identifier)
+        nodes.append({"id": identifier, "name": entry.get("name", identifier), "url": url.rstrip("/")})
+    for node in nodes:
+        if not isinstance(node["name"], str) or not 1 <= len(node["name"].strip()) <= 80:
+            raise ValueError("Invalid node name")
+    return nodes
+
+
+class NoCollectorRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, newurl):
+        return None
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "BitcoinDashboard"
     sys_version = ""
+
+    def send_collector_data(self, parsed) -> None:
+        match = re.fullmatch(r"/api/nodes/([a-z][a-z0-9-]{0,31})/([a-z-]+)", parsed.path)
+        if not match or match[2] not in REMOTE_READ_ENDPOINTS:
+            self.send_bytes(b'{"error":"Unknown node endpoint"}', "application/json", 404)
+            return
+        try:
+            node = next((entry for entry in configured_nodes() if entry["id"] == match[1] and "url" in entry), None)
+        except (OSError, ValueError):
+            self.send_bytes(b'{"error":"Node configuration unavailable"}', "application/json", 503)
+            return
+        if node is None:
+            self.send_bytes(b'{"error":"Unknown node"}', "application/json", 404)
+            return
+        params = parse_qs(parsed.query)
+        query = urlencode({key: params[key][0][:128] for key in ("range", "timezone") if key in params})
+        url = node["url"] + "/api/" + match[2] + ("?" + query if query else "")
+        streaming = match[2] == "events"
+        if streaming and not _remote_stream_slots.acquire(blocking=False):
+            self.send_bytes(b'{"error":"Too many live connections"}', "application/json", 503)
+            return
+        started = False
+        try:
+            # No client authorization, cookies, proxy environment or redirects cross this boundary.
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoCollectorRedirects())
+            client = request_client_id(self.client_address[0], self.headers)
+            request = urllib.request.Request(url, headers={
+                "Accept": "text/event-stream" if streaming else "application/json",
+                "X-Forwarded-For": client,
+            })
+            with opener.open(request, timeout=20) as response:
+                expected_type = "text/event-stream" if streaming else "application/json"
+                if response.status != 200 or response.headers.get_content_type() != expected_type:
+                    raise ValueError("Unexpected collector response")
+                if streaming:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                    self.send_header("Cache-Control", "no-cache, no-transform")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.send_header("X-Accel-Buffering", "no")
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    started = True
+                    deadline = time.monotonic() + 300
+                    while time.monotonic() < deadline:
+                        chunk = response.read1(4096)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        self.wfile.flush()
+                else:
+                    body = response.read(4_194_305)
+                    if len(body) > 4_194_304:
+                        raise ValueError("Collector response is too large")
+                    json.loads(body)
+                    self.send_bytes(body, "application/json; charset=utf-8")
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            if isinstance(exc, urllib.error.HTTPError):
+                exc.close()
+            if not started:
+                self.send_bytes(b'{"error":"Selected node unavailable"}', "application/json", 503)
+        finally:
+            if streaming:
+                self.close_connection = True
+                _remote_stream_slots.release()
 
     def request_allowed(self) -> bool:
         client = request_client_id(self.client_address[0], self.headers)
@@ -2963,7 +3084,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         path = parsed.path
+        if path == "/api/nodes":
+            try:
+                nodes = [{"id": node["id"], "name": node["name"]} for node in configured_nodes()]
+                self.send_bytes(json.dumps({"nodes": nodes}).encode(), "application/json; charset=utf-8")
+            except (OSError, ValueError):
+                self.send_bytes(b'{"error":"Node configuration unavailable"}', "application/json", 503)
+            return
+        if path.startswith("/api/nodes/"):
+            self.send_collector_data(parsed)
+            return
         public_assets = {
+            "/static/nodes.js": ("nodes.js", "text/javascript; charset=utf-8"),
             "/static/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
             "/static/admin.js": ("admin.js", "text/javascript; charset=utf-8"),
             "/static/node-insights.js": ("node-insights.js", "text/javascript; charset=utf-8"),

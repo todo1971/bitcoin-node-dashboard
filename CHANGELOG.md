@@ -4,6 +4,13 @@ Deutsch | [English](CHANGELOG.en.md)
 
 Alle wesentlichen Änderungen dieses Projekts werden hier dokumentiert.
 
+## 1.27.0 – 2026-11-26
+
+- Mehrere Nodes über eine Node-Auswahl anzeigen, mit eigenen Collectors und SQLite-Historien auf jedem Server.
+- Öffentliche Leseabfragen und SSE über konfigurierte Loopback-SSH-Tunnel weiterleiten. Unbekannte oder ausgefallene Nodes liefern keine Werte des Hauptnodes.
+- Entfernte Administration sperren, Zugangsdaten und interne URLs zurückhalten sowie Raten, Antwortgrößen und Live-Verbindungen begrenzen.
+- Collector-Dienstdatei, zweisprachige Einrichtungshilfe und Gateway-/Browserprüfungen ergänzen.
+
 ## 1.26.1 – 2026-11-13
 
 - „Chain-Tips & mögliche Reorganisationen“ von Netzwerk nach Analyse verschieben.

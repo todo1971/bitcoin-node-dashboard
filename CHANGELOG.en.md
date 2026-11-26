@@ -4,6 +4,13 @@
 
 All significant project changes are recorded here.
 
+## 1.27.0 – 2026-11-26
+
+- Display multiple nodes through a node selector, with independent collectors and SQLite histories on each server.
+- Forward public read requests and SSE through configured loopback SSH tunnels. Unknown or unavailable nodes never fall back to primary node data.
+- Block remote administration, withhold credentials and internal URLs, and limit request rates, response sizes and live connections.
+- Add a collector service, bilingual setup instructions and gateway/browser checks.
+
 ## 1.26.1 – 2026-11-13
 
 - Move “Chain tips & possible reorganizations” from Network to Analysis.
