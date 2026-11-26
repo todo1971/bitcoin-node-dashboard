@@ -60,7 +60,7 @@ const assert = require('node:assert/strict');
     });
     for (const language of ['de','en','es','pt-BR','zh-Hans','ru']) {
       await page.goto('http://dashboard.test/#network');
-      await page.selectOption('select', language);
+      await page.selectOption('#languageSelect', language);
       const catalog = JSON.parse(fs.readFileSync(path.join(__dirname,'../static/locales',language+'.json')));
       await page.waitForFunction(text => document.querySelector('summary')?.textContent === text, catalog['Peer-Software und Fähigkeiten']);
       await page.evaluate(() => window.dispatchEvent(new CustomEvent('node-snapshot',{detail:{network:{traffic:{available:true,received_bytes_per_second:2048,sent_bytes_per_second:0},peer_analysis:{clients:[{name:'<img src=x onerror=alert(1)>',count:2}],services:[{name:'WITNESS',count:2}],connection_types:[{name:'inbound',count:2}]}}}})));

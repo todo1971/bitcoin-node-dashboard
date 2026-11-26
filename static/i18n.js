@@ -61,6 +61,7 @@
     label.lang = language;
     label.dataset.noI18n = '';
     const select = document.createElement('select');
+    select.id = 'languageSelect';
     select.setAttribute('aria-label', languages[language].label);
     select.style.cssText = 'background:#151a20;color:#eef2f6;border:1px solid #29313a;border-radius:6px;padding:6px';
     for (const [value, settings] of Object.entries(languages)) {

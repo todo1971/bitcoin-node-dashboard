@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Bitcoin Node</title>
+  <script src="/static/nodes.js"></script>
   <script src="/static/i18n.js"></script>
   <style>
     :root { color-scheme: dark; --bg:#0b0d10; --card:#151a20; --line:#29313a; --text:#eef2f6; --muted:#9ba8b6; --orange:#f7931a; --green:#37d67a; --red:#ff6b6b; }
@@ -29,6 +30,9 @@
     .bar { height:8px; margin-top:16px; overflow:hidden; border-radius:99px; background:#0d1014 } .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--orange),#ffc36f); border-radius:inherit }
     dl { display:grid; grid-template-columns:1fr auto; gap:8px 20px; margin:12px 0 0 } dt { color:var(--muted) } dd { margin:0; text-align:right }
     .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px } .button { display:inline-block; padding:9px 13px; border:1px solid var(--line); border-radius:9px; color:var(--text); text-decoration:none; background:#0e1216 } .button:hover { border-color:var(--orange); color:var(--orange) }
+    #adminLink[hidden],#nodePicker[hidden] { display:none }
+    #nodePicker { display:inline-flex; gap:8px; align-items:center; margin:12px 14px 16px 0; max-width:100% }
+    #nodeSelect { min-width:0; max-width:100%; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px; font:inherit }
     .history-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px } .ranges { display:flex; flex-wrap:wrap; gap:6px; min-width:0 } .range { border:1px solid var(--line); border-radius:8px; padding:6px 10px; background:#0e1216; color:var(--muted); cursor:pointer } .range.active,.range:hover { border-color:var(--orange); color:var(--orange) }
     .charts { display:grid; grid-template-columns:1fr 1fr; gap:18px } .chart-box { min-width:0; padding:14px; border-radius:12px; background:#0e1216 } .chart-title { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px } .legend { color:var(--muted); font-size:12px } canvas { display:block; width:100%; height:220px }
     .analytics-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:14px 0 18px } .analytics-kpi { padding:14px; border-radius:11px; background:#0e1216 } .analytics-kpi b { display:block; margin-top:5px; font-size:22px }
@@ -48,7 +52,8 @@
 </head>
 <body>
 <main>
-  <header><div><div class="label">Eigener Full Node</div><h1>Bitcoin <span>Core</span></h1></div><div><div class="status" id="status"><span class="dot"></span>Verbinde …</div><div class="actions"><a class="button" href="/admin">Administration</a></div></div></header>
+  <header><div><div class="label">Eigener Full Node</div><h1>Bitcoin <span>Core</span></h1></div><div><div class="status" id="status"><span class="dot"></span>Verbinde …</div><div class="actions"><a class="button" id="adminLink" href="/admin">Administration</a></div></div></header>
+  <label id="nodePicker" hidden><span>Node</span> <select id="nodeSelect" aria-label="Node" data-no-i18n></select></label>
   <nav class="view-tabs" role="tablist" aria-label="Dashboard-Bereiche"><button class="view-tab" id="tab-overview" role="tab" aria-controls="overviewPanel" aria-selected="true" tabindex="0" data-view="overview">Überblick</button><button class="view-tab" id="tab-network" role="tab" aria-controls="networkPanel" aria-selected="false" tabindex="-1" data-view="network">Netzwerk</button><button class="view-tab" id="tab-analysis" role="tab" aria-controls="analysisPanel" aria-selected="false" tabindex="-1" data-view="analysis">Analyse</button><button class="view-tab" id="tab-history" role="tab" aria-controls="historyPanel" aria-selected="false" tabindex="-1" data-view="history">Historie</button></nav>
   <aside class="alert-panel" id="alertPanel"><strong id="alertTitle">Aktive Alarme</strong><ul id="alertList"></ul></aside>
   <section class="dashboard-section view-panel" id="overviewPanel" role="tabpanel" aria-labelledby="tab-overview"><h2 class="section-title" id="nodeHeading">Node im Überblick</h2><div class="grid">

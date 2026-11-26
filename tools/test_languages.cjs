@@ -17,7 +17,7 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
       if (route.request().method() !== 'GET') { posts++; return route.fulfill({status:403,json:{error:'Unexpected mutation'}}); }
       if (pathname === '/api/admin/status') return route.fulfill({json:{dashboard:{available:true,current:'1.26.0',latest:'1.26.0'},bitcoin:'Bitcoin Core',updates_enabled:true,bitcoin_keyring_ready:true,bitcoin_upload:{filename:'bitcoin-31.1-x86_64-linux-gnu.tar.gz',size:100,sha256:'0'.repeat(64)}}});
       if (pathname === '/api/admin/config') return route.fulfill({json:{fields:[{key:'DASHBOARD_GITHUB_TOKEN',label:'GitHub-Token (leer lassen = unverändert)',section:'Updates',kind:'secret',value:'',configured:false}]}});
-      const files = {'/':'index.html','/admin':'admin.html','/static/i18n.js':'i18n.js','/static/node-insights.js':'node-insights.js','/static/protocol-insights.js':'protocol-insights.js','/static/dashboard.js':'dashboard.js','/static/admin.js':'admin.js',...Object.fromEntries(languages.map(lang => ['/static/locales/' + lang + '.json','locales/' + lang + '.json']))};
+      const files = {'/':'index.html','/admin':'admin.html','/static/nodes.js':'nodes.js','/static/i18n.js':'i18n.js','/static/node-insights.js':'node-insights.js','/static/protocol-insights.js':'protocol-insights.js','/static/dashboard.js':'dashboard.js','/static/admin.js':'admin.js',...Object.fromEntries(languages.map(lang => ['/static/locales/' + lang + '.json','locales/' + lang + '.json']))};
       if (files[pathname] && !(languageFailure && pathname.endsWith('/ru.json'))) {
         const file = files[pathname];
         return route.fulfill({body:fs.readFileSync(path.join(__dirname,'../static',file)),headers:{'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self'"},contentType:file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':'application/json'});
@@ -25,12 +25,12 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
       return route.fulfill({status:503,json:{error:'QA offline'}});
     });
     await page.goto('http://dashboard.test/#network');
-    await page.waitForSelector('select');
+    await page.waitForSelector('#languageSelect');
     assert.equal(await page.locator('#tab-overview').textContent(), 'Überblick');
-    assert.deepEqual(await page.locator('select option').evaluateAll(options => options.map(option => option.value)), languages);
+    assert.deepEqual(await page.locator('#languageSelect option').evaluateAll(options => options.map(option => option.value)), languages);
     for (const language of languages) {
       const t = source => catalog[language][source];
-      await page.selectOption('select', language);
+      await page.selectOption('#languageSelect', language);
       await page.waitForFunction(expected => document.querySelector('#tab-overview').textContent === expected, t('Überblick'));
       assert.equal(await page.locator('html').getAttribute('lang'), language);
       assert.equal(new URL(page.url()).hash, '#network');
@@ -48,7 +48,7 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
       await page.goto('http://dashboard.test/admin');
       await page.waitForFunction(expected => document.querySelector('#configHeading').textContent === expected, t('Dashboard-Konfiguration'));
       await page.waitForFunction(expected => document.querySelector('#configFields input')?.placeholder === expected, t('Nicht gesetzt'));
-      assert.equal(await page.locator('select').inputValue(), language);
+      assert.equal(await page.locator('#languageSelect').inputValue(), language);
       await page.evaluate(() => {
         document.getElementById('updateLog').textContent = 'Netzwerk Fehler <b>raw</b>';
         document.querySelector('#configFields input').value = 'Netzwerk';
@@ -98,10 +98,10 @@ const catalog = Object.fromEntries(languages.map(lang => [lang, JSON.parse(fs.re
     }
     assert.equal(posts, 0);
     await page.evaluate(() => localStorage.setItem('dashboard-language','../../ja'));
-    await page.reload(); await page.waitForSelector('select');
+    await page.reload(); await page.waitForSelector('#languageSelect');
     assert.equal(await page.locator('html').getAttribute('lang'), 'de');
     languageFailure = true;
-    await page.selectOption('select','ru');
+    await page.selectOption('#languageSelect','ru');
     await page.waitForFunction(() => document.querySelector('html').lang === 'de' && document.body.textContent.includes('Не удалось загрузить язык.'));
     assert.equal(await page.locator('#tab-overview').textContent(), 'Überblick');
     console.log('Language browser QA passed for six languages: selection, persistence, live updates, confirmation dialogs, desktop/mobile tabs, protected logs and form values, invalid preferences and unavailable catalogs.');
